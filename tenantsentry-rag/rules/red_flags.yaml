@@ -1,0 +1,125 @@
+# TenantSentry.ai — Red Flag Rules
+# These rules form your core IP. Add to this as you learn from real leases.
+# Each rule is embedded into the vector store as a 'rule' chunk type.
+
+rules:
+  - id: RF001
+    name: Above-market rent review
+    severity: high
+    description: >
+      Rent review mechanism allows increases exceeding CPI + 2% per annum,
+      or uses a ratchet clause preventing downward review.
+    trigger_keywords: ["rent review", "CPI", "fixed increase", "ratchet"]
+    legislation_ref: "Retail Leases Act 2003 (NSW) s.35 | Retail Leases Act 2003 (VIC) s.35"
+    recommended_action: >
+      Negotiate to cap rent reviews at CPI or market rent (whichever is lower).
+      Ensure no ratchet clause prevents downward adjustments.
+
+  - id: RF002
+    name: Demolition/redevelopment clause without compensation
+    severity: high
+    description: >
+      Landlord can terminate the lease for demolition or redevelopment
+      without providing adequate compensation to the tenant.
+    trigger_keywords: ["demolition", "redevelopment", "terminate", "vacant possession"]
+    legislation_ref: null
+    recommended_action: >
+      Negotiate minimum 6-month notice period and compensation covering fitout
+      costs, relocation costs, and lost profit for the remaining lease term.
+
+  - id: RF003
+    name: Unrestricted assignment prohibition
+    severity: high
+    description: >
+      Lease prohibits assignment without landlord consent, with no obligation
+      on the landlord to act reasonably or within a reasonable timeframe.
+    trigger_keywords: ["assignment", "transfer", "consent", "subletting"]
+    legislation_ref: "Retail Leases Act 2003 (NSW) s.41"
+    recommended_action: >
+      Ensure the lease includes a 'not to be unreasonably withheld' qualifier
+      on landlord consent, with a 28-day deemed approval period.
+
+  - id: RF004
+    name: Excessive make-good obligations
+    severity: high
+    description: >
+      Make-good clause requires tenant to return premises to original condition
+      regardless of normal wear and tear, or to restore landlord's fitout.
+    trigger_keywords: ["make good", "make-good", "reinstate", "original condition", "fitout"]
+    legislation_ref: "Retail Leases Act 2003 (NSW) s.16"
+    recommended_action: >
+      Negotiate to limit make-good to fair wear and tear exclusion.
+      Consider commissioning a condition report at lease commencement.
+
+  - id: RF005
+    name: Unlimited outgoings liability
+    severity: medium
+    description: >
+      Tenant is liable for all outgoings including capital expenditure items
+      such as roof replacement, structural repairs, or new plant and equipment.
+    trigger_keywords: ["outgoings", "capital expenditure", "structural", "plant and equipment"]
+    legislation_ref: "Retail Leases Act 2003 (NSW) s.12"
+    recommended_action: >
+      Cap tenant outgoings liability to operational costs only. Exclude
+      capital expenditure, land tax on landlord's total portfolio, and
+      management fees exceeding market rate.
+
+  - id: RF006
+    name: No relocation right restriction
+    severity: medium
+    description: >
+      Landlord has an unfettered right to relocate the tenant within the
+      building or centre without adequate notice or compensation.
+    trigger_keywords: ["relocation", "relocate", "alternative premises"]
+    legislation_ref: "Retail Leases Act 2003 (NSW) s.34A"
+    recommended_action: >
+      Ensure relocation requires minimum 3-month notice, comparable premises,
+      and landlord to cover all relocation costs.
+
+  - id: RF007
+    name: Personal guarantee without cap
+    severity: high
+    description: >
+      Directors or individuals are required to provide unlimited personal
+      guarantees over the full lease term without any cap or time limit.
+    trigger_keywords: ["personal guarantee", "guarantee", "guarantor", "indemnify"]
+    legislation_ref: null
+    recommended_action: >
+      Negotiate to cap personal guarantee at 6-12 months rent equivalent,
+      or limit to the first 2 years of the lease term.
+
+  - id: RF008
+    name: Turnover rent with low base rent threshold
+    severity: medium
+    description: >
+      Turnover rent clause set at a percentage that kicks in at a very low
+      threshold, resulting in the landlord sharing upside without sharing downside risk.
+    trigger_keywords: ["turnover rent", "percentage rent", "gross turnover", "base rent"]
+    legislation_ref: null
+    recommended_action: >
+      Ensure base rent threshold is set at realistic trading levels.
+      Negotiate for turnover data confidentiality protections.
+
+  - id: RF009
+    name: Holdover/overholding at penalty rate
+    severity: medium
+    description: >
+      Lease specifies that holding over after expiry is at a significantly
+      higher rent rate (e.g., 150-200% of contract rent) without adequate notice.
+    trigger_keywords: ["holdover", "overholding", "holding over", "month to month"]
+    legislation_ref: null
+    recommended_action: >
+      Negotiate holdover to revert to month-to-month at contract rent.
+      Ensure the lease includes adequate option to renew provisions.
+
+  - id: RF010
+    name: No exclusivity clause in retail centre
+    severity: medium
+    description: >
+      Lease in a shopping centre or multi-tenancy building has no exclusivity
+      provision preventing the landlord from leasing to direct competitors.
+    trigger_keywords: ["exclusivity", "exclusive", "competing business", "similar business"]
+    legislation_ref: null
+    recommended_action: >
+      Negotiate an exclusivity clause for your specific category/product type
+      within the centre or building precinct.
