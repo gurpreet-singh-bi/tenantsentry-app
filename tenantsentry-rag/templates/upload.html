@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TenantSentry.ai — AI-Powered Lease Audit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+
+    /* Brand font */
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
+    /* Drag-drop zone */
+    .drop-zone { transition: all 0.2s ease; }
+    .drop-zone.dragging { border-color: #0d9488; background: #f0fdfa; }
+
+    /* Progress bar animation */
+    .progress-bar { transition: width 0.6s ease; }
+
+    /* Clause card */
+    .clause-card { transition: box-shadow 0.15s ease; }
+    .clause-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+
+    /* Risk gauge */
+    .gauge-canvas { max-width: 200px; }
+
+    /* Severity badges */
+    .badge-high   { background: #fee2e2; color: #dc2626; }
+    .badge-medium { background: #fef3c7; color: #d97706; }
+    .badge-low    { background: #dcfce7; color: #16a34a; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 1s linear infinite; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800" x-data="app()" x-init="init()">
+
+  <!-- ═══════════════════════════════════════════
+       NAV
+  ════════════════════════════════════════════ -->
+  <nav class="bg-slate-900 border-b border-slate-700 px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+      </div>
+      <span class="text-white font-bold text-lg tracking-tight">TenantSentry<span class="text-teal-400">.ai</span></span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="text-slate-400 text-sm hidden sm:block">AI-Powered Commercial Lease Audit</span>
+      <button x-show="view !== 'upload'" @click="resetToUpload()"
+              class="text-slate-300 hover:text-white text-sm flex items-center gap-1 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        New Audit
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW: UPLOAD
+  ════════════════════════════════════════════ -->
+  <div x-show="view === 'upload'" x-cloak class="max-w-2xl mx-auto px-4 py-12">
+
+    <!-- Hero -->
+    <div class="text-center mb-10">
+      <h1 class="text-3xl font-bold text-slate-900 mb-3">
+        Know Your Lease. Protect Your Business.
+      </h1>
+      <p class="text-slate-500 text-base max-w-lg mx-auto">
+        Upload your commercial lease and get an AI-powered clause-by-clause audit in minutes.
+        We flag risk, cite legislation, and tell you what to do next.
+      </p>
+    </div>
+
+    <!-- Upload card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+
+      <!-- Error banner -->
+      <div x-show="error" x-cloak class="mb-5 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+        <svg class="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <p class="text-red-700 text-sm" x-text="error"></p>
+      </div>
+
+      <form @submit.prevent="submitAudit()">
+        <!-- Drop zone -->
+        <div
+          class="drop-zone border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer mb-6 hover:border-teal-400 hover:bg-teal-50/30"
+          :class="{ 'dragging': isDragging, 'border-teal-400 bg-teal-50/30': selectedFile }"
+          @dragover.prevent="isDragging = true"
+          @dragleave.prevent="isDragging = false"
+          @drop.prevent="handleDrop($event)"
+          @click="$refs.fileInput.click()"
+        >
+          <input type="file" accept=".pdf" class="hidden" x-ref="fileInput" @change="handleFileSelect($event)" />
+
+          <template x-if="!selectedFile">
+            <div>
+              <div class="w-12 h-12 bg-slate-100 rounded-xl mx-auto mb-3 flex items-center justify-center">
+                <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+              </div>
+              <p class="font-medium text-slate-700 mb-1">Drop your lease PDF here</p>
+              <p class="text-slate-400 text-sm">or click to browse · Max 50MB</p>
+            </div>
+          </template>
+
+          <template x-if="selectedFile">
+            <div class="flex items-center justify-center gap-3">
+              <div class="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <div class="text-left">
+                <p class="font-medium text-slate-800 text-sm" x-text="selectedFile.name"></p>
+                <p class="text-slate-400 text-xs" x-text="formatFileSize(selectedFile.size)"></p>
+              </div>
+              <button type="button" @click.stop="clearFile()" class="ml-2 text-slate-400 hover:text-red-500 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+          </template>
+        </div>
+
+        <!-- Form fields -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Jurisdiction <span class="text-red-500">*</span></label>
+            <select x-model="jurisdiction" required
+                    class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400">
+              <option value="">Select state</option>
+              <option value="NSW">New South Wales</option>
+              <option value="VIC">Victoria</option>
+              <option value="QLD">Queensland</option>
+              <option value="SA">South Australia</option>
+              <option value="WA">Western Australia</option>
+              <option value="TAS">Tasmania</option>
+              <option value="ACT">ACT</option>
+              <option value="NT">Northern Territory</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Tenant Name</label>
+            <input type="text" x-model="tenantName" placeholder="e.g. Acme Pty Ltd"
+                   class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400" />
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit"
+                :disabled="!selectedFile || !jurisdiction || isSubmitting"
+                :class="(!selectedFile || !jurisdiction || isSubmitting) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-teal-600 active:scale-95'"
+                class="w-full bg-teal-500 text-white font-semibold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2">
+          <template x-if="isSubmitting">
+            <svg class="spinner w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+          </template>
+          <template x-if="!isSubmitting">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+          </template>
+          <span x-text="isSubmitting ? 'Submitting...' : 'Start Audit'"></span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Trust signals -->
+    <div class="mt-6 flex items-center justify-center gap-6 text-slate-400 text-xs">
+      <span class="flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        Secure upload
+      </span>
+      <span class="flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        AU legislation grounded
+      </span>
+      <span class="flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Results in 2–5 minutes
+      </span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW: PROCESSING
+  ════════════════════════════════════════════ -->
+  <div x-show="view === 'processing'" x-cloak class="max-w-lg mx-auto px-4 py-20 text-center">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-10">
+      <!-- Animated shield -->
+      <div class="w-16 h-16 mx-auto mb-6 relative">
+        <div class="absolute inset-0 bg-teal-100 rounded-2xl animate-pulse"></div>
+        <div class="relative w-16 h-16 bg-teal-500 rounded-2xl flex items-center justify-center">
+          <svg class="w-8 h-8 text-white spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </div>
+      </div>
+
+      <h2 class="text-xl font-bold text-slate-900 mb-2">Auditing Your Lease</h2>
+      <p class="text-slate-500 text-sm mb-8" x-text="jobStage || 'Starting...'"></p>
+
+      <!-- Progress bar -->
+      <div class="bg-slate-100 rounded-full h-2 mb-3 overflow-hidden">
+        <div class="bg-teal-500 h-2 rounded-full progress-bar" :style="`width: ${jobProgress}%`"></div>
+      </div>
+      <p class="text-slate-400 text-xs mb-8" x-text="`${jobProgress}% complete`"></p>
+
+      <!-- Stage indicators -->
+      <div class="space-y-2 text-left">
+        <template x-for="stage in processingStages" :key="stage.label">
+          <div class="flex items-center gap-3 text-sm"
+               :class="stage.done ? 'text-teal-600' : (stage.active ? 'text-slate-800' : 'text-slate-300')">
+            <template x-if="stage.done">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+            </template>
+            <template x-if="stage.active && !stage.done">
+              <svg class="spinner w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </template>
+            <template x-if="!stage.active && !stage.done">
+              <div class="w-4 h-4 rounded-full border-2 border-slate-200 shrink-0"></div>
+            </template>
+            <span x-text="stage.label"></span>
+          </div>
+        </template>
+      </div>
+
+      <!-- Error state -->
+      <div x-show="jobError" x-cloak class="mt-6 bg-red-50 border border-red-200 rounded-lg p-4 text-left">
+        <p class="text-red-700 text-sm font-medium mb-1">Audit failed</p>
+        <p class="text-red-600 text-sm" x-text="jobError"></p>
+        <button @click="resetToUpload()" class="mt-3 text-sm text-red-600 underline hover:no-underline">
+          Try again
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW: UNDER REVIEW
+  ════════════════════════════════════════════ -->
+  <div x-show="view === 'review'" x-cloak class="max-w-lg mx-auto px-4 py-20 text-center">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-10">
+
+      <!-- Icon -->
+      <div class="w-16 h-16 mx-auto mb-6 relative">
+        <div class="absolute inset-0 bg-teal-100 rounded-2xl"></div>
+        <div class="relative w-16 h-16 bg-teal-500 rounded-2xl flex items-center justify-center">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+      </div>
+
+      <h2 class="text-xl font-bold text-slate-900 mb-2">AI Analysis Complete</h2>
+      <p class="text-slate-500 text-sm mb-8">
+        Your lease has been processed. A qualified commercial lease auditor is now reviewing the findings before your report is released.
+      </p>
+
+      <!-- 4-stage status tracker -->
+      <div class="space-y-3 text-left mb-8">
+
+        <!-- Stage 1: PDF parsed -->
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full bg-teal-500 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-slate-700">Lease uploaded &amp; parsed</p>
+            <p class="text-xs text-slate-400">Clauses identified and indexed</p>
+          </div>
+        </div>
+
+        <!-- Connector -->
+        <div class="ml-3.5 w-px h-4 bg-teal-200"></div>
+
+        <!-- Stage 2: AI analysis -->
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full bg-teal-500 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-slate-700">AI risk analysis complete</p>
+            <p class="text-xs text-slate-400" x-text="`${reviewClauseCount} clauses analysed · risk flags identified`"></p>
+          </div>
+        </div>
+
+        <!-- Connector -->
+        <div class="ml-3.5 w-px h-4 bg-amber-200"></div>
+
+        <!-- Stage 3: Expert review (active) -->
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full bg-amber-400 flex items-center justify-center shrink-0 animate-pulse">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-slate-800">Expert review in progress</p>
+            <p class="text-xs text-slate-400">A qualified commercial lease auditor is reviewing your findings</p>
+          </div>
+        </div>
+
+        <!-- Connector -->
+        <div class="ml-3.5 w-px h-4 bg-slate-200"></div>
+
+        <!-- Stage 4: Report ready (waiting) -->
+        <div class="flex items-center gap-3 opacity-40">
+          <div class="w-7 h-7 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0">
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-slate-500">Report released to you</p>
+            <p class="text-xs text-slate-400">You'll see your full audit report here once approved</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ETA note -->
+      <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-xs text-slate-500 text-left">
+        <span class="font-semibold text-slate-600">Typical review time:</span> Within 1 business day. This page will update automatically — no need to refresh.
+      </div>
+
+      <!-- Auto-refresh indicator -->
+      <p class="text-xs text-slate-400 mt-4 flex items-center justify-center gap-1.5">
+        <svg class="spinner w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Checking for updates every 30 seconds
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW: RESULTS
+  ════════════════════════════════════════════ -->
+  <div x-show="view === 'results'" x-cloak class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- Results header -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+        <!-- Risk gauge -->
+        <div class="flex flex-col items-center shrink-0">
+          <canvas id="gaugeChart" width="160" height="90" class="gauge-canvas"></canvas>
+          <div class="text-center -mt-2">
+            <span class="text-3xl font-bold" :style="`color: ${riskColor}`" x-text="result?.risk_score"></span>
+            <span class="text-slate-400 text-sm">/100</span>
+            <p class="text-xs font-semibold mt-0.5" :style="`color: ${riskColor}`"
+               x-text="riskLabel"></p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="flex-1">
+          <h2 class="text-xl font-bold text-slate-900 mb-1">
+            Audit Complete —
+            <span x-text="result?.tenant_name"></span>
+          </h2>
+          <p class="text-slate-400 text-sm mb-4">
+            <span x-text="result?.filename"></span> ·
+            <span x-text="result?.jurisdiction"></span> ·
+            <span x-text="result?.total_clauses"></span> clauses reviewed
+          </p>
+
+          <!-- Flag counts -->
+          <div class="flex gap-3">
+            <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-2 text-center">
+              <p class="text-2xl font-bold text-red-600" x-text="highCount"></p>
+              <p class="text-xs text-red-400 font-medium">HIGH</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-100 rounded-lg px-4 py-2 text-center">
+              <p class="text-2xl font-bold text-amber-600" x-text="mediumCount"></p>
+              <p class="text-xs text-amber-400 font-medium">MEDIUM</p>
+            </div>
+            <div class="bg-green-50 border border-green-100 rounded-lg px-4 py-2 text-center">
+              <p class="text-2xl font-bold text-green-600" x-text="lowCount"></p>
+              <p class="text-xs text-green-400 font-medium">LOW</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-col gap-2 shrink-0">
+          <a :href="`/api/audit/report/${jobId}`" target="_blank"
+             class="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Download PDF Report
+          </a>
+          <!-- Expert review badge -->
+          <div class="flex items-center gap-1.5 text-xs text-teal-600 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            Auditor reviewed &amp; approved
+          </div>
+          <button @click="resetToUpload()"
+                  class="flex items-center gap-2 border border-slate-200 text-slate-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Audit Another Lease
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6 flex gap-3">
+      <svg class="w-4 h-4 text-amber-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <p class="text-amber-700 text-xs">
+        <strong>Important:</strong> This audit is AI-generated and for informational purposes only.
+        It does not constitute legal advice. Consult a qualified commercial lease solicitor before
+        taking action on any identified risk.
+      </p>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button @click="filterSeverity = 'all'"
+              :class="filterSeverity === 'all' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+        All Clauses (<span x-text="result?.clause_analyses?.length || 0"></span>)
+      </button>
+      <button @click="filterSeverity = 'high'"
+              :class="filterSeverity === 'high' ? 'bg-red-500 text-white' : 'bg-white text-red-500 border border-red-200 hover:bg-red-50'"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+        High Risk (<span x-text="highCount"></span>)
+      </button>
+      <button @click="filterSeverity = 'medium'"
+              :class="filterSeverity === 'medium' ? 'bg-amber-500 text-white' : 'bg-white text-amber-500 border border-amber-200 hover:bg-amber-50'"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+        Medium (<span x-text="mediumCount"></span>)
+      </button>
+      <button @click="filterSeverity = 'flagged'"
+              :class="filterSeverity === 'flagged' ? 'bg-slate-700 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+        Flagged Only
+      </button>
+    </div>
+
+    <!-- Clause cards -->
+    <div class="space-y-3">
+      <template x-for="(clause, idx) in filteredClauses" :key="idx">
+        <div class="clause-card bg-white rounded-xl border border-slate-200 overflow-hidden"
+             :class="{
+               'border-l-4 border-l-red-400': clauseMaxSeverity(clause) === 'high',
+               'border-l-4 border-l-amber-400': clauseMaxSeverity(clause) === 'medium',
+               'border-l-4 border-l-green-400': clauseMaxSeverity(clause) === 'low' && clause.risk_flags?.length > 0,
+             }">
+
+          <!-- Card header (always visible) -->
+          <button class="w-full text-left px-5 py-4 flex items-start justify-between gap-3"
+                  @click="clause._open = !clause._open">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="font-semibold text-slate-800 text-sm" x-text="clause.clause_heading || `Clause ${idx+1}`"></span>
+                <template x-if="clause.clause_type">
+                  <span class="text-xs text-slate-400 font-normal" x-text="`· ${clause.clause_type}`"></span>
+                </template>
+              </div>
+              <p class="text-slate-500 text-sm line-clamp-2" x-text="clause.plain_english_summary || 'No summary available.'"></p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <template x-if="clause.risk_flags?.length > 0">
+                <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                      :class="`badge-${clauseMaxSeverity(clause)}`"
+                      x-text="clauseMaxSeverity(clause).toUpperCase()"></span>
+              </template>
+              <template x-if="!clause.risk_flags?.length">
+                <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-400">CLEAR</span>
+              </template>
+              <svg class="w-4 h-4 text-slate-400 transition-transform"
+                   :class="clause._open ? 'rotate-180' : ''"
+                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </div>
+          </button>
+
+          <!-- Expanded detail -->
+          <div x-show="clause._open" x-cloak class="border-t border-slate-100 px-5 py-4 space-y-4">
+
+            <!-- Risk flags -->
+            <template x-if="clause.risk_flags?.length > 0">
+              <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Risk Flags</p>
+                <div class="space-y-2">
+                  <template x-for="(flag, fi) in clause.risk_flags" :key="fi">
+                    <div class="flex gap-3 items-start p-3 rounded-lg"
+                         :class="`bg-${flag.severity === 'high' ? 'red' : flag.severity === 'medium' ? 'amber' : 'green'}-50`">
+                      <span class="text-xs font-bold shrink-0 mt-0.5"
+                            :class="`text-${flag.severity === 'high' ? 'red' : flag.severity === 'medium' ? 'amber' : 'green'}-600`"
+                            x-text="flag.severity?.toUpperCase()">
+                      </span>
+                      <div>
+                        <p class="text-sm text-slate-700" x-text="flag.description"></p>
+                        <template x-if="flag.legislation_ref">
+                          <p class="text-xs text-slate-400 mt-0.5 italic" x-text="flag.legislation_ref"></p>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- Key terms -->
+            <template x-if="clause.key_terms?.length > 0">
+              <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Key Terms</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <template x-for="term in clause.key_terms" :key="term">
+                    <span class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md" x-text="term"></span>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- Recommended action -->
+            <template x-if="clause.recommended_action">
+              <div class="bg-teal-50 border border-teal-100 rounded-lg p-3 flex gap-2">
+                <svg class="w-4 h-4 text-teal-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+                <div>
+                  <p class="text-xs font-semibold text-teal-700 mb-0.5">Recommended Action</p>
+                  <p class="text-sm text-teal-800" x-text="clause.recommended_action"></p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Clause text (collapsible) -->
+            <div>
+              <button @click="clause._showText = !clause._showText"
+                      class="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span x-text="clause._showText ? 'Hide clause text' : 'Show clause text'"></span>
+              </button>
+              <div x-show="clause._showText" x-cloak
+                   class="mt-2 bg-slate-50 rounded-lg p-3 text-xs text-slate-500 leading-relaxed font-mono max-h-40 overflow-y-auto"
+                   x-text="clause.clause_text"></div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Empty state -->
+      <template x-if="filteredClauses.length === 0">
+        <div class="text-center py-12 text-slate-400">
+          <svg class="w-10 h-10 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <p class="font-medium">No clauses match this filter</p>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       ALPINE APP
+  ════════════════════════════════════════════ -->
+  <script>
+  function app() {
+    return {
+      // State
+      view: 'upload',           // 'upload' | 'processing' | 'results'
+      selectedFile: null,
+      isDragging: false,
+      jurisdiction: '',
+      tenantName: '',
+      isSubmitting: false,
+      error: null,
+
+      // Job
+      jobId: null,
+      jobProgress: 0,
+      jobStage: '',
+      jobError: null,
+      pollTimer: null,
+      reviewPollTimer: null,
+      reviewClauseCount: 0,
+
+      // Results
+      result: null,
+      filterSeverity: 'all',
+      gaugeChart: null,
+
+      // Processing stages for display
+      processingStages: [
+        { label: 'Parsing PDF', threshold: 10, done: false, active: false },
+        { label: 'Identifying clauses', threshold: 30, done: false, active: false },
+        { label: 'Embedding & indexing', threshold: 50, done: false, active: false },
+        { label: 'AI clause analysis', threshold: 90, done: false, active: false },
+        { label: 'Generating report', threshold: 100, done: false, active: false },
+      ],
+
+      // Computed
+      get highCount() {
+        if (!this.result) return 0;
+        return (this.result.all_risk_flags || []).filter(f => f.severity === 'high').length;
+      },
+      get mediumCount() {
+        if (!this.result) return 0;
+        return (this.result.all_risk_flags || []).filter(f => f.severity === 'medium').length;
+      },
+      get lowCount() {
+        if (!this.result) return 0;
+        return (this.result.all_risk_flags || []).filter(f => f.severity === 'low').length;
+      },
+      get riskColor() {
+        const score = this.result?.risk_score || 0;
+        return score >= 60 ? '#dc2626' : score >= 30 ? '#d97706' : '#16a34a';
+      },
+      get riskLabel() {
+        const score = this.result?.risk_score || 0;
+        return score >= 60 ? 'HIGH RISK' : score >= 30 ? 'MEDIUM RISK' : 'LOW RISK';
+      },
+      get filteredClauses() {
+        if (!this.result?.clause_analyses) return [];
+        const clauses = this.result.clause_analyses;
+        if (this.filterSeverity === 'all') return clauses;
+        if (this.filterSeverity === 'flagged') return clauses.filter(c => c.risk_flags?.length > 0);
+        return clauses.filter(c => this.clauseMaxSeverity(c) === this.filterSeverity);
+      },
+
+      init() {
+        // nothing on load
+      },
+
+      handleDrop(e) {
+        this.isDragging = false;
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === 'application/pdf') {
+          this.selectedFile = file;
+          this.error = null;
+        } else {
+          this.error = 'Please drop a PDF file.';
+        }
+      },
+
+      handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) {
+          this.selectedFile = file;
+          this.error = null;
+        }
+      },
+
+      clearFile() {
+        this.selectedFile = null;
+        this.$refs.fileInput.value = '';
+      },
+
+      formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      },
+
+      async submitAudit() {
+        if (!this.selectedFile || !this.jurisdiction) return;
+        this.isSubmitting = true;
+        this.error = null;
+
+        const formData = new FormData();
+        formData.append('file', this.selectedFile);
+        formData.append('jurisdiction', this.jurisdiction);
+        formData.append('tenant_name', this.tenantName);
+
+        try {
+          const res = await fetch('/api/audit/submit', { method: 'POST', body: formData });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || 'Submission failed');
+          }
+          const data = await res.json();
+          this.jobId = data.job_id;
+          this.view = 'processing';
+          this.startPolling();
+        } catch (e) {
+          this.error = e.message;
+        } finally {
+          this.isSubmitting = false;
+        }
+      },
+
+      startPolling() {
+        this.pollTimer = setInterval(() => this.pollStatus(), 3000);
+      },
+
+      async pollStatus() {
+        try {
+          const res = await fetch(`/api/audit/status/${this.jobId}`);
+          const data = await res.json();
+
+          this.jobProgress = data.progress || 0;
+          this.jobStage = data.stage || '';
+
+          // Update stage indicators
+          this.processingStages.forEach(s => {
+            s.done = this.jobProgress > s.threshold;
+            s.active = !s.done && this.jobProgress >= (s.threshold - 20);
+          });
+
+          if (data.status === 'complete') {
+            clearInterval(this.pollTimer);
+            // Don't show results yet — go to review holding view
+            // and poll for auditor release
+            await this.transitionToReview();
+          } else if (data.status === 'failed') {
+            clearInterval(this.pollTimer);
+            this.jobError = data.error || 'An unexpected error occurred.';
+          }
+        } catch (e) {
+          // Swallow polling errors silently
+        }
+      },
+
+      async transitionToReview() {
+        // Grab clause count for the status display (doesn't expose findings)
+        try {
+          const res = await fetch(`/api/audit/result/${this.jobId}`);
+          if (res.ok) {
+            const data = await res.json();
+            this.reviewClauseCount = data.total_clauses || 0;
+          }
+        } catch (_) {}
+        this.view = 'review';
+        // Poll every 30s to see if auditor has released the report
+        this.reviewPollTimer = setInterval(() => this.pollRelease(), 30000);
+        // Also check immediately in case it was already released
+        await this.pollRelease();
+      },
+
+      async pollRelease() {
+        try {
+          const res = await fetch(`/api/audit/report/status/${this.jobId}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.released) {
+            clearInterval(this.reviewPollTimer);
+            await this.loadResult();
+          }
+        } catch (_) {}
+      },
+
+      async loadResult() {
+        const res = await fetch(`/api/audit/result/${this.jobId}`);
+        this.result = await res.json();
+        this.view = 'results';
+        // Init gauge after DOM renders
+        this.$nextTick(() => this.initGauge());
+      },
+
+      initGauge() {
+        const canvas = document.getElementById('gaugeChart');
+        if (!canvas || !this.result) return;
+        if (this.gaugeChart) this.gaugeChart.destroy();
+
+        const score = this.result.risk_score || 0;
+        const color = score >= 60 ? '#dc2626' : score >= 30 ? '#d97706' : '#16a34a';
+        const remaining = 100 - score;
+
+        this.gaugeChart = new Chart(canvas, {
+          type: 'doughnut',
+          data: {
+            datasets: [{
+              data: [score, remaining],
+              backgroundColor: [color, '#f1f5f9'],
+              borderWidth: 0,
+              circumference: 180,
+              rotation: 270,
+            }]
+          },
+          options: {
+            responsive: false,
+            cutout: '72%',
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          }
+        });
+      },
+
+      clauseMaxSeverity(clause) {
+        const flags = clause.risk_flags || [];
+        if (flags.some(f => f.severity === 'high')) return 'high';
+        if (flags.some(f => f.severity === 'medium')) return 'medium';
+        if (flags.length > 0) return 'low';
+        return 'none';
+      },
+
+      resetToUpload() {
+        clearInterval(this.pollTimer);
+        clearInterval(this.reviewPollTimer);
+        this.view = 'upload';
+        this.selectedFile = null;
+        this.jurisdiction = '';
+        this.tenantName = '';
+        this.error = null;
+        this.jobId = null;
+        this.jobProgress = 0;
+        this.jobStage = '';
+        this.jobError = null;
+        this.result = null;
+        this.reviewClauseCount = 0;
+        this.filterSeverity = 'all';
+        if (this.gaugeChart) { this.gaugeChart.destroy(); this.gaugeChart = null; }
+        this.processingStages.forEach(s => { s.done = false; s.active = false; });
+      },
+    }
+  }
+  </script>
+
+</body>
+</html>
