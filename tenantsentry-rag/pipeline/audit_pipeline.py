@@ -114,6 +114,7 @@ def run_audit(
     jurisdiction: str,
     tenant_name: str = None,
     job_id: str = None,
+    document_hash: str = None,
     progress_callback: ProgressCallback = None,
 ) -> AuditResult:
     """
@@ -124,6 +125,10 @@ def run_audit(
         jurisdiction:      State code - NSW, VIC, QLD, SA, WA, TAS, ACT, NT
         tenant_name:       Optional - used in the output report
         job_id:            Optional - if provided, lease dates are persisted to Supabase
+        document_hash:     SHA-256 hex digest of the raw PDF bytes (G2 dedup).
+                           When provided and USE_VECTOR_STORE=true, the pipeline
+                           checks whether this document is already in the vector
+                           store and skips embedding if so.
         progress_callback: Optional fn(pct: int, stage: str)
 
     Returns:
@@ -176,23 +181,36 @@ def run_audit(
 
     # 4. Optional: embed + store (production only)
     if USE_VECTOR_STORE:
-        _progress(cb, 35, f"Embedding {len(chunks)} clauses...")
-        from embedding.embedder import embed_texts
-        from vector_store.supabase_store import upsert_chunks
-        chunk_texts = [c.content for c in chunks]
-        embeddings = embed_texts(chunk_texts, input_type="document")
-        rows = [
-            {
-                "content": c.content,
-                "embedding": embeddings[i],
-                "metadata": c.metadata,
-                "chunk_type": "lease",
-                "jurisdiction": jur,
-            }
-            for i, c in enumerate(chunks)
-        ]
-        upsert_chunks(rows)
-        _progress(cb, 45, "Stored in knowledge base.")
+        from vector_store.supabase_store import document_exists, upsert_chunks
+
+        # G2: Skip embedding if this exact PDF was already indexed
+        _already_indexed = document_hash and document_exists(document_hash)
+
+        if _already_indexed:
+            logger.info(
+                f"G2 dedup: document {(document_hash or '')[:12]}… already in vector store "
+                f"— skipping {len(chunks)} chunk embeddings"
+            )
+            _progress(cb, 45, "Document already indexed — skipping embedding.")
+        else:
+            _progress(cb, 35, f"Embedding {len(chunks)} clauses...")
+            from embedding.embedder import embed_texts
+            chunk_texts = [c.content for c in chunks]
+            embeddings = embed_texts(chunk_texts, input_type="document")
+            rows = [
+                {
+                    "content":      c.content,
+                    "embedding":    embeddings[i],
+                    "metadata":     c.metadata,
+                    # G2: store hash as document_id so future uploads can dedup
+                    "document_id":  document_hash or f"job-{job_id}",
+                    "chunk_type":   "lease",
+                    "jurisdiction": jur,
+                }
+                for i, c in enumerate(chunks)
+            ]
+            upsert_chunks(rows)
+            _progress(cb, 45, "Stored in knowledge base.")
 
     # 5. Build jurisdiction-filtered rules context
     rules_context = _build_rules_context(jur)

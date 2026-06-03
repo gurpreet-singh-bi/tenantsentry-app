@@ -20,6 +20,7 @@ Run locally:
     uvicorn api.main:app --reload --port 8000
 """
 
+import hashlib
 import os
 import sys
 import tempfile
@@ -201,6 +202,11 @@ async def submit_audit(
     if file_size_mb > MAX_FILE_SIZE_MB:
         raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE_MB}MB.")
 
+    # G2: SHA-256 fingerprint of the raw PDF bytes.
+    # Passed to the pipeline so it can skip re-embedding duplicate uploads.
+    document_hash = hashlib.sha256(content).hexdigest()
+    logger.info(f"Document hash (SHA-256): {document_hash[:16]}… | size: {file_size_mb:.2f}MB")
+
     job = create_job(
         filename=file.filename,
         jurisdiction=jur,
@@ -219,6 +225,7 @@ async def submit_audit(
         filename=file.filename,
         jurisdiction=jur,
         tenant_name=tenant_name.strip() or "Unknown",
+        document_hash=document_hash,
     )
 
     return JSONResponse({
@@ -259,6 +266,65 @@ def list_reports():
     jobs = [j.to_dict() for j in _jobs_fallback.values() if j.status.value in ("complete", "failed")]
     return JSONResponse({"reports": jobs})
 
+
+# ── G3: Invoice type ─────────────────────────────────────────────────────────
+
+VALID_INVOICE_TYPES = {"estimate", "actuals", "monthly_rent"}
+
+
+class InvoiceSubmitRequest(BaseModel):
+    job_id: str
+    invoice_type: str        # G3: 'estimate' | 'actuals' | 'monthly_rent'
+    period_start: str = ""   # ISO date YYYY-MM-DD
+    period_end: str = ""
+    amount_cents: int = 0    # total in AUD cents
+    line_items: list = []    # [{name, amount_cents, category}]
+
+
+@app.post("/api/invoice/submit")
+async def submit_invoice(body: InvoiceSubmitRequest):
+    """
+    G3: Record an invoice against a completed audit job.
+    invoice_type drives the correct audit logic:
+      'estimate'     → compare against lease's estimated outgoings schedule
+      'actuals'      → trigger EOFY reconciliation audit
+      'monthly_rent' → feed into ongoing anomaly monitor (F16)
+    """
+    if body.invoice_type not in VALID_INVOICE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid invoice_type '{body.invoice_type}'. Must be one of: {sorted(VALID_INVOICE_TYPES)}"
+        )
+
+    job = get_job(body.job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+    if _USE_SUPABASE:
+        try:
+            from db.audit_run_store import _get_client
+            row = {
+                "job_id":       body.job_id,
+                "invoice_type": body.invoice_type,
+                "period_start": body.period_start or None,
+                "period_end":   body.period_end or None,
+                "amount_cents": body.amount_cents or None,
+                "line_items":   body.line_items or [],
+            }
+            result = _get_client().table("invoice").insert(row).execute()
+            invoice_id = result.data[0]["id"] if result.data else None
+            logger.info(f"Invoice {invoice_id} ({body.invoice_type}) stored for job {body.job_id}")
+            return JSONResponse({"ok": True, "invoice_id": invoice_id, "invoice_type": body.invoice_type})
+        except Exception as e:
+            logger.error(f"Invoice insert failed: {e}")
+            raise HTTPException(status_code=500, detail="Failed to store invoice.")
+
+    # Dev mode — acknowledge without persisting
+    logger.info(f"[DEV] Invoice received: job={body.job_id} type={body.invoice_type} amount={body.amount_cents}c")
+    return JSONResponse({"ok": True, "invoice_id": None, "invoice_type": body.invoice_type})
+
+
+# ── Feedback ──────────────────────────────────────────────────────────────────
 
 class FeedbackRequest(BaseModel):
     job_id: str
@@ -536,6 +602,7 @@ def _run_audit_job(
     filename: str,
     jurisdiction: str,
     tenant_name: str,
+    document_hash: str = None,
 ) -> None:
     """Runs in a background thread. Calls full audit pipeline with progress updates."""
     tmp_path = None
@@ -551,6 +618,7 @@ def _run_audit_job(
             jurisdiction=jurisdiction,
             tenant_name=tenant_name,
             job_id=job_id,
+            document_hash=document_hash,   # G2: enables dedup in vector store
             progress_callback=lambda pct, stage: update_job_progress(job_id, pct, stage),
         )
 

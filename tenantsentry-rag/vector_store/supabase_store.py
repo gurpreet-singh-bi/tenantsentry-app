@@ -46,29 +46,63 @@ def get_client() -> Client:
     return _client
 
 
+def document_exists(document_hash: str) -> bool:
+    """
+    G2: Check whether a document has already been embedded in the vector store.
+
+    Uses the SHA-256 hash stored in document_id.  A single matching row is
+    enough — if the first chunk of a document is present, the full document
+    was embedded on a prior upload.
+
+    Returns True  → skip embedding, chunks already indexed.
+    Returns False → proceed with embedding.
+    """
+    try:
+        client = get_client()
+        result = (
+            client.table("lease_chunks")
+            .select("id")
+            .eq("document_id", document_hash)
+            .limit(1)
+            .execute()
+        )
+        exists = len(result.data) > 0
+        if exists:
+            logger.info(f"G2: document_id={document_hash[:12]}… already in vector store — dedup hit")
+        return exists
+    except Exception as e:
+        # If the check itself fails, default to re-embedding (safe degradation)
+        logger.warning(f"G2: document_exists check failed ({e}) — will re-embed to be safe")
+        return False
+
+
 def upsert_chunks(chunks: list[dict]) -> None:
     """
-    Insert or update chunks in the vector store.
+    Insert chunks into the vector store.
 
-    Each chunk dict should have:
+    Each chunk dict must have:
         content, embedding, metadata, document_id, chunk_type, jurisdiction
+
+    Call document_exists(document_hash) before this to skip duplicates (G2).
+    document_id should be set to the SHA-256 hash of the source PDF so that
+    document_exists() can detect re-uploads of the same file.
     """
     client = get_client()
 
     rows = [
         {
-            "content": c["content"],
-            "embedding": c["embedding"],
-            "metadata": c.get("metadata", {}),
+            "content":     c["content"],
+            "embedding":   c["embedding"],
+            "metadata":    c.get("metadata", {}),
             "document_id": c.get("document_id"),
-            "chunk_type": c.get("chunk_type", "lease"),
+            "chunk_type":  c.get("chunk_type", "lease"),
             "jurisdiction": c.get("jurisdiction"),
         }
         for c in chunks
     ]
 
     result = client.table("lease_chunks").insert(rows).execute()
-    logger.info(f"Upserted {len(rows)} chunks to Supabase")
+    logger.info(f"Inserted {len(rows)} chunks into Supabase (document_id={rows[0].get('document_id','?')[:12]}…)")
     return result
 
 
