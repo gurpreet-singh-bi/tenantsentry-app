@@ -6,11 +6,16 @@ voyage-large-2-instruct is optimised for retrieval tasks on legal/technical docs
 """
 
 import os
+import time
 import voyageai
 from loguru import logger
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Max retries on rate limit (429) errors
+_MAX_RETRIES = 4
+_RETRY_BASE_DELAY = 20  # seconds — Voyage free tier resets every 60s (3 RPM)
 
 _client = None
 
@@ -46,8 +51,21 @@ def embed_texts(texts: list[str], input_type: str = "document") -> list[list[flo
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
         logger.debug(f"Embedding batch {i//batch_size + 1} ({len(batch)} texts)")
-        result = client.embed(batch, model=model, input_type=input_type)
-        all_embeddings.extend(result.embeddings)
+
+        for attempt in range(_MAX_RETRIES):
+            try:
+                result = client.embed(batch, model=model, input_type=input_type)
+                all_embeddings.extend(result.embeddings)
+                break
+            except Exception as e:
+                err = str(e)
+                is_rate_limit = "429" in err or "rate limit" in err.lower() or "payment method" in err.lower()
+                if is_rate_limit and attempt < _MAX_RETRIES - 1:
+                    wait = _RETRY_BASE_DELAY * (attempt + 1)
+                    logger.warning(f"Voyage rate limit hit — waiting {wait}s before retry {attempt + 1}/{_MAX_RETRIES - 1}")
+                    time.sleep(wait)
+                else:
+                    raise
 
     logger.info(f"Embedded {len(texts)} texts → {len(all_embeddings)} vectors")
     return all_embeddings

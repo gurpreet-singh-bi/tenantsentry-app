@@ -76,7 +76,10 @@ def _split_on_clause_headings(text: str) -> list[tuple[str, str]]:
     heading_positions = []
     for pattern in COMPILED_PATTERNS:
         for match in pattern.finditer(text):
-            heading_positions.append((match.start(), match.group()))
+            # Take only the first line of the match to prevent
+            # the heading from bleeding into the next line via \s matching \n
+            heading_text = match.group().split("\n")[0].strip()
+            heading_positions.append((match.start(), heading_text))
 
     if not heading_positions:
         # No headings found — fall back to paragraph splitting

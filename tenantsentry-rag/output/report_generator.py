@@ -195,7 +195,8 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
     summary_data = [
         [
             Paragraph(f'<font color="{risk_color.hexval()}" size="36"><b>{risk_score}</b></font><br/>'
-                      f'<font size="9" color="#64748b">out of 100</font>',
+                      f'<font size="8" color="#64748b">RISK SCORE</font><br/>'
+                      f'<font size="7" color="#94a3b8">(0 = safe · 100 = critical)</font>',
                       ParagraphStyle("Score", alignment=TA_CENTER)),
             Paragraph(f'<font color="{risk_color.hexval()}" size="14"><b>{risk_label}</b></font>',
                       ParagraphStyle("Level", alignment=TA_CENTER)),
@@ -233,6 +234,64 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
     ))
 
     # ══════════════════════════════════════════════════════════════════════
+    # EXECUTIVE SUMMARY — TOP PRIORITY ACTIONS
+    # ══════════════════════════════════════════════════════════════════════
+    # Collect clauses with at least one HIGH flag, ordered by number of HIGH flags desc
+    high_clauses = []
+    for ca in result.get("clause_analyses", []):
+        flags = ca.get("risk_flags") or []
+        n_high = sum(1 for f in flags if f.get("severity") == "high")
+        if n_high > 0 and ca.get("recommended_action"):
+            high_clauses.append((n_high, ca))
+    high_clauses.sort(key=lambda x: x[0], reverse=True)
+    top_clauses = [ca for _, ca in high_clauses[:3]]
+
+    if top_clauses:
+        story.append(Spacer(1, 8*mm))
+        story.append(Paragraph("Priority Actions Before You Sign", h2))
+        story.append(HRFlowable(width="100%", thickness=1, color=RED))
+        story.append(Spacer(1, 3*mm))
+        story.append(Paragraph(
+            "These are the highest-risk findings requiring immediate attention. "
+            "Address these before executing the lease.",
+            ParagraphStyle("ExecIntro", parent=styles["Normal"], fontSize=8,
+                           textColor=SLATE, fontName="Helvetica-Oblique")
+        ))
+        story.append(Spacer(1, 3*mm))
+
+        for rank, ca in enumerate(top_clauses, 1):
+            heading = ca.get("clause_heading", "Unknown Clause")
+            action = ca.get("recommended_action", "")
+            flags = ca.get("risk_flags") or []
+            n_high = sum(1 for f in flags if f.get("severity") == "high")
+
+            exec_row = Table([[
+                Paragraph(
+                    f'<font color="{RED.hexval()}" size="14"><b>{rank}</b></font>',
+                    ParagraphStyle("Rank", alignment=TA_CENTER)
+                ),
+                [
+                    Paragraph(f"<b>{heading}</b> — {n_high} HIGH risk finding{'s' if n_high > 1 else ''}",
+                              ParagraphStyle("ExecH", fontSize=9, textColor=NAVY,
+                                             fontName="Helvetica-Bold", spaceAfter=2)),
+                    Paragraph(action,
+                              ParagraphStyle("ExecAct", fontSize=8, textColor=TEXT, leading=11)),
+                ]
+            ]], colWidths=[12*mm, 158*mm])
+            exec_row.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), RED_LIGHT),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3*mm),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3*mm),
+                ("LEFTPADDING", (0, 0), (0, 0), 3*mm),
+                ("LEFTPADDING", (1, 0), (1, 0), 3*mm),
+                ("RIGHTPADDING", (-1, 0), (-1, 0), 4*mm),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.white),
+            ]))
+            story.append(exec_row)
+            story.append(Spacer(1, 2*mm))
+
+    # ══════════════════════════════════════════════════════════════════════
     # CLAUSE-BY-CLAUSE ANALYSIS
     # ══════════════════════════════════════════════════════════════════════
     story.append(PageBreak())
@@ -259,9 +318,9 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
         sev_color = _severity_color(max_sev)
         sev_bg = _severity_bg(max_sev)
 
-        clause_elements = []
+        # ── Clause header (keep header + summary together to avoid orphan headings) ──
+        anchor_elements = []
 
-        # Clause header
         header_data = [[
             Paragraph(f"<b>{heading}</b>", ParagraphStyle("ClauseH", fontSize=10, textColor=NAVY, fontName="Helvetica-Bold")),
             Paragraph(f"<b>{max_sev.upper()}</b>", ParagraphStyle("Sev", fontSize=8, textColor=sev_color, fontName="Helvetica-Bold", alignment=TA_RIGHT)),
@@ -274,22 +333,24 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
             ("LEFTPADDING", (0, 0), (0, 0), 4*mm),
             ("RIGHTPADDING", (-1, 0), (-1, 0), 4*mm),
         ]))
-        clause_elements.append(header_table)
+        anchor_elements.append(header_table)
 
-        # Summary
+        # Summary and key terms go with the header in KeepTogether
         if summary:
-            clause_elements.append(Spacer(1, 2*mm))
-            clause_elements.append(Paragraph(summary, body))
+            anchor_elements.append(Spacer(1, 2*mm))
+            anchor_elements.append(Paragraph(summary, body))
 
-        # Key terms
         if key_terms:
             terms_str = " · ".join(key_terms[:6])
-            clause_elements.append(Spacer(1, 1*mm))
-            clause_elements.append(Paragraph(f"<b>Key terms:</b> {terms_str}", small))
+            anchor_elements.append(Spacer(1, 1*mm))
+            anchor_elements.append(Paragraph(f"<b>Key terms:</b> {terms_str}", small))
 
-        # Risk flags
+        # Wrap only the anchor block — header won't orphan, but flags can flow freely
+        story.append(KeepTogether(anchor_elements))
+
+        # ── Risk flags (flow freely — no KeepTogether to prevent dropped content) ──
         if flags:
-            clause_elements.append(Spacer(1, 2*mm))
+            story.append(Spacer(1, 2*mm))
             for flag in flags:
                 flag_sev = flag.get("severity", "low")
                 flag_color = _severity_color(flag_sev)
@@ -308,11 +369,11 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
                     ("TOPPADDING", (0, 0), (-1, -1), 1),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
                 ]))
-                clause_elements.append(flag_row)
+                story.append(flag_row)
 
-        # Recommended action
+        # ── Recommended action ──
         if action:
-            clause_elements.append(Spacer(1, 2*mm))
+            story.append(Spacer(1, 2*mm))
             action_table = Table([[
                 Paragraph("→ ACTION", ParagraphStyle("ActLabel", fontSize=7, textColor=TEAL,
                            fontName="Helvetica-Bold")),
@@ -323,13 +384,11 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
                 ("TOPPADDING", (0, 0), (-1, -1), 1),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
             ]))
-            clause_elements.append(action_table)
+            story.append(action_table)
 
-        clause_elements.append(Spacer(1, 3*mm))
-        clause_elements.append(HRFlowable(width="100%", thickness=0.5, color=MID_GREY))
-        clause_elements.append(Spacer(1, 2*mm))
-
-        story.append(KeepTogether(clause_elements))
+        story.append(Spacer(1, 3*mm))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=MID_GREY))
+        story.append(Spacer(1, 2*mm))
 
     # ══════════════════════════════════════════════════════════════════════
     # FOOTER DISCLAIMER

@@ -43,7 +43,7 @@ BASE_DIR = Path(__file__).parent.parent   # tenantsentry-rag/
 sys.path.insert(0, str(BASE_DIR))
 
 from api.jobs import (
-    create_job, get_job, update_job_progress, complete_job, fail_job, JobStatus,
+    create_job, get_job, get_job_result, update_job_progress, complete_job, fail_job, JobStatus,
     review_job, release_job, list_pending_review, list_reviewed,
     store_document, get_document,
 )
@@ -158,9 +158,8 @@ async def upload_page(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
-    """Portfolio dashboard — TODO (Phase 1, F12)."""
-    # Temporary redirect to audit until dashboard is built
-    return RedirectResponse(url="/audit", status_code=302)
+    """Tenant dashboard — shown after login (F12)."""
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -228,6 +227,80 @@ async def submit_audit(
     })
 
 
+@app.get("/reports", response_class=HTMLResponse)
+async def reports_page(request: Request):
+    """Reports library — all released audit reports."""
+    return templates.TemplateResponse("reports.html", {"request": request})
+
+
+@app.get("/api/reports")
+def list_reports():
+    """
+    Return all complete audit jobs regardless of release status.
+    Frontend shows status: released = downloadable, complete = pending admin review, failed = error.
+    """
+    from api.jobs import _USE_SUPABASE, _jobs_fallback
+    if _USE_SUPABASE:
+        try:
+            from db.audit_run_store import _get_client
+            result = _get_client().table("audit_run").select(
+                "job_id, filename, jurisdiction, tenant_name, status, created_at, completed_at, released_at, released, reviewed_by_human, findings"
+            ).in_("status", ["complete", "failed"]).order("completed_at", desc=True).execute()
+            # Extract risk_score from findings JSONB for display
+            rows = []
+            for r in (result.data or []):
+                findings = r.pop("findings", None) or {}
+                r["risk_score"] = findings.get("risk_score")
+                r["total_clauses"] = findings.get("total_clauses")
+                rows.append(r)
+            return JSONResponse({"reports": rows})
+        except Exception as e:
+            logger.error(f"Failed to fetch reports: {e}")
+    jobs = [j.to_dict() for j in _jobs_fallback.values() if j.status.value in ("complete", "failed")]
+    return JSONResponse({"reports": jobs})
+
+
+class FeedbackRequest(BaseModel):
+    job_id: str
+    rating: int   # 1=accurate, 0=partial, -1=inaccurate
+    comment: str = ""
+
+
+@app.post("/api/feedback")
+async def submit_feedback(body: FeedbackRequest):
+    """Store tenant feedback on a released audit report."""
+    if _USE_SUPABASE:
+        try:
+            from db.audit_run_store import _get_client
+            _get_client().table("audit_run").update({
+                "reviewer_notes": f"[TENANT FEEDBACK rating={body.rating}] {body.comment}".strip()
+            }).eq("job_id", body.job_id).execute()
+        except Exception as e:
+            logger.error(f"Feedback save failed: {e}")
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/audit/dates/{job_id}")
+def get_audit_dates(job_id: str):
+    """
+    Return critical dates extracted for a completed audit.
+    Powers the 12-Month Monitoring dashboard.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if _USE_SUPABASE:
+        try:
+            from db.lease_date_store import fetch_dates_for_job
+            dates = fetch_dates_for_job(job_id)
+            return JSONResponse({"job_id": job_id, "dates": dates})
+        except Exception as e:
+            logger.error(f"Failed to fetch lease dates for {job_id}: {e}")
+    # Fallback: pull from in-memory findings if Supabase unavailable
+    findings = get_job_result(job_id) or {}
+    return JSONResponse({"job_id": job_id, "dates": findings.get("lease_dates", [])})
+
+
 @app.get("/api/audit/status/{job_id}")
 def get_audit_status(job_id: str):
     """Poll for job status and progress."""
@@ -245,7 +318,7 @@ def get_audit_result(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found.")
     if job.status != JobStatus.COMPLETE:
         raise HTTPException(status_code=409, detail=f"Job not complete. Status: {job.status}")
-    return JSONResponse(job.result)
+    return JSONResponse(get_job_result(job_id) or {})
 
 
 @app.get("/api/audit/report/{job_id}")
@@ -261,7 +334,7 @@ def download_report(job_id: str):
 
     try:
         from output.report_generator import generate_pdf_report
-        report_path = generate_pdf_report(job.result, job_id=job_id)
+        report_path = generate_pdf_report(get_job_result(job_id), job_id=job_id)
         safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
         filename = f"TenantSentry_Audit_{safe_name}_{job.jurisdiction}.pdf"
         return FileResponse(path=report_path, media_type="application/pdf", filename=filename)
@@ -317,11 +390,13 @@ async def admin_stats(_: None = Depends(require_admin)):
     reviewed_today = [j for j in reviewed if j.reviewed_at and
                       datetime.fromisoformat(j.reviewed_at).date() == today]
     all_jobs = [*pending, *reviewed]
-    risk_scores = [j.result.get("risk_score", 0) for j in all_jobs if j.result]
+    # Fetch findings for stats — scoped to jobs that are complete
+    all_findings = [get_job_result(j.job_id) or {} for j in all_jobs]
+    risk_scores = [f.get("risk_score", 0) for f in all_findings if f]
     avg_risk = round(sum(risk_scores) / len(risk_scores)) if risk_scores else 0
     high_flags = sum(
-        len([f for f in (j.result.get("all_risk_flags") or []) if f.get("severity") == "high"])
-        for j in all_jobs if j.result
+        len([flag for flag in (f.get("all_risk_flags") or []) if flag.get("severity") == "high"])
+        for f in all_findings if f
     )
     recent_activity = sorted(
         [j.to_dict() for j in all_jobs],
@@ -342,14 +417,30 @@ async def admin_stats(_: None = Depends(require_admin)):
 @app.get("/api/admin/queue")
 async def admin_queue(_: None = Depends(require_admin)):
     """
-    Returns pending-review and recently-reviewed jobs.
+    Returns pending-review, recently-reviewed, and failed jobs.
     Pending = status COMPLETE, reviewed_by_human = False.
     Reviewed = reviewed_by_human = True (includes released).
+    Failed = status FAILED — visible so they're never silently lost.
     """
+    from db.audit_run_store import fetch_failed
+    from api.jobs import _USE_SUPABASE, _jobs_fallback
+    failed_rows = fetch_failed() if _USE_SUPABASE else [
+        j.to_dict() for j in _jobs_fallback.values() if j.status.value == "failed"
+    ]
     return JSONResponse({
         "pending": [j.to_dict() for j in list_pending_review()],
         "reviewed": [j.to_dict() for j in list_reviewed()],
+        "failed":  failed_rows,
     })
+
+
+@app.get("/api/admin/jobs/recent")
+async def admin_recent_jobs(_: None = Depends(require_admin)):
+    """Last 20 jobs regardless of status — for debugging pipeline failures."""
+    from db.audit_run_store import fetch_all_recent
+    if _USE_SUPABASE:
+        return JSONResponse({"jobs": fetch_all_recent(20)})
+    return JSONResponse({"jobs": [j.to_dict() for j in list(_jobs_fallback.values())[-20:]]})
 
 
 @app.get("/api/admin/result/{job_id}")
@@ -360,7 +451,7 @@ async def admin_get_result(job_id: str, _: None = Depends(require_admin)):
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status != JobStatus.COMPLETE:
         raise HTTPException(status_code=409, detail="Job not complete")
-    return JSONResponse(job.result or {})
+    return JSONResponse(get_job_result(job_id) or {})
 
 
 class ReviewRequest(BaseModel):
@@ -403,7 +494,7 @@ async def admin_download_report(job_id: str, _: None = Depends(require_admin)):
         raise HTTPException(status_code=409, detail="Audit not yet complete")
     try:
         from output.report_generator import generate_pdf_report
-        report_path = generate_pdf_report(job.result, job_id=job_id)
+        report_path = generate_pdf_report(get_job_result(job_id), job_id=job_id)
         safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
         filename = f"TenantSentry_DRAFT_Audit_{safe_name}_{job.jurisdiction}.pdf"
         return FileResponse(path=report_path, media_type="application/pdf", filename=filename)
@@ -459,6 +550,7 @@ def _run_audit_job(
             pdf_path=tmp_path,
             jurisdiction=jurisdiction,
             tenant_name=tenant_name,
+            job_id=job_id,
             progress_callback=lambda pct, stage: update_job_progress(job_id, pct, stage),
         )
 

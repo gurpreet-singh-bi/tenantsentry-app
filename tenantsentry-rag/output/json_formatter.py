@@ -29,6 +29,17 @@ class ClauseAnalysis(BaseModel):
     error: Optional[str] = None     # Set if LLM parsing failed
 
 
+class LeaseDate(BaseModel):
+    """A critical date or deadline extracted from the lease."""
+    date_type: str                      # matches lease_dates CHECK constraint
+    date_description: str               # plain-English label for the tenant
+    date_value: Optional[str] = None    # ISO YYYY-MM-DD, or None if relative/unknown
+    clause_reference: Optional[str] = None
+    recurrence: Optional[str] = None    # None | "annual" | "monthly"
+    alert_days_before: int = 90
+    notes: Optional[str] = None         # extra context from the LLM
+
+
 class AuditResult(BaseModel):
     tenant_name: str
     jurisdiction: str
@@ -38,6 +49,7 @@ class AuditResult(BaseModel):
     risk_score: int             # 0-100
     clause_analyses: list[ClauseAnalysis]
     all_risk_flags: list[dict]
+    lease_dates: list[LeaseDate] = Field(default_factory=list)
 
     @property
     def high_risk_flags(self) -> list[dict]:
@@ -51,6 +63,11 @@ class AuditResult(BaseModel):
             return "MEDIUM"
         return "LOW"
 
+    @property
+    def critical_deadlines(self) -> list[LeaseDate]:
+        """Dates with alert_days_before >= 90 -- highest-consequence deadlines."""
+        return [d for d in self.lease_dates if d.alert_days_before >= 90 and d.date_value]
+
     def to_summary(self) -> dict:
         return {
             "tenant": self.tenant_name,
@@ -62,4 +79,6 @@ class AuditResult(BaseModel):
             "total_clauses_reviewed": self.total_clauses,
             "total_flags": len(self.all_risk_flags),
             "high_risk_flags": len(self.high_risk_flags),
+            "dates_extracted": len(self.lease_dates),
+            "critical_deadlines": len(self.critical_deadlines),
         }

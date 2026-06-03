@@ -5,12 +5,11 @@ pytesseract==0.3.13        # OCR for scanned PDFs
 pdf2image==1.17.0          # Convert PDF pages to images for OCR
 boto3==1.34.0              # AWS Textract for OCR fallback (production)
 
-# Embedding (production only — set USE_VECTOR_STORE=true in .env)
-# voyageai==0.2.3
+# Embedding
+voyageai==0.2.3
 
-# Vector store (production only)
-# supabase==2.5.0
-# vecs==0.4.3
+# Vector store / database
+supabase==2.5.0
 
 # LLM
 anthropic==0.28.0
