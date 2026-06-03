@@ -731,16 +731,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     main, .stepper-wrap { padding-left: 16px; padding-right: 16px; }
   }
 
-  /* ── LIVE / DEMO TOGGLE ── */
-  .mode-toggle { display:flex; align-items:center; gap:0; border-radius:20px; overflow:hidden; border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.04); flex-shrink:0; }
-  .mode-btn { font-size:11px; font-weight:700; padding:5px 12px; cursor:pointer; border:none; background:transparent; letter-spacing:0.4px; transition:all 0.15s; }
-  .mode-btn.live  { color:var(--ts-text2); }
-  .mode-btn.demo  { color:var(--ts-text2); }
-  .mode-btn.live.active  { background:#00c2a8; color:#fff; border-radius:20px; box-shadow:0 0 8px rgba(0,194,168,0.4); }
-  .mode-btn.demo.active  { background:#f59e0b; color:#fff; border-radius:20px; box-shadow:0 0 8px rgba(245,158,11,0.35); }
-  .mode-indicator { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:middle; }
-  .mode-btn.live.active .mode-indicator  { background:#fff; box-shadow:0 0 4px rgba(255,255,255,0.8); animation:pulse-dot 2s infinite; }
-  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  /* DEV/LIVE toggle styles removed — handled by static/mode-toggle.js */
 
   /* ── NAV STYLES (shared with dashboard) ── */
   .nav-link { color:var(--ts-text2); font-size:13px; font-weight:500; padding:6px 10px; border-radius:6px; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; cursor:pointer; text-decoration:none; }
@@ -780,26 +771,13 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <!-- Live / Demo toggle -->
-      <div class="mode-toggle" title="Switch between Live API and Demo mode">
-        <button id="btnLive" class="mode-btn live" onclick="setMode('live')">
-          <span class="mode-indicator"></span>LIVE
-        </button>
-        <button id="btnDemo" class="mode-btn demo" onclick="setMode('demo')">DEMO</button>
-      </div>
+      <!-- DEV/LIVE toggle injected globally by mode-toggle.js -->
       <button class="relative w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);" title="Notifications">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8fa3bf" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
       </button>
       <span class="hidden sm:inline-flex plan-badge">Bundle</span>
       <div class="user-avatar">GM</div>
-      <button id="ts-mode-btn"
-  onclick="tsModeToggle()"
-  title="Switch between DEV (mock data) and LIVE (real API) mode — admin only"
-  style="display:inline-flex;align-items:center;gap:6px;padding:0 10px;height:28px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:0.4px;cursor:pointer;border:none;transition:all 0.2s;flex-shrink:0;">
-  <span id="ts-mode-dot" style="width:7px;height:7px;border-radius:50%;flex-shrink:0;"></span>
-  <span id="ts-mode-label">···</span>
-</button>
-<button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
+      <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
   style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid var(--ts-border-rgba,rgba(255,255,255,0.07));background:var(--ts-raised,rgba(255,255,255,0.035));">
   <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
   <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -1490,20 +1468,22 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     document.getElementById('leaseState').style.borderColor = '';
   }
 
-  // ── LIVE / DEMO MODE TOGGLE ──────────────────────────────────────────────────
-  // 'live'  → real Claude API calls (MOCK_MODE=false required on server)
-  // 'demo'  → mock OCR stages + hardcoded confidence issues (no API calls)
-  let auditMode = localStorage.getItem('auditMode') || 'demo';
+  // ── DEV / LIVE MODE — driven by server-side toggle ──────────────────────────
+  // Mode is set server-side via POST /api/admin/mode/toggle.
+  // The DEV/LIVE pill in the nav (injected by mode-toggle.js) is the single toggle.
+  // This page reads the current mode from the server on load.
+  let auditMode = 'dev'; // default until server responds
 
   function setMode(mode) {
     auditMode = mode;
     localStorage.setItem('auditMode', mode);
-    document.getElementById('btnLive').classList.toggle('active', mode === 'live');
-    document.getElementById('btnDemo').classList.toggle('active', mode === 'demo');
   }
 
-  // Init toggle state on page load
-  setMode(auditMode);
+  // Sync mode from server on page load
+  fetch('/api/mode')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ setMode(d.is_dev ? 'dev' : 'live'); })
+    .catch(function(){ setMode(localStorage.getItem('auditMode') || 'dev'); });
 
   // ── UPLOAD ZONE EVENTS ──
   const zone = document.getElementById('uploadZone');
@@ -2430,66 +2410,6 @@ document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
 tsApplyThemeIcons();
 </script>
 
-<script>
-/* ═══════════════════════════════════════
-   DEV / LIVE MODE TOGGLE
-═══════════════════════════════════════ */
-(function() {
-  function tsApplyModeBadge(data) {
-    var btn   = document.getElementById('ts-mode-btn');
-    var dot   = document.getElementById('ts-mode-dot');
-    var label = document.getElementById('ts-mode-label');
-    if (!btn) return;
-    if (data.is_dev) {
-      btn.style.background   = 'rgba(245,158,11,0.15)';
-      btn.style.border       = '1px solid rgba(245,158,11,0.4)';
-      btn.style.color        = '#fbbf24';
-      dot.style.background   = '#f59e0b';
-      label.textContent      = 'DEV';
-      btn.title = 'DEV mode — click to switch to LIVE (requires admin token)';
-    } else {
-      btn.style.background   = 'rgba(34,197,94,0.12)';
-      btn.style.border       = '1px solid rgba(34,197,94,0.3)';
-      btn.style.color        = '#4ade80';
-      dot.style.background   = '#22c55e';
-      label.textContent      = 'LIVE';
-      btn.title = 'LIVE mode — click to switch to DEV (requires admin token)';
-    }
-  }
-
-  function tsLoadMode() {
-    fetch('/api/mode').then(function(r){ return r.json(); }).then(tsApplyModeBadge).catch(function(){});
-  }
-
-  window.tsModeToggle = function() {
-    var token = localStorage.getItem('ts-admin-token') || '';
-    if (!token) {
-      token = prompt('Admin token required to switch mode:');
-      if (!token) return;
-      localStorage.setItem('ts-admin-token', token);
-    }
-    fetch('/api/admin/mode/toggle', {
-      method: 'POST',
-      headers: { 'X-Admin-Token': token }
-    })
-    .then(function(r) {
-      if (r.status === 401) {
-        localStorage.removeItem('ts-admin-token');
-        alert('Invalid admin token. Token cleared — try again.');
-        return null;
-      }
-      return r.json();
-    })
-    .then(function(data) {
-      if (data) tsApplyModeBadge(data);
-    })
-    .catch(function(e) { console.error('Mode toggle failed', e); });
-  };
-
-  document.addEventListener('DOMContentLoaded', tsLoadMode);
-  tsLoadMode();
-})();
-</script>
 
 </body>
 </html>
