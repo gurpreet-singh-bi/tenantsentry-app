@@ -344,7 +344,14 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     </div>
     <div class="flex items-center gap-2">
       <button @click="loadQueue()" class="btn btn-ghost py-1.5 px-3">↺ Refresh</button>
-      <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
+      <button id="ts-mode-btn"
+  onclick="tsModeToggle()"
+  title="Switch between DEV (mock data) and LIVE (real API) mode — admin only"
+  style="display:inline-flex;align-items:center;gap:6px;padding:0 10px;height:28px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:0.4px;cursor:pointer;border:none;transition:all 0.2s;flex-shrink:0;">
+  <span id="ts-mode-dot" style="width:7px;height:7px;border-radius:50%;flex-shrink:0;"></span>
+  <span id="ts-mode-label">···</span>
+</button>
+<button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
   style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid var(--ts-border-rgba,rgba(255,255,255,0.07));background:var(--ts-raised,rgba(255,255,255,0.035));">
   <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
   <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -1173,5 +1180,67 @@ document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
 // Also run immediately in case DOM is already ready
 tsApplyThemeIcons();
 </script>
+
+<script>
+/* ═══════════════════════════════════════
+   DEV / LIVE MODE TOGGLE
+═══════════════════════════════════════ */
+(function() {
+  function tsApplyModeBadge(data) {
+    var btn   = document.getElementById('ts-mode-btn');
+    var dot   = document.getElementById('ts-mode-dot');
+    var label = document.getElementById('ts-mode-label');
+    if (!btn) return;
+    if (data.is_dev) {
+      btn.style.background   = 'rgba(245,158,11,0.15)';
+      btn.style.border       = '1px solid rgba(245,158,11,0.4)';
+      btn.style.color        = '#fbbf24';
+      dot.style.background   = '#f59e0b';
+      label.textContent      = 'DEV';
+      btn.title = 'DEV mode — click to switch to LIVE (requires admin token)';
+    } else {
+      btn.style.background   = 'rgba(34,197,94,0.12)';
+      btn.style.border       = '1px solid rgba(34,197,94,0.3)';
+      btn.style.color        = '#4ade80';
+      dot.style.background   = '#22c55e';
+      label.textContent      = 'LIVE';
+      btn.title = 'LIVE mode — click to switch to DEV (requires admin token)';
+    }
+  }
+
+  function tsLoadMode() {
+    fetch('/api/mode').then(function(r){ return r.json(); }).then(tsApplyModeBadge).catch(function(){});
+  }
+
+  window.tsModeToggle = function() {
+    var token = localStorage.getItem('ts-admin-token') || '';
+    if (!token) {
+      token = prompt('Admin token required to switch mode:');
+      if (!token) return;
+      localStorage.setItem('ts-admin-token', token);
+    }
+    fetch('/api/admin/mode/toggle', {
+      method: 'POST',
+      headers: { 'X-Admin-Token': token }
+    })
+    .then(function(r) {
+      if (r.status === 401) {
+        localStorage.removeItem('ts-admin-token');
+        alert('Invalid admin token. Token cleared — try again.');
+        return null;
+      }
+      return r.json();
+    })
+    .then(function(data) {
+      if (data) tsApplyModeBadge(data);
+    })
+    .catch(function(e) { console.error('Mode toggle failed', e); });
+  };
+
+  document.addEventListener('DOMContentLoaded', tsLoadMode);
+  tsLoadMode();
+})();
+</script>
+
 </body>
 </html>

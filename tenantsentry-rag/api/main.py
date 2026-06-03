@@ -51,14 +51,20 @@ from api.jobs import (
     store_document, get_document,
 )
 
-MOCK_MODE = os.environ.get("MOCK_MODE", "true").lower() == "true"
+# ── Mode management (DEV / LIVE) ──────────────────────────────────────────────
+# Import after load_dotenv() so DEV_MODE env var is already set
+from api.mode import Mode, is_dev, is_live, toggle as _toggle_mode, status as _mode_status
 
-if MOCK_MODE:
-    from pipeline.mock_pipeline import run_mock_audit as run_audit
-    logger.info("🧪 MOCK_MODE enabled — no API calls will be made")
-else:
-    from pipeline.audit_pipeline import run_audit
-    logger.info("🚀 Production mode — real AI pipeline active")
+# Pipeline is selected dynamically at request time via _get_pipeline()
+# so toggling mode at runtime immediately affects new audit submissions.
+from pipeline.dev_pipeline  import run_dev_audit
+from pipeline.audit_pipeline import run_audit as run_live_audit
+
+def _get_pipeline():
+    """Return the correct pipeline function for the current mode."""
+    return run_dev_audit if is_dev() else run_live_audit
+
+logger.info(f"TenantSentry.ai pipeline loaded — startup mode: {_mode_status()['mode'].upper()}")
 
 # ── App factory ───────────────────────────────────────────────────────────────
 # ── V2: Bounded thread pool for audit jobs ────────────────────────────────────
@@ -94,32 +100,33 @@ async def lifespan(app: FastAPI):
         else:
             logger.info(f"V4: {label}='{model_str}' ✓")
 
-    # If not in MOCK_MODE, do a minimal live API call to confirm the key + model work
-    if not MOCK_MODE:
+    # V4: Live API connectivity check — only runs when starting in LIVE mode
+    if is_live():
         api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if not api_key or api_key.startswith("sk-ant-your"):
             logger.error(
-                "V4: ANTHROPIC_API_KEY is missing or a placeholder — "
-                "real audits will fail immediately. Set it in .env."
+                "V4: ANTHROPIC_API_KEY is missing or placeholder — "
+                "switch to DEV mode or set a real key in .env."
             )
         else:
             try:
                 import anthropic as _anthropic
                 _client = _anthropic.Anthropic(api_key=api_key)
                 _client.messages.create(
-                    model=SONNET_MODEL,
-                    max_tokens=1,
+                    model=SONNET_MODEL, max_tokens=1,
                     messages=[{"role": "user", "content": "ping"}],
                 )
                 logger.info(f"V4: API connectivity verified — model '{SONNET_MODEL}' accepted ✓")
             except Exception as e:
                 logger.error(
                     f"V4: Startup API check failed (model='{SONNET_MODEL}'): {e}. "
-                    "Audits will fail until this is resolved."
+                    "Audits will fail in LIVE mode until resolved."
                 )
+    else:
+        logger.info("DEV mode — skipping API connectivity check")
 
     logger.info(
-        f"TenantSentry.ai starting up | mock={MOCK_MODE} | "
+        f"TenantSentry.ai starting up | mode={_mode_status()['mode'].upper()} | "
         f"audit_workers={MAX_CONCURRENT_AUDITS}"
     )
     yield
@@ -234,6 +241,26 @@ async def dashboard_page(request: Request):
 @app.get("/api/health")
 def health():
     return {"status": "ok", "service": "TenantSentry.ai", "version": "1.0.0"}
+
+
+@app.get("/api/mode")
+def get_mode():
+    """Current runtime mode — DEV or LIVE. Polled by the nav toggle button."""
+    return JSONResponse(_mode_status())
+
+
+@app.post("/api/admin/mode/toggle")
+async def toggle_mode(_: None = Depends(require_admin)):
+    """
+    Toggle between DEV and LIVE mode at runtime (admin only).
+    DEV  → zero API calls, deterministic mock data, free.
+    LIVE → real Claude API, Supabase, VoyageAI.
+    Takes effect immediately for all new audit submissions.
+    In-flight audits complete in the mode they started.
+    """
+    new_mode = _toggle_mode()
+    logger.info(f"Runtime mode toggled to {new_mode.upper()} by admin")
+    return JSONResponse(_mode_status())
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -805,7 +832,6 @@ async def _schedule_audit_job(
         ),
     )
 
-
 def _run_audit_job(
     job_id: str,
     pdf_bytes: bytes,
@@ -823,7 +849,9 @@ def _run_audit_job(
 
         update_job_progress(job_id, 5, "Parsing PDF...")
 
-        result = run_audit(
+        # Select pipeline based on current runtime mode (DEV or LIVE)
+        pipeline = _get_pipeline()
+        result = pipeline(
             pdf_path=tmp_path,
             jurisdiction=jurisdiction,
             tenant_name=tenant_name,
@@ -833,7 +861,7 @@ def _run_audit_job(
         )
 
         complete_job(job_id, result.model_dump(mode="json"))
-        logger.info(f"[{job_id}] Audit complete")
+        logger.info(f"[{job_id}] Audit complete — mode={_mode_status()['mode'].upper()}")
 
     except NotImplementedError as e:
         fail_job(job_id, str(e))
