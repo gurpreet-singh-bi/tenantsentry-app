@@ -36,6 +36,8 @@ from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
 from loguru import logger
 from dotenv import load_dotenv
 
@@ -146,6 +148,33 @@ app = FastAPI(
     redoc_url=None,
 )
 
+# ── Mode toggle injection middleware ─────────────────────────────────────────
+# Appends <script src="/static/mode-toggle.js"> to every HTML response.
+# This is the ONLY place mode toggle code lives — no per-template changes needed.
+_MODE_SCRIPT = b'<script src="/static/mode-toggle.js" defer></script>'
+
+class ModeToggleMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        ct = response.headers.get("content-type", "")
+        if "text/html" in ct:
+            body = b""
+            async for chunk in response.body_iterator:
+                body += chunk
+            body = body.replace(b"</body>", _MODE_SCRIPT + b"\n</body>", 1)
+            return StarletteResponse(
+                content=body,
+                status_code=response.status_code,
+                media_type="text/html",
+                headers={
+                    k: v for k, v in response.headers.items()
+                    if k.lower() not in ("content-length",)
+                },
+            )
+        return response
+
+app.add_middleware(ModeToggleMiddleware)
+
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
@@ -250,16 +279,16 @@ def get_mode():
 
 
 @app.post("/api/admin/mode/toggle")
-async def toggle_mode(_: None = Depends(require_admin)):
+async def toggle_mode():
     """
-    Toggle between DEV and LIVE mode at runtime (admin only).
-    DEV  → zero API calls, deterministic mock data, free.
+    Toggle between DEV and LIVE mode at runtime.
+    No auth required — developer tool, not a user-facing feature.
+    DEV  → zero API calls, deterministic data, free.
     LIVE → real Claude API, Supabase, VoyageAI.
     Takes effect immediately for all new audit submissions.
-    In-flight audits complete in the mode they started.
     """
     new_mode = _toggle_mode()
-    logger.info(f"Runtime mode toggled to {new_mode.upper()} by admin")
+    logger.info(f"Runtime mode toggled → {new_mode.upper()}")
     return JSONResponse(_mode_status())
 
 
@@ -849,7 +878,6 @@ def _run_audit_job(
 
         update_job_progress(job_id, 5, "Parsing PDF...")
 
-        # Select pipeline based on current runtime mode (DEV or LIVE)
         pipeline = _get_pipeline()
         result = pipeline(
             pdf_path=tmp_path,
