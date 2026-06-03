@@ -536,6 +536,14 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                x-show="selectedJob?.job_id">
               ⬇ Download PDF
             </a>
+            <!-- G6: Evidence pack — all HIGH flags -->
+            <a :href="`/api/admin/evidence/${selectedJob?.job_id}`"
+               target="_blank"
+               class="btn btn-red"
+               x-show="selectedJob?.job_id"
+               title="Download evidence pack — clause excerpts, legislation, CPI math, dispute letter drafts for all HIGH flags">
+              📁 Evidence Pack
+            </a>
             <!-- Contact tenant -->
             <a :href="`mailto:?subject=TenantSentry Audit — ${encodeURIComponent(selectedJob?.tenant_name || '')} (${selectedJob?.jurisdiction})&body=Dear ${encodeURIComponent(selectedJob?.tenant_name || 'Tenant')},%0A%0AYour lease audit is complete. Please log in to TenantSentry.ai to view your report.%0A%0ARef: ${selectedJob?.job_id || ''}`"
                class="btn btn-ghost">
@@ -804,6 +812,20 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                 <a :href="`/api/admin/report/${selectedJob?.job_id}`"
                    target="_blank"
                    class="btn btn-ghost shrink-0 py-1 px-2.5 text-xs">
+                  ⬇
+                </a>
+              </div>
+
+              <!-- G6: Evidence pack row -->
+              <div class="doc-row">
+                <span style="font-size:18px">📁</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold">Evidence Pack (ZIP)</div>
+                  <div class="text-xs mt-0.5" style="color:var(--ts-text2)">Clause excerpts · Legislation · CPI math · Dispute letters</div>
+                </div>
+                <a :href="`/api/admin/evidence/${selectedJob?.job_id}`"
+                   target="_blank"
+                   class="btn btn-red shrink-0 py-1 px-2.5 text-xs">
                   ⬇
                 </a>
               </div>

@@ -476,6 +476,96 @@ def download_report(job_id: str):
         raise HTTPException(status_code=500, detail="Report generation failed.")
 
 
+@app.get("/api/audit/evidence/{job_id}")
+def download_evidence_pack(job_id: str):
+    """
+    G6: Download the evidence pack ZIP for all HIGH-severity flags in a released audit.
+    Contains: clause excerpts, legislation PDFs, CPI verification, and dispute letter drafts.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail="Audit not yet complete.")
+    if not job.released:
+        raise HTTPException(status_code=403, detail="Report not yet released.")
+
+    try:
+        from output.evidence_pack import generate_evidence_packs
+        result = get_job_result(job_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Audit result not found.")
+        zip_path = generate_evidence_packs(result, job_id=job_id)
+        if not zip_path:
+            raise HTTPException(status_code=404, detail="No HIGH-severity flags — evidence pack not generated.")
+        safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
+        filename = f"TenantSentry_EvidencePack_{safe_name}_{job.jurisdiction}.zip"
+        return FileResponse(path=zip_path, media_type="application/zip", filename=filename)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Evidence pack generation failed for {job_id}: {e}")
+        raise HTTPException(status_code=500, detail="Evidence pack generation failed.")
+
+
+@app.get("/api/audit/evidence/{job_id}/{flag_id}")
+def download_single_evidence_pack(job_id: str, flag_id: str):
+    """
+    G6: Download the evidence pack ZIP for a single specific flag.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail="Audit not yet complete.")
+    if not job.released:
+        raise HTTPException(status_code=403, detail="Report not yet released.")
+
+    try:
+        from output.evidence_pack import generate_single_evidence_pack
+        result = get_job_result(job_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Audit result not found.")
+        zip_path = generate_single_evidence_pack(result, job_id=job_id, flag_id=flag_id)
+        safe_flag = flag_id.replace(" ", "_")
+        filename = f"TenantSentry_Evidence_{safe_flag}.zip"
+        return FileResponse(path=zip_path, media_type="application/zip", filename=filename)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Single evidence pack failed for {job_id}/{flag_id}: {e}")
+        raise HTTPException(status_code=500, detail="Evidence pack generation failed.")
+
+
+@app.get("/api/admin/evidence/{job_id}")
+async def admin_download_evidence(job_id: str, _: None = Depends(require_admin)):
+    """
+    G6: Admin evidence pack download — bypasses release gate for auditor review.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail="Audit not yet complete.")
+
+    try:
+        from output.evidence_pack import generate_evidence_packs
+        result = get_job_result(job_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Audit result not found.")
+        zip_path = generate_evidence_packs(result, job_id=job_id)
+        if not zip_path:
+            raise HTTPException(status_code=404, detail="No HIGH-severity flags found.")
+        safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
+        filename = f"TenantSentry_DRAFT_EvidencePack_{safe_name}_{job.jurisdiction}.zip"
+        return FileResponse(path=zip_path, media_type="application/zip", filename=filename)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Admin evidence pack failed for {job_id}: {e}")
+        raise HTTPException(status_code=500, detail="Evidence pack generation failed.")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Admin portal — human-in-loop review gate (G4)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -618,7 +708,6 @@ async def admin_download_document(job_id: str, _: None = Depends(require_admin))
 
 
 @app.get("/api/admin/report/{job_id}")
-
 @app.get("/api/admin/report/{job_id}")
 async def admin_download_report(job_id: str, _: None = Depends(require_admin)):
     """Auditor PDF download — bypasses release gate (auditor reviews before releasing)."""
@@ -636,6 +725,32 @@ async def admin_download_report(job_id: str, _: None = Depends(require_admin)):
     except Exception as e:
         logger.exception(f"Admin report generation failed for {job_id}: {e}")
         raise HTTPException(status_code=500, detail="Report generation failed.")
+
+
+@app.get("/api/admin/evidence/{job_id}")
+async def admin_download_evidence(job_id: str, _: None = Depends(require_admin)):
+    """G6: Admin evidence pack download — bypasses release gate for auditor review."""
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail="Audit not yet complete.")
+    try:
+        from output.evidence_pack import generate_evidence_packs
+        result = get_job_result(job_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Audit result not found.")
+        zip_path = generate_evidence_packs(result, job_id=job_id)
+        if not zip_path:
+            raise HTTPException(status_code=404, detail="No HIGH-severity flags found.")
+        safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
+        filename = f"TenantSentry_DRAFT_EvidencePack_{safe_name}_{job.jurisdiction}.zip"
+        return FileResponse(path=zip_path, media_type="application/zip", filename=filename)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Admin evidence pack failed for {job_id}: {e}")
+        raise HTTPException(status_code=500, detail="Evidence pack generation failed.")
 
 
 @app.post("/api/admin/release/{job_id}")
@@ -674,13 +789,7 @@ async def _schedule_audit_job(
     """
     V2 fix: async dispatcher that runs _run_audit_job in the bounded
     _audit_executor thread pool instead of FastAPI's shared anyio pool.
-
-    BackgroundTasks awaits this coroutine (after the HTTP response is sent),
-    which submits the blocking audit work to the capped executor and yields
-    the event loop back while waiting — other requests are never blocked.
-
     Concurrency cap: MAX_CONCURRENT_AUDITS (default 4).
-    If all slots are busy, the job queues inside the ThreadPoolExecutor.
     Scale path: swap executor for Celery + Redis queue (F-ASYNC2).
     """
     loop = asyncio.get_running_loop()
@@ -705,10 +814,7 @@ def _run_audit_job(
     tenant_name: str,
     document_hash: str = None,
 ) -> None:
-    """
-    Synchronous audit runner. Executes in a thread from _audit_executor.
-    Writes PDF to a temp file, calls the pipeline, then persists result.
-    """
+    """Synchronous audit runner — executes in a thread from _audit_executor."""
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -722,7 +828,7 @@ def _run_audit_job(
             jurisdiction=jurisdiction,
             tenant_name=tenant_name,
             job_id=job_id,
-            document_hash=document_hash,   # G2: enables dedup in vector store
+            document_hash=document_hash,
             progress_callback=lambda pct, stage: update_job_progress(job_id, pct, stage),
         )
 
