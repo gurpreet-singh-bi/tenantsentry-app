@@ -20,10 +20,12 @@ Run locally:
     uvicorn api.main:app --reload --port 8000
 """
 
+import asyncio
 import hashlib
 import os
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -59,11 +61,73 @@ else:
     logger.info("🚀 Production mode — real AI pipeline active")
 
 # ── App factory ───────────────────────────────────────────────────────────────
+# ── V2: Bounded thread pool for audit jobs ────────────────────────────────────
+# FastAPI's default BackgroundTasks shares the anyio thread pool (40 threads).
+# Long audits (50-page PDF + OCR + multiple LLM calls) can exhaust it under
+# concurrent load, blocking ALL background tasks including health checks.
+# Fix: dedicated pool, capped at MAX_CONCURRENT_AUDITS.
+# Scale path: replace with Celery + Redis when >10 concurrent users (F-ASYNC2).
+MAX_CONCURRENT_AUDITS = 4
+_audit_executor = ThreadPoolExecutor(
+    max_workers=MAX_CONCURRENT_AUDITS,
+    thread_name_prefix="ts-audit",
+)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("TenantSentry.ai starting up")
+    # ── V4: Validate model strings before accepting traffic ───────────────────
+    from llm.router import OPUS_MODEL, SONNET_MODEL
+
+    KNOWN_VALID_PREFIXES = ("claude-opus-", "claude-sonnet-", "claude-haiku-", "claude-3-")
+    for label, model_str in [("OPUS_MODEL", OPUS_MODEL), ("SONNET_MODEL", SONNET_MODEL)]:
+        if not model_str or model_str.startswith("your-") or "placeholder" in model_str.lower():
+            logger.error(
+                f"V4: {label}='{model_str}' looks like a placeholder. "
+                "Set a real Anthropic model ID in .env or audits will fail."
+            )
+        elif not any(model_str.startswith(p) for p in KNOWN_VALID_PREFIXES):
+            logger.warning(
+                f"V4: {label}='{model_str}' doesn't match known Claude model patterns. "
+                f"Expected one of: {KNOWN_VALID_PREFIXES}"
+            )
+        else:
+            logger.info(f"V4: {label}='{model_str}' ✓")
+
+    # If not in MOCK_MODE, do a minimal live API call to confirm the key + model work
+    if not MOCK_MODE:
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key or api_key.startswith("sk-ant-your"):
+            logger.error(
+                "V4: ANTHROPIC_API_KEY is missing or a placeholder — "
+                "real audits will fail immediately. Set it in .env."
+            )
+        else:
+            try:
+                import anthropic as _anthropic
+                _client = _anthropic.Anthropic(api_key=api_key)
+                _client.messages.create(
+                    model=SONNET_MODEL,
+                    max_tokens=1,
+                    messages=[{"role": "user", "content": "ping"}],
+                )
+                logger.info(f"V4: API connectivity verified — model '{SONNET_MODEL}' accepted ✓")
+            except Exception as e:
+                logger.error(
+                    f"V4: Startup API check failed (model='{SONNET_MODEL}'): {e}. "
+                    "Audits will fail until this is resolved."
+                )
+
+    logger.info(
+        f"TenantSentry.ai starting up | mock={MOCK_MODE} | "
+        f"audit_workers={MAX_CONCURRENT_AUDITS}"
+    )
     yield
-    logger.info("TenantSentry.ai shutting down")
+
+    # ── Shutdown: drain the audit thread pool gracefully ─────────────────────
+    logger.info("TenantSentry.ai shutting down — waiting for in-flight audits...")
+    _audit_executor.shutdown(wait=True)
+    logger.info("Audit executor stopped.")
 
 
 app = FastAPI(
@@ -218,8 +282,11 @@ async def submit_audit(
     # Persist original PDF for auditor download
     store_document(job.job_id, file.filename, content)
 
+    # V2: dispatch to bounded executor — prevents event loop starvation.
+    # _schedule_audit_job is async so BackgroundTasks awaits it; inside it
+    # uses run_in_executor to run the blocking pipeline off the event loop.
     background_tasks.add_task(
-        _run_audit_job,
+        _schedule_audit_job,
         job_id=job.job_id,
         pdf_bytes=content,
         filename=file.filename,
@@ -551,6 +618,8 @@ async def admin_download_document(job_id: str, _: None = Depends(require_admin))
 
 
 @app.get("/api/admin/report/{job_id}")
+
+@app.get("/api/admin/report/{job_id}")
 async def admin_download_report(job_id: str, _: None = Depends(require_admin)):
     """Auditor PDF download — bypasses release gate (auditor reviews before releasing)."""
     job = get_job(job_id)
@@ -578,11 +647,9 @@ async def admin_release(job_id: str, _: None = Depends(require_admin)):
     return JSONResponse({"ok": True, "released_at": job.released_at})
 
 
-# Guard tenant report download behind release flag
-# (Overrides the existing /api/audit/report/{job_id} endpoint logic)
 @app.get("/api/audit/report/status/{job_id}")
 def get_report_release_status(job_id: str):
-    """Frontend can poll this to know when a report has been released."""
+    """Frontend polls this to know when a report has been released."""
     job = get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -593,8 +660,42 @@ def get_report_release_status(job_id: str):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Background job runner
+# V2: Bounded async dispatcher + background job runner
 # ══════════════════════════════════════════════════════════════════════════════
+
+async def _schedule_audit_job(
+    job_id: str,
+    pdf_bytes: bytes,
+    filename: str,
+    jurisdiction: str,
+    tenant_name: str,
+    document_hash: str = None,
+) -> None:
+    """
+    V2 fix: async dispatcher that runs _run_audit_job in the bounded
+    _audit_executor thread pool instead of FastAPI's shared anyio pool.
+
+    BackgroundTasks awaits this coroutine (after the HTTP response is sent),
+    which submits the blocking audit work to the capped executor and yields
+    the event loop back while waiting — other requests are never blocked.
+
+    Concurrency cap: MAX_CONCURRENT_AUDITS (default 4).
+    If all slots are busy, the job queues inside the ThreadPoolExecutor.
+    Scale path: swap executor for Celery + Redis queue (F-ASYNC2).
+    """
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(
+        _audit_executor,
+        lambda: _run_audit_job(
+            job_id=job_id,
+            pdf_bytes=pdf_bytes,
+            filename=filename,
+            jurisdiction=jurisdiction,
+            tenant_name=tenant_name,
+            document_hash=document_hash,
+        ),
+    )
+
 
 def _run_audit_job(
     job_id: str,
@@ -604,7 +705,10 @@ def _run_audit_job(
     tenant_name: str,
     document_hash: str = None,
 ) -> None:
-    """Runs in a background thread. Calls full audit pipeline with progress updates."""
+    """
+    Synchronous audit runner. Executes in a thread from _audit_executor.
+    Writes PDF to a temp file, calls the pipeline, then persists result.
+    """
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -631,3 +735,9 @@ def _run_audit_job(
     except Exception as e:
         fail_job(job_id, f"Audit failed: {str(e)}")
         logger.exception(f"[{job_id}] Audit error: {e}")
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
