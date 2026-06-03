@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+/* Theme: apply before paint to avoid flash */
+(function(){
+  var t = localStorage.getItem('ts-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TenantSentry.ai — Reports</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+/* ═══════════════════════════════════════
+   THEME CUSTOM PROPERTIES
+═══════════════════════════════════════ */
+:root {
+  --ts-bg0:       #080f1c;
+  --ts-bg1:       #0f1e36;
+  --ts-bg1i:      #111c30;
+  --ts-bg2:       #162844;
+  --ts-bginput:   #0d1a2e;
+  --ts-border-s:  #1e2a3a;
+  --ts-text0:     #e0e6f0;
+  --ts-text1:     #cbd5e8;
+  --ts-text2:     #4a6a8a;
+  --ts-text3:     #8fa3bf;
+  --ts-text4:     #2a4a68;
+  /* rgba border helpers */
+  --ts-border-rgba:   rgba(255,255,255,0.07);
+  --ts-border-subtle: rgba(255,255,255,0.04);
+  --ts-border-def:    rgba(255,255,255,0.10);
+  --ts-border-strong: rgba(255,255,255,0.18);
+  --ts-raised:        rgba(255,255,255,0.035);
+  --ts-scrollbar:     #1e2a3a;
+  --ts-scrollbar-bg:  #080f1c;
+}
+
+/* ── LIGHT THEME OVERRIDES ── */
+html[data-theme="light"] {
+  --ts-bg0:       #f0f4f8;
+  --ts-bg1:       #ffffff;
+  --ts-bg1i:      #f4f7fa;
+  --ts-bg2:       #eef2f7;
+  --ts-bginput:   #f4f7fa;
+  --ts-border-s:  #d1dae6;
+  --ts-text0:     #0f172a;
+  --ts-text1:     #1e293b;
+  --ts-text2:     #5a7394;
+  --ts-text3:     #64748b;
+  --ts-text4:     #94a3b8;
+  --ts-border-rgba:   rgba(0,0,0,0.08);
+  --ts-border-subtle: rgba(0,0,0,0.04);
+  --ts-border-def:    rgba(0,0,0,0.09);
+  --ts-border-strong: rgba(0,0,0,0.14);
+  --ts-raised:        rgba(0,0,0,0.02);
+  --ts-scrollbar:     #c2cdd9;
+  --ts-scrollbar-bg:  #f0f4f8;
+}
+
+/* ── LIGHT: High-specificity overrides for components ── */
+html[data-theme="light"] body { background: var(--ts-bg0) !important; color: var(--ts-text0) !important; }
+html[data-theme="light"] nav,
+html[data-theme="light"] .topbar { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card-inner { background: #f4f7fa !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .stat-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .dk-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .clause-card { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+html[data-theme="light"] .clause-card.confirmed { border-color: rgba(34,197,94,0.35) !important; }
+html[data-theme="light"] .clause-card.flagged-card { border-color: rgba(245,158,11,0.4) !important; }
+html[data-theme="light"] .clause-card.rejected { border-color: rgba(239,68,68,0.4) !important; background: rgba(239,68,68,0.03) !important; }
+html[data-theme="light"] .clause-card.active-doc { border-color: #0d9488 !important; }
+html[data-theme="light"] .clause-card-body { border-color: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .clause-card-header:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .clause-action-bar { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .clause-note-input { background: #f8fafc !important; border-color: rgba(0,194,168,0.3) !important; color: #0f172a !important; }
+html[data-theme="light"] .doc-row { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .nav-link { color: #5a7394 !important; }
+html[data-theme="light"] .nav-link:hover { color: #00b89f !important; background: rgba(0,194,168,0.08) !important; }
+html[data-theme="light"] .nav-link.active { color: #009e88 !important; background: rgba(0,194,168,0.10) !important; }
+html[data-theme="light"] .audit-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .audit-row:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .report-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .report-row:hover { background: rgba(0,0,0,0.025) !important; }
+html[data-theme="light"] .notif-item { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .upload-cta { background: linear-gradient(135deg, rgba(0,194,168,0.07) 0%, rgba(59,130,246,0.04) 100%) !important; border-color: rgba(0,194,168,0.2) !important; }
+html[data-theme="light"] .drop-zone { border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .drop-zone:hover,
+html[data-theme="light"] .drop-zone.dragging { border-color: #00c2a8 !important; background: rgba(0,194,168,0.04) !important; }
+html[data-theme="light"] .dk-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .dk-input:focus { border-color: rgba(0,194,168,0.5) !important; }
+html[data-theme="light"] .dk-input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .input::placeholder { color: #94a3b8 !important; }
+html[data-theme="light"] .input:focus { border-color: #00c2a8 !important; }
+html[data-theme="light"] select.input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .brand-panel { background: #1a2744 !important; }
+html[data-theme="light"] .form-panel { background: #f8fafc !important; }
+html[data-theme="light"] .sso-btn { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .sso-btn:hover { background: #eef2f7 !important; }
+html[data-theme="light"] .checkbox-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.2) !important; }
+html[data-theme="light"] .checkbox-label { color: #1e293b !important; }
+html[data-theme="light"] .divider::before,
+html[data-theme="light"] .divider::after { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .divider span { color: #94a3b8 !important; }
+html[data-theme="light"] .form-title { color: #0f172a !important; }
+html[data-theme="light"] .form-subtitle { color: #64748b !important; }
+html[data-theme="light"] .field-label { color: #334155 !important; }
+html[data-theme="light"] .bp-logo-tag,
+html[data-theme="light"] .bp-sub,
+html[data-theme="light"] .bp-stat-label { color: rgba(255,255,255,0.55) !important; }
+html[data-theme="light"] .bp-stat-value { color: #5ef0d8 !important; }
+html[data-theme="light"] .bp-stat { background: rgba(255,255,255,0.06) !important; }
+html[data-theme="light"] .bp-stats { background: rgba(255,255,255,0.04) !important; }
+html[data-theme="light"] .bp-badge { color: #e0e6f0 !important; }
+html[data-theme="light"] .bp-badge-icon { background: rgba(0,194,168,0.15) !important; border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .bp-footer { color: rgba(255,255,255,0.4) !important; border-color: rgba(255,255,255,0.1) !important; }
+html[data-theme="light"] .signup-row { color: #64748b !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .form-footer { color: #94a3b8 !important; }
+html[data-theme="light"] .form-footer a { color: #64748b !important; }
+html[data-theme="light"] .back-link { color: #64748b !important; }
+html[data-theme="light"] .tab-inactive { color: #64748b !important; }
+html[data-theme="light"] .tab-active { color: #0d9488 !important; }
+html[data-theme="light"] .sidebar-tab.active { background: #eef2f7 !important; color: #0f172a !important; border-color: rgba(0,0,0,0.1) !important; }
+html[data-theme="light"] .sidebar-tab.inactive { color: #64748b !important; }
+html[data-theme="light"] .quota-bar-track { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .notif-dot { border-color: #f0f4f8 !important; }
+html[data-theme="light"] .plan-badge-bundle,
+html[data-theme="light"] .plan-badge-pay,
+html[data-theme="light"] .plan-badge-monitor { /* keep as-is — colored badges */ }
+html[data-theme="light"] .btn-ghost { color: #009e88 !important; border-color: rgba(0,158,136,0.3) !important; }
+html[data-theme="light"] .btn-ghost:hover { background: rgba(0,194,168,0.07) !important; }
+html[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+/* Stepper (audit page) */
+html[data-theme="light"] .step-circle { border-color: rgba(0,0,0,0.1) !important; color: #64748b !important; }
+html[data-theme="light"] .step-label { color: #64748b !important; }
+html[data-theme="light"] .step-line { background: rgba(0,0,0,0.1) !important; }
+/* Step pills (signup) */
+html[data-theme="light"] .step-pill { color: #94a3b8 !important; }
+html[data-theme="light"] .step-pill-num { background: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .step-pill.active { color: #009e88 !important; background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.25) !important; }
+html[data-theme="light"] .step-pill.active .step-pill-num { background: #00c2a8 !important; color: #fff !important; }
+html[data-theme="light"] .step-pill.done .step-pill-num { background: rgba(0,194,168,0.12) !important; color: #009e88 !important; }
+html[data-theme="light"] .progress-track { background: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .progress-label,
+html[data-theme="light"] .progress-fraction { color: #64748b !important; }
+html[data-theme="light"] .topbar-right { color: #64748b !important; }
+/* Alert banners */
+html[data-theme="light"] .alert-error { background: rgba(239,68,68,0.06) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .alert-success { background: rgba(34,197,94,0.06) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Severity badges — keep accent colors */
+html[data-theme="light"] .sev-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .sev-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .sev-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .badge-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .badge-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .badge-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Status badges */
+html[data-theme="light"] .status-pending  { background: rgba(245,158,11,0.08) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .status-review   { background: rgba(59,130,246,0.08) !important; border-color: rgba(59,130,246,0.2) !important; }
+html[data-theme="light"] .status-released { background: rgba(34,197,94,0.08) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.2) !important; }
+
+    [x-cloak] { display: none !important; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--ts-bg0); color: var(--ts-text0); margin: 0; }
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: var(--ts-bg0); } ::-webkit-scrollbar-thumb { background: var(--ts-border-s); border-radius: 4px; }
+    .nav-link { color:var(--ts-text2); font-size:13px; font-weight:500; padding:6px 10px; border-radius:6px; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; text-decoration:none; }
+    .nav-link:hover { color:#5ef0d8; background:rgba(0,194,168,0.08); }
+    .nav-link.active { color:#5ef0d8; background:rgba(0,194,168,0.10); }
+    .card { background:var(--ts-bg1); border:1px solid rgba(255,255,255,0.07); border-radius:12px; }
+    .report-row { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.12s; cursor:pointer; }
+    .report-row:hover { background:rgba(255,255,255,0.025); }
+    .report-row:last-child { border-bottom:none; }
+    .risk-ring { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; border:2px solid; }
+    .badge { padding:3px 9px; border-radius:20px; font-size:10px; font-weight:700; }
+    .badge-nsw { background:rgba(59,130,246,0.12); color:#60a5fa; border:1px solid rgba(59,130,246,0.2); }
+    .badge-vic { background:rgba(168,85,247,0.12); color:#c084fc; border:1px solid rgba(168,85,247,0.2); }
+    .badge-qld { background:rgba(245,158,11,0.12); color:#fbbf24; border:1px solid rgba(245,158,11,0.2); }
+    .badge-default { background:rgba(255,255,255,0.06); color:var(--ts-text3); border:1px solid rgba(255,255,255,0.1); }
+    .btn-teal { background:linear-gradient(135deg,#00c2a8,#009e88); color:#fff; font-weight:600; font-size:13px; padding:9px 18px; border-radius:8px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:7px; transition:all 0.15s; text-decoration:none; }
+    .btn-teal:hover { background:linear-gradient(135deg,#00d9bc,#00c2a8); }
+    .btn-ghost { background:transparent; color:#5ef0d8; border:1px solid rgba(0,194,168,0.3); font-size:12px; font-weight:500; padding:7px 14px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s; text-decoration:none; }
+    .btn-ghost:hover { background:rgba(0,194,168,0.08); }
+    .btn-icon { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:var(--ts-text3); font-size:12px; font-weight:500; padding:7px 12px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s; }
+    .btn-icon:hover { background:rgba(255,255,255,0.08); color:var(--ts-text0); }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
+    .fade-up { animation:fadeUp 0.3s ease both; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .spin { animation:spin 1s linear infinite; }
+  </style>
+</head>
+<body x-data="reports()" x-init="init()">
+
+<!-- NAV -->
+<nav class="sticky top-0 z-50 border-b border-white/[0.06]" style="background:var(--ts-bg0);">
+  <div class="w-full px-6 h-14 flex items-center justify-between">
+    <div class="flex items-center gap-5">
+      <a href="/dashboard" class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white" style="background:linear-gradient(135deg,#00c2a8,#009e88);">TS</div>
+        <span class="font-semibold text-sm" style="color:var(--ts-text0);">TenantSentry<span style="color:#00c2a8;">.ai</span></span>
+      </a>
+      <div class="hidden md:flex items-center gap-1">
+        <a href="/dashboard" class="nav-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Home
+        </a>
+        <a href="/audit" class="nav-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          New Audit
+        </a>
+        <a href="/dashboard" class="nav-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          My Audits
+        </a>
+        <a href="/reports" class="nav-link active">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Reports
+        </a>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
+  style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid var(--ts-border-rgba,rgba(255,255,255,0.07));background:var(--ts-raised,rgba(255,255,255,0.035));">
+  <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+      <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:rgba(0,194,168,0.15);border:1px solid rgba(0,194,168,0.25);color:#5ef0d8;">GM</div>
+      <a href="/login" class="nav-link text-xs hidden sm:flex">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="max-w-5xl mx-auto px-5 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6 fade-up">
+    <div>
+      <h1 class="text-xl font-bold mb-1" style="color:var(--ts-text0);">Audit Reports</h1>
+      <p class="text-sm" style="color:var(--ts-text2);">All released audit reports — reviewed and approved by a qualified auditor.</p>
+    </div>
+    <a href="/audit" class="btn-teal">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      New Audit
+    </a>
+  </div>
+
+  <!-- Loading -->
+  <div x-show="loading" class="flex items-center justify-center py-20" x-cloak>
+    <svg class="spin w-6 h-6 mr-3" fill="none" stroke="#00c2a8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+    <span style="color:var(--ts-text2);">Loading reports…</span>
+  </div>
+
+  <!-- Empty state -->
+  <div x-show="!loading && reports.length === 0" x-cloak class="card p-12 text-center fade-up">
+    <div class="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center" style="background:rgba(0,194,168,0.08);">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00c2a8" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    </div>
+    <p class="font-semibold mb-1" style="color:var(--ts-text0);">No reports yet</p>
+    <p class="text-sm mb-5" style="color:var(--ts-text2);">Upload a lease and complete an audit to see your reports here.</p>
+    <a href="/audit" class="btn-teal">Start your first audit</a>
+  </div>
+
+  <!-- Reports list -->
+  <div x-show="!loading && reports.length > 0" x-cloak class="card overflow-hidden fade-up">
+    <!-- Table header -->
+    <div class="px-5 py-3 grid grid-cols-12 gap-3 text-xs font-semibold uppercase tracking-wide border-b" style="color:var(--ts-text4);border-color:rgba(255,255,255,0.06);">
+      <div class="col-span-1">Risk</div>
+      <div class="col-span-3">Lease / Tenant</div>
+      <div class="col-span-1">State</div>
+      <div class="col-span-2">Status</div>
+      <div class="col-span-2">Date</div>
+      <div class="col-span-3 text-right">Actions</div>
+    </div>
+    <!-- Rows -->
+    <template x-for="r in reports" :key="r.job_id">
+      <div class="report-row px-5 py-4 grid grid-cols-12 gap-3 items-center" @click="(r.released || r.reviewed_by_human) && viewReport(r)" :style="(r.released || r.reviewed_by_human) ? 'cursor:pointer' : 'cursor:default'">
+        <!-- Risk ring -->
+        <div class="col-span-1">
+          <div class="risk-ring" :style="`color:${riskColor(r.risk_score)};border-color:${riskColor(r.risk_score)};background:${riskBg(r.risk_score)}`"
+               x-text="r.risk_score ?? '—'"></div>
+        </div>
+        <!-- Lease info -->
+        <div class="col-span-3 min-w-0">
+          <p class="text-sm font-medium truncate" style="color:var(--ts-text0);" x-text="r.tenant_name || 'Unknown Tenant'"></p>
+          <p class="text-xs truncate mt-0.5" style="color:var(--ts-text2);" x-text="r.filename"></p>
+        </div>
+        <!-- Jurisdiction -->
+        <div class="col-span-1">
+          <span :class="jurisdictionBadge(r.jurisdiction)" class="badge" x-text="r.jurisdiction"></span>
+        </div>
+        <!-- Status -->
+        <div class="col-span-2">
+          <template x-if="r.released">
+            <span class="badge" style="background:rgba(34,197,94,0.10);color:#4ade80;border:1px solid rgba(34,197,94,0.2);">✓ Released</span>
+          </template>
+          <template x-if="!r.released && r.status === 'complete' && r.reviewed_by_human">
+            <span class="badge" style="background:rgba(59,130,246,0.10);color:#60a5fa;border:1px solid rgba(59,130,246,0.2);">Approved</span>
+          </template>
+          <template x-if="!r.released && r.status === 'complete' && !r.reviewed_by_human">
+            <span class="badge" style="background:rgba(245,158,11,0.10);color:#fbbf24;border:1px solid rgba(245,158,11,0.2);">Pending Review</span>
+          </template>
+          <template x-if="r.status === 'failed'">
+            <span class="badge" style="background:rgba(239,68,68,0.10);color:#f87171;border:1px solid rgba(239,68,68,0.2);">Failed</span>
+          </template>
+        </div>
+        <!-- Date -->
+        <div class="col-span-2">
+          <p class="text-xs" style="color:var(--ts-text0);" x-text="formatDate(r.released_at || r.completed_at)"></p>
+        </div>
+        <!-- Actions -->
+        <div class="col-span-3 flex items-center gap-2 justify-end flex-wrap" @click.stop>
+
+          <!-- Available when reviewed OR released -->
+          <template x-if="r.released || r.reviewed_by_human">
+            <button class="btn-icon" @click="viewReport(r)" title="View report">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              View
+            </button>
+          </template>
+          <template x-if="r.released || r.reviewed_by_human">
+            <a :href="`/api/audit/report/${r.job_id}`" target="_blank" class="btn-icon" title="Download PDF" @click.stop>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              PDF
+            </a>
+          </template>
+          <template x-if="r.released || r.reviewed_by_human">
+            <button class="btn-icon" @click.stop="emailReport(r)" title="Email report">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </button>
+          </template>
+          <template x-if="r.released || r.reviewed_by_human">
+            <button class="btn-icon" @click.stop="openFeedback(r)" title="Leave feedback">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            </button>
+          </template>
+
+          <!-- Pending review — auditor action needed -->
+          <template x-if="!r.reviewed_by_human && r.status === 'complete'">
+            <a href="/admin" class="btn-icon" title="Go to admin portal to review">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span style="color:#fbbf24;">Review</span>
+            </a>
+          </template>
+
+          <!-- Failed — retry -->
+          <template x-if="r.status === 'failed'">
+            <a href="/audit" class="btn-icon" title="Submit a new audit">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.87"/></svg>
+              Retry
+            </a>
+          </template>
+
+        </div>
+      </div>
+    </template>
+  </div>
+</main>
+
+<!-- FEEDBACK MODAL -->
+<div x-show="feedbackOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7);" @click.self="feedbackOpen=false">
+  <div class="card w-full max-w-md p-6" style="border-color:rgba(255,255,255,0.10);">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold" style="color:var(--ts-text0);">Report Feedback</h2>
+      <button @click="feedbackOpen=false" style="color:var(--ts-text2);">✕</button>
+    </div>
+    <p class="text-xs mb-4" style="color:var(--ts-text2);" x-text="'Audit: ' + (feedbackReport?.tenant_name || '') + ' · ' + (feedbackReport?.filename || '')"></p>
+
+    <!-- Rating -->
+    <p class="text-xs font-semibold mb-2 uppercase tracking-wide" style="color:var(--ts-text2);">Overall accuracy</p>
+    <div class="flex gap-2 mb-4">
+      <button @click="feedbackRating=1" :class="feedbackRating===1?'border-teal-400':''" class="flex-1 py-2 rounded-lg border text-xs font-medium transition-all" :style="feedbackRating===1?'background:rgba(0,194,168,0.15);border-color:#00c2a8;color:#5ef0d8':'background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:var(--ts-text2)'">👍 Accurate</button>
+      <button @click="feedbackRating=0" :class="feedbackRating===0?'border-amber-400':''" class="flex-1 py-2 rounded-lg border text-xs font-medium transition-all" :style="feedbackRating===0?'background:rgba(245,158,11,0.12);border-color:#f59e0b;color:#fbbf24':'background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:var(--ts-text2)'">🤔 Partially</button>
+      <button @click="feedbackRating=-1" :class="feedbackRating===-1?'border-red-400':''" class="flex-1 py-2 rounded-lg border text-xs font-medium transition-all" :style="feedbackRating===-1?'background:rgba(239,68,68,0.12);border-color:#ef4444;color:#f87171':'background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:var(--ts-text2)'">👎 Inaccurate</button>
+    </div>
+
+    <!-- Comment -->
+    <p class="text-xs font-semibold mb-2 uppercase tracking-wide" style="color:var(--ts-text2);">Comments (optional)</p>
+    <textarea x-model="feedbackComment" rows="3" placeholder="What was correct or incorrect? Any missed flags?" class="w-full text-sm rounded-lg p-3 resize-none outline-none mb-4" style="background:var(--ts-bginput);border:1px solid rgba(255,255,255,0.1);color:var(--ts-text0);" @focus="$el.style.borderColor='rgba(0,194,168,0.4)'" @blur="$el.style.borderColor='rgba(255,255,255,0.1)'"></textarea>
+
+    <div class="flex gap-2">
+      <button @click="submitFeedback()" class="btn-teal flex-1 justify-center" :disabled="feedbackRating===null || submittingFeedback">
+        <span x-text="submittingFeedback ? 'Submitting…' : 'Submit Feedback'"></span>
+      </button>
+      <button @click="feedbackOpen=false" class="btn-ghost">Cancel</button>
+    </div>
+    <p x-show="feedbackSuccess" class="text-xs text-center mt-3" style="color:#4ade80;">✓ Feedback submitted — thank you!</p>
+  </div>
+</div>
+
+<script>
+function reports() {
+  return {
+    loading: true,
+    reports: [],
+    feedbackOpen: false,
+    feedbackReport: null,
+    feedbackRating: null,
+    feedbackComment: '',
+    submittingFeedback: false,
+    feedbackSuccess: false,
+
+    async init() {
+      await this.loadReports();
+    },
+
+    async loadReports() {
+      this.loading = true;
+      try {
+        const res = await fetch('/api/reports');
+        const data = await res.json();
+        // Enrich with risk_score from findings if available
+        this.reports = data.reports || [];
+      } catch (e) {
+        console.error('Failed to load reports', e);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    viewReport(r) {
+      window.location.href = `/upload?job_id=${r.job_id}`;
+    },
+
+    emailReport(r) {
+      const subject = encodeURIComponent(`TenantSentry Audit Report — ${r.tenant_name || r.filename}`);
+      const body = encodeURIComponent(
+        `Hi,\n\nPlease find the TenantSentry.ai audit report attached.\n\n` +
+        `Tenant: ${r.tenant_name || 'N/A'}\nFile: ${r.filename}\nJurisdiction: ${r.jurisdiction}\n` +
+        `Released: ${this.formatDate(r.released_at)}\n\n` +
+        `Download PDF: ${window.location.origin}/api/audit/report/${r.job_id}\n\n` +
+        `TenantSentry.ai — Commercial Lease Audit Platform`
+      );
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    },
+
+    openFeedback(r) {
+      this.feedbackReport = r;
+      this.feedbackRating = null;
+      this.feedbackComment = '';
+      this.feedbackSuccess = false;
+      this.feedbackOpen = true;
+    },
+
+    async submitFeedback() {
+      if (this.feedbackRating === null) return;
+      this.submittingFeedback = true;
+      try {
+        await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            job_id: this.feedbackReport.job_id,
+            rating: this.feedbackRating,
+            comment: this.feedbackComment,
+          }),
+        });
+        this.feedbackSuccess = true;
+        setTimeout(() => { this.feedbackOpen = false; }, 2000);
+      } catch (e) {
+        console.error('Feedback submission failed', e);
+      } finally {
+        this.submittingFeedback = false;
+      }
+    },
+
+    riskColor(score) {
+      if (!score && score !== 0) return '#4a6a8a';
+      if (score >= 70) return '#f87171';
+      if (score >= 40) return '#fbbf24';
+      return '#4ade80';
+    },
+
+    riskBg(score) {
+      if (!score && score !== 0) return 'rgba(74,106,138,0.08)';
+      if (score >= 70) return 'rgba(239,68,68,0.10)';
+      if (score >= 40) return 'rgba(245,158,11,0.10)';
+      return 'rgba(34,197,94,0.10)';
+    },
+
+    jurisdictionBadge(j) {
+      const map = { NSW:'badge-nsw', VIC:'badge-vic', QLD:'badge-qld' };
+      return map[j] || 'badge-default';
+    },
+
+    formatDate(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
+    },
+  };
+}
+</script>
+<script>
+/* ═══════════════════════════════════════
+   THEME TOGGLE
+═══════════════════════════════════════ */
+function tsApplyThemeIcons() {
+  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  var moon = document.getElementById('ts-icon-moon');
+  var sun  = document.getElementById('ts-icon-sun');
+  if (!moon || !sun) return;
+  moon.style.display = isLight ? 'none'  : 'block';
+  sun.style.display  = isLight ? 'block' : 'none';
+  // Update btn border/bg for light mode visibility
+  var btn = document.getElementById('ts-theme-btn');
+  if (btn) {
+    btn.style.borderColor = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.07)';
+    btn.style.background  = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.035)';
+  }
+}
+function tsToggleTheme() {
+  var current = document.documentElement.getAttribute('data-theme') || 'dark';
+  var next    = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('ts-theme', next);
+  tsApplyThemeIcons();
+}
+// Run on load
+document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
+// Also run immediately in case DOM is already ready
+tsApplyThemeIcons();
+</script>
+</body>
+</html>

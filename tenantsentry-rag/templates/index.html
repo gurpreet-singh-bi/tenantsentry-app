@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+/* Theme: apply before paint to avoid flash */
+(function(){
+  var t = localStorage.getItem('ts-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TenantSentry.ai — AI-Powered Lease Audit</title>
@@ -8,6 +15,160 @@
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
+/* ═══════════════════════════════════════
+   THEME CUSTOM PROPERTIES
+═══════════════════════════════════════ */
+:root {
+  --ts-bg0:       #080f1c;
+  --ts-bg1:       #0f1e36;
+  --ts-bg1i:      #111c30;
+  --ts-bg2:       #162844;
+  --ts-bginput:   #0d1a2e;
+  --ts-border-s:  #1e2a3a;
+  --ts-text0:     #e0e6f0;
+  --ts-text1:     #cbd5e8;
+  --ts-text2:     #4a6a8a;
+  --ts-text3:     #8fa3bf;
+  --ts-text4:     #2a4a68;
+  /* rgba border helpers */
+  --ts-border-rgba:   rgba(255,255,255,0.07);
+  --ts-border-subtle: rgba(255,255,255,0.04);
+  --ts-border-def:    rgba(255,255,255,0.10);
+  --ts-border-strong: rgba(255,255,255,0.18);
+  --ts-raised:        rgba(255,255,255,0.035);
+  --ts-scrollbar:     #1e2a3a;
+  --ts-scrollbar-bg:  #080f1c;
+}
+
+/* ── LIGHT THEME OVERRIDES ── */
+html[data-theme="light"] {
+  --ts-bg0:       #f0f4f8;
+  --ts-bg1:       #ffffff;
+  --ts-bg1i:      #f4f7fa;
+  --ts-bg2:       #eef2f7;
+  --ts-bginput:   #f4f7fa;
+  --ts-border-s:  #d1dae6;
+  --ts-text0:     #0f172a;
+  --ts-text1:     #1e293b;
+  --ts-text2:     #5a7394;
+  --ts-text3:     #64748b;
+  --ts-text4:     #94a3b8;
+  --ts-border-rgba:   rgba(0,0,0,0.08);
+  --ts-border-subtle: rgba(0,0,0,0.04);
+  --ts-border-def:    rgba(0,0,0,0.09);
+  --ts-border-strong: rgba(0,0,0,0.14);
+  --ts-raised:        rgba(0,0,0,0.02);
+  --ts-scrollbar:     #c2cdd9;
+  --ts-scrollbar-bg:  #f0f4f8;
+}
+
+/* ── LIGHT: High-specificity overrides for components ── */
+html[data-theme="light"] body { background: var(--ts-bg0) !important; color: var(--ts-text0) !important; }
+html[data-theme="light"] nav,
+html[data-theme="light"] .topbar { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card-inner { background: #f4f7fa !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .stat-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .dk-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .clause-card { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+html[data-theme="light"] .clause-card.confirmed { border-color: rgba(34,197,94,0.35) !important; }
+html[data-theme="light"] .clause-card.flagged-card { border-color: rgba(245,158,11,0.4) !important; }
+html[data-theme="light"] .clause-card.rejected { border-color: rgba(239,68,68,0.4) !important; background: rgba(239,68,68,0.03) !important; }
+html[data-theme="light"] .clause-card.active-doc { border-color: #0d9488 !important; }
+html[data-theme="light"] .clause-card-body { border-color: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .clause-card-header:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .clause-action-bar { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .clause-note-input { background: #f8fafc !important; border-color: rgba(0,194,168,0.3) !important; color: #0f172a !important; }
+html[data-theme="light"] .doc-row { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .nav-link { color: #5a7394 !important; }
+html[data-theme="light"] .nav-link:hover { color: #00b89f !important; background: rgba(0,194,168,0.08) !important; }
+html[data-theme="light"] .nav-link.active { color: #009e88 !important; background: rgba(0,194,168,0.10) !important; }
+html[data-theme="light"] .audit-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .audit-row:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .report-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .report-row:hover { background: rgba(0,0,0,0.025) !important; }
+html[data-theme="light"] .notif-item { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .upload-cta { background: linear-gradient(135deg, rgba(0,194,168,0.07) 0%, rgba(59,130,246,0.04) 100%) !important; border-color: rgba(0,194,168,0.2) !important; }
+html[data-theme="light"] .drop-zone { border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .drop-zone:hover,
+html[data-theme="light"] .drop-zone.dragging { border-color: #00c2a8 !important; background: rgba(0,194,168,0.04) !important; }
+html[data-theme="light"] .dk-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .dk-input:focus { border-color: rgba(0,194,168,0.5) !important; }
+html[data-theme="light"] .dk-input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .input::placeholder { color: #94a3b8 !important; }
+html[data-theme="light"] .input:focus { border-color: #00c2a8 !important; }
+html[data-theme="light"] select.input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .brand-panel { background: #1a2744 !important; }
+html[data-theme="light"] .form-panel { background: #f8fafc !important; }
+html[data-theme="light"] .sso-btn { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .sso-btn:hover { background: #eef2f7 !important; }
+html[data-theme="light"] .checkbox-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.2) !important; }
+html[data-theme="light"] .checkbox-label { color: #1e293b !important; }
+html[data-theme="light"] .divider::before,
+html[data-theme="light"] .divider::after { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .divider span { color: #94a3b8 !important; }
+html[data-theme="light"] .form-title { color: #0f172a !important; }
+html[data-theme="light"] .form-subtitle { color: #64748b !important; }
+html[data-theme="light"] .field-label { color: #334155 !important; }
+html[data-theme="light"] .bp-logo-tag,
+html[data-theme="light"] .bp-sub,
+html[data-theme="light"] .bp-stat-label { color: rgba(255,255,255,0.55) !important; }
+html[data-theme="light"] .bp-stat-value { color: #5ef0d8 !important; }
+html[data-theme="light"] .bp-stat { background: rgba(255,255,255,0.06) !important; }
+html[data-theme="light"] .bp-stats { background: rgba(255,255,255,0.04) !important; }
+html[data-theme="light"] .bp-badge { color: #e0e6f0 !important; }
+html[data-theme="light"] .bp-badge-icon { background: rgba(0,194,168,0.15) !important; border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .bp-footer { color: rgba(255,255,255,0.4) !important; border-color: rgba(255,255,255,0.1) !important; }
+html[data-theme="light"] .signup-row { color: #64748b !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .form-footer { color: #94a3b8 !important; }
+html[data-theme="light"] .form-footer a { color: #64748b !important; }
+html[data-theme="light"] .back-link { color: #64748b !important; }
+html[data-theme="light"] .tab-inactive { color: #64748b !important; }
+html[data-theme="light"] .tab-active { color: #0d9488 !important; }
+html[data-theme="light"] .sidebar-tab.active { background: #eef2f7 !important; color: #0f172a !important; border-color: rgba(0,0,0,0.1) !important; }
+html[data-theme="light"] .sidebar-tab.inactive { color: #64748b !important; }
+html[data-theme="light"] .quota-bar-track { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .notif-dot { border-color: #f0f4f8 !important; }
+html[data-theme="light"] .plan-badge-bundle,
+html[data-theme="light"] .plan-badge-pay,
+html[data-theme="light"] .plan-badge-monitor { /* keep as-is — colored badges */ }
+html[data-theme="light"] .btn-ghost { color: #009e88 !important; border-color: rgba(0,158,136,0.3) !important; }
+html[data-theme="light"] .btn-ghost:hover { background: rgba(0,194,168,0.07) !important; }
+html[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+/* Stepper (audit page) */
+html[data-theme="light"] .step-circle { border-color: rgba(0,0,0,0.1) !important; color: #64748b !important; }
+html[data-theme="light"] .step-label { color: #64748b !important; }
+html[data-theme="light"] .step-line { background: rgba(0,0,0,0.1) !important; }
+/* Step pills (signup) */
+html[data-theme="light"] .step-pill { color: #94a3b8 !important; }
+html[data-theme="light"] .step-pill-num { background: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .step-pill.active { color: #009e88 !important; background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.25) !important; }
+html[data-theme="light"] .step-pill.active .step-pill-num { background: #00c2a8 !important; color: #fff !important; }
+html[data-theme="light"] .step-pill.done .step-pill-num { background: rgba(0,194,168,0.12) !important; color: #009e88 !important; }
+html[data-theme="light"] .progress-track { background: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .progress-label,
+html[data-theme="light"] .progress-fraction { color: #64748b !important; }
+html[data-theme="light"] .topbar-right { color: #64748b !important; }
+/* Alert banners */
+html[data-theme="light"] .alert-error { background: rgba(239,68,68,0.06) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .alert-success { background: rgba(34,197,94,0.06) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Severity badges — keep accent colors */
+html[data-theme="light"] .sev-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .sev-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .sev-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .badge-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .badge-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .badge-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Status badges */
+html[data-theme="light"] .status-pending  { background: rgba(245,158,11,0.08) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .status-review   { background: rgba(59,130,246,0.08) !important; border-color: rgba(59,130,246,0.2) !important; }
+html[data-theme="light"] .status-released { background: rgba(34,197,94,0.08) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.2) !important; }
+
     [x-cloak] { display: none !important; }
 
     /* Brand font */
@@ -40,7 +201,24 @@
     /* Spinner */
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner { animation: spin 1s linear infinite; }
-  </style>
+  
+/* index.html specific light overrides */
+html[data-theme="light"] body { background: #f0f4f8 !important; color: #0f172a !important; }
+html[data-theme="light"] .bg-slate-900 { background: #1e293b !important; }
+html[data-theme="light"] nav.bg-slate-900 { background: #1e293b !important; border-color: #334155 !important; }
+html[data-theme="light"] .text-white { color: #ffffff !important; }
+html[data-theme="light"] .text-slate-300 { color: #cbd5e1 !important; }
+html[data-theme="light"] .text-slate-400 { color: #94a3b8 !important; }
+html[data-theme="light"] .bg-white { background: #ffffff !important; }
+html[data-theme="light"] .bg-slate-50 { background: #f8fafc !important; }
+html[data-theme="light"] .bg-slate-100 { background: #f1f5f9 !important; }
+html[data-theme="light"] .border-slate-200 { border-color: #e2e8f0 !important; }
+html[data-theme="light"] .border-slate-700 { border-color: #334155 !important; }
+html[data-theme="light"] .text-slate-900 { color: #0f172a !important; }
+html[data-theme="light"] .text-slate-700 { color: #334155 !important; }
+html[data-theme="light"] .text-slate-600 { color: #475569 !important; }
+html[data-theme="light"] .text-slate-500 { color: #64748b !important; }
+</style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800" x-data="app()" x-init="init()">
 
@@ -58,6 +236,11 @@
     </div>
     <div class="flex items-center gap-4">
       <span class="text-slate-400 text-sm hidden sm:block">AI-Powered Commercial Lease Audit</span>
+<button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
+  style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);">
+  <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
       <button x-show="view !== 'upload'" @click="resetToUpload()"
               class="text-slate-300 hover:text-white text-sm flex items-center gap-1 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -401,71 +584,87 @@
             </div>
           </button>
 
-          <!-- Expanded detail -->
-          <div x-show="clause._open" x-cloak class="border-t border-slate-100 px-5 py-4 space-y-4">
+          <!-- Expanded detail — 3 sections: Original Clause / Risks / Recommendation -->
+          <div x-show="clause._open" x-cloak class="border-t border-slate-100 divide-y divide-slate-100">
 
-            <!-- Risk flags -->
-            <template x-if="clause.risk_flags?.length > 0">
-              <div>
-                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Risk Flags</p>
+            <!-- ① Original Clause -->
+            <div class="px-5 py-4">
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Original Clause
+              </p>
+              <div class="bg-slate-50 rounded-lg p-3 text-xs text-slate-600 leading-relaxed font-mono max-h-48 overflow-y-auto whitespace-pre-wrap"
+                   x-text="clause.clause_text || 'Clause text not available.'"></div>
+              <!-- Key terms chips -->
+              <template x-if="clause.key_terms?.length > 0">
+                <div class="flex flex-wrap gap-1.5 mt-2">
+                  <template x-for="term in clause.key_terms" :key="term">
+                    <span class="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-md" x-text="term"></span>
+                  </template>
+                </div>
+              </template>
+            </div>
+
+            <!-- ② Risks -->
+            <div class="px-5 py-4">
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                </svg>
+                <span x-text="`Risks (${(clause.risk_flags || []).length})`"></span>
+              </p>
+              <template x-if="clause.risk_flags?.length > 0">
                 <div class="space-y-2">
                   <template x-for="(flag, fi) in clause.risk_flags" :key="fi">
-                    <div class="flex gap-3 items-start p-3 rounded-lg"
-                         :class="`bg-${flag.severity === 'high' ? 'red' : flag.severity === 'medium' ? 'amber' : 'green'}-50`">
-                      <span class="text-xs font-bold shrink-0 mt-0.5"
-                            :class="`text-${flag.severity === 'high' ? 'red' : flag.severity === 'medium' ? 'amber' : 'green'}-600`"
+                    <div class="flex gap-3 items-start p-3 rounded-lg border"
+                         :class="{
+                           'bg-red-50 border-red-100':    flag.severity === 'high',
+                           'bg-amber-50 border-amber-100': flag.severity === 'medium',
+                           'bg-green-50 border-green-100': flag.severity === 'low'
+                         }">
+                      <span class="text-xs font-bold shrink-0 mt-0.5 w-14 text-center py-0.5 rounded-full"
+                            :class="{
+                              'bg-red-100 text-red-700':    flag.severity === 'high',
+                              'bg-amber-100 text-amber-700': flag.severity === 'medium',
+                              'bg-green-100 text-green-700': flag.severity === 'low'
+                            }"
                             x-text="flag.severity?.toUpperCase()">
                       </span>
-                      <div>
-                        <p class="text-sm text-slate-700" x-text="flag.description"></p>
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm text-slate-700 leading-snug" x-text="flag.description"></p>
                         <template x-if="flag.legislation_ref">
-                          <p class="text-xs text-slate-400 mt-0.5 italic" x-text="flag.legislation_ref"></p>
+                          <p class="text-xs text-slate-400 mt-1 font-mono" x-text="flag.legislation_ref"></p>
                         </template>
                       </div>
                     </div>
                   </template>
                 </div>
-              </div>
-            </template>
+              </template>
+              <template x-if="!clause.risk_flags?.length">
+                <p class="text-sm text-slate-400 italic">No risks identified — clause appears fair and standard.</p>
+              </template>
+            </div>
 
-            <!-- Key terms -->
-            <template x-if="clause.key_terms?.length > 0">
-              <div>
-                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Key Terms</p>
-                <div class="flex flex-wrap gap-1.5">
-                  <template x-for="term in clause.key_terms" :key="term">
-                    <span class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md" x-text="term"></span>
-                  </template>
-                </div>
-              </div>
-            </template>
-
-            <!-- Recommended action -->
-            <template x-if="clause.recommended_action">
-              <div class="bg-teal-50 border border-teal-100 rounded-lg p-3 flex gap-2">
-                <svg class="w-4 h-4 text-teal-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- ③ Recommendation -->
+            <div class="px-5 py-4">
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
-                <div>
-                  <p class="text-xs font-semibold text-teal-700 mb-0.5">Recommended Action</p>
-                  <p class="text-sm text-teal-800" x-text="clause.recommended_action"></p>
+                Recommendation
+              </p>
+              <template x-if="clause.recommended_action">
+                <div class="bg-teal-50 border border-teal-100 rounded-lg p-3">
+                  <p class="text-sm text-teal-800 leading-relaxed" x-text="clause.recommended_action"></p>
                 </div>
-              </div>
-            </template>
-
-            <!-- Clause text (collapsible) -->
-            <div>
-              <button @click="clause._showText = !clause._showText"
-                      class="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                <span x-text="clause._showText ? 'Hide clause text' : 'Show clause text'"></span>
-              </button>
-              <div x-show="clause._showText" x-cloak
-                   class="mt-2 bg-slate-50 rounded-lg p-3 text-xs text-slate-500 leading-relaxed font-mono max-h-40 overflow-y-auto"
-                   x-text="clause.clause_text"></div>
+              </template>
+              <template x-if="!clause.recommended_action">
+                <p class="text-sm text-slate-400 italic">No action required.</p>
+              </template>
             </div>
+
           </div>
         </div>
       </template>
@@ -702,5 +901,35 @@
   }
   </script>
 
+<script>
+/* ═══════════════════════════════════════
+   THEME TOGGLE
+═══════════════════════════════════════ */
+function tsApplyThemeIcons() {
+  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  var moon = document.getElementById('ts-icon-moon');
+  var sun  = document.getElementById('ts-icon-sun');
+  if (!moon || !sun) return;
+  moon.style.display = isLight ? 'none'  : 'block';
+  sun.style.display  = isLight ? 'block' : 'none';
+  // Update btn border/bg for light mode visibility
+  var btn = document.getElementById('ts-theme-btn');
+  if (btn) {
+    btn.style.borderColor = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.07)';
+    btn.style.background  = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.035)';
+  }
+}
+function tsToggleTheme() {
+  var current = document.documentElement.getAttribute('data-theme') || 'dark';
+  var next    = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('ts-theme', next);
+  tsApplyThemeIcons();
+}
+// Run on load
+document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
+// Also run immediately in case DOM is already ready
+tsApplyThemeIcons();
+</script>
 </body>
 </html>

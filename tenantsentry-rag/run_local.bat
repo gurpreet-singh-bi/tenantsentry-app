@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 echo ================================
 echo  TenantSentry.ai — Local Dev
 echo ================================
