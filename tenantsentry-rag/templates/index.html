@@ -236,13 +236,6 @@ html[data-theme="light"] .text-slate-500 { color: #64748b !important; }
     </div>
     <div class="flex items-center gap-4">
       <span class="text-slate-400 text-sm hidden sm:block">AI-Powered Commercial Lease Audit</span>
-<button id="ts-mode-btn"
-  onclick="tsModeToggle()"
-  title="Switch between DEV (mock data) and LIVE (real API) mode — admin only"
-  style="display:inline-flex;align-items:center;gap:6px;padding:0 10px;height:28px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:0.4px;cursor:pointer;border:none;transition:all 0.2s;flex-shrink:0;">
-  <span id="ts-mode-dot" style="width:7px;height:7px;border-radius:50%;flex-shrink:0;"></span>
-  <span id="ts-mode-label">···</span>
-</button>
 <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
   style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);">
   <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
@@ -939,66 +932,6 @@ document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
 tsApplyThemeIcons();
 </script>
 
-<script>
-/* ═══════════════════════════════════════
-   DEV / LIVE MODE TOGGLE
-═══════════════════════════════════════ */
-(function() {
-  function tsApplyModeBadge(data) {
-    var btn   = document.getElementById('ts-mode-btn');
-    var dot   = document.getElementById('ts-mode-dot');
-    var label = document.getElementById('ts-mode-label');
-    if (!btn) return;
-    if (data.is_dev) {
-      btn.style.background   = 'rgba(245,158,11,0.15)';
-      btn.style.border       = '1px solid rgba(245,158,11,0.4)';
-      btn.style.color        = '#fbbf24';
-      dot.style.background   = '#f59e0b';
-      label.textContent      = 'DEV';
-      btn.title = 'DEV mode — click to switch to LIVE (requires admin token)';
-    } else {
-      btn.style.background   = 'rgba(34,197,94,0.12)';
-      btn.style.border       = '1px solid rgba(34,197,94,0.3)';
-      btn.style.color        = '#4ade80';
-      dot.style.background   = '#22c55e';
-      label.textContent      = 'LIVE';
-      btn.title = 'LIVE mode — click to switch to DEV (requires admin token)';
-    }
-  }
-
-  function tsLoadMode() {
-    fetch('/api/mode').then(function(r){ return r.json(); }).then(tsApplyModeBadge).catch(function(){});
-  }
-
-  window.tsModeToggle = function() {
-    var token = localStorage.getItem('ts-admin-token') || '';
-    if (!token) {
-      token = prompt('Admin token required to switch mode:');
-      if (!token) return;
-      localStorage.setItem('ts-admin-token', token);
-    }
-    fetch('/api/admin/mode/toggle', {
-      method: 'POST',
-      headers: { 'X-Admin-Token': token }
-    })
-    .then(function(r) {
-      if (r.status === 401) {
-        localStorage.removeItem('ts-admin-token');
-        alert('Invalid admin token. Token cleared — try again.');
-        return null;
-      }
-      return r.json();
-    })
-    .then(function(data) {
-      if (data) tsApplyModeBadge(data);
-    })
-    .catch(function(e) { console.error('Mode toggle failed', e); });
-  };
-
-  document.addEventListener('DOMContentLoaded', tsLoadMode);
-  tsLoadMode();
-})();
-</script>
 
 </body>
 </html>

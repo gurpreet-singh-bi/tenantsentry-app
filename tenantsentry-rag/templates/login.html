@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <script>
-/* Theme: apply before paint to avoid flash */
 (function(){
   var t = localStorage.getItem('ts-theme') || 'dark';
   document.documentElement.setAttribute('data-theme', t);
@@ -12,1265 +11,433 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TenantSentry.ai — Sign In</title>
 <style>
-/* ═══════════════════════════════════════
-   THEME CUSTOM PROPERTIES
-═══════════════════════════════════════ */
 :root {
-  --ts-bg0:       #080f1c;
-  --ts-bg1:       #0f1e36;
-  --ts-bg1i:      #111c30;
-  --ts-bg2:       #162844;
-  --ts-bginput:   #0d1a2e;
-  --ts-border-s:  #1e2a3a;
-  --ts-text0:     #e0e6f0;
-  --ts-text1:     #cbd5e8;
-  --ts-text2:     #4a6a8a;
-  --ts-text3:     #8fa3bf;
-  --ts-text4:     #2a4a68;
-  /* rgba border helpers */
-  --ts-border-rgba:   rgba(255,255,255,0.07);
-  --ts-border-subtle: rgba(255,255,255,0.04);
-  --ts-border-def:    rgba(255,255,255,0.10);
-  --ts-border-strong: rgba(255,255,255,0.18);
-  --ts-raised:        rgba(255,255,255,0.035);
-  --ts-scrollbar:     #1e2a3a;
-  --ts-scrollbar-bg:  #080f1c;
+  --bg0: #080f1c; --bg1: #0f1e36; --bg2: #162844;
+  --teal: #00c2a8; --teal-h: #00d9bc; --teal-d: #009e88;
+  --red: #ef4444; --text0: #e0e6f0; --text1: #cbd5e8;
+  --text2: #8fa3bf; --text3: #4a6a8a;
+  --border: rgba(255,255,255,0.09); --border-s: rgba(255,255,255,0.05);
+  --raised: rgba(255,255,255,0.035);
+  --shadow-teal: 0 0 0 3px rgba(0,194,168,0.2);
+  --r: 8px; --t: 0.15s ease;
 }
-
-/* ── LIGHT THEME OVERRIDES ── */
 html[data-theme="light"] {
-  --ts-bg0:       #f0f4f8;
-  --ts-bg1:       #ffffff;
-  --ts-bg1i:      #f4f7fa;
-  --ts-bg2:       #eef2f7;
-  --ts-bginput:   #f4f7fa;
-  --ts-border-s:  #d1dae6;
-  --ts-text0:     #0f172a;
-  --ts-text1:     #1e293b;
-  --ts-text2:     #5a7394;
-  --ts-text3:     #64748b;
-  --ts-text4:     #94a3b8;
-  --ts-border-rgba:   rgba(0,0,0,0.08);
-  --ts-border-subtle: rgba(0,0,0,0.04);
-  --ts-border-def:    rgba(0,0,0,0.09);
-  --ts-border-strong: rgba(0,0,0,0.14);
-  --ts-raised:        rgba(0,0,0,0.02);
-  --ts-scrollbar:     #c2cdd9;
-  --ts-scrollbar-bg:  #f0f4f8;
+  --bg0: #f0f4f8; --bg1: #ffffff; --bg2: #eef2f7;
+  --text0: #0f172a; --text1: #1e293b; --text2: #64748b; --text3: #94a3b8;
+  --border: rgba(0,0,0,0.09); --border-s: rgba(0,0,0,0.05);
+  --raised: rgba(0,0,0,0.02);
 }
-
-/* ── LIGHT: High-specificity overrides for components ── */
-html[data-theme="light"] body { background: var(--ts-bg0) !important; color: var(--ts-text0) !important; }
-html[data-theme="light"] nav,
-html[data-theme="light"] .topbar { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .card-inner { background: #f4f7fa !important; border-color: rgba(0,0,0,0.06) !important; }
-html[data-theme="light"] .stat-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .dk-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .clause-card { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
-html[data-theme="light"] .clause-card.confirmed { border-color: rgba(34,197,94,0.35) !important; }
-html[data-theme="light"] .clause-card.flagged-card { border-color: rgba(245,158,11,0.4) !important; }
-html[data-theme="light"] .clause-card.rejected { border-color: rgba(239,68,68,0.4) !important; background: rgba(239,68,68,0.03) !important; }
-html[data-theme="light"] .clause-card.active-doc { border-color: #0d9488 !important; }
-html[data-theme="light"] .clause-card-body { border-color: rgba(0,0,0,0.07) !important; }
-html[data-theme="light"] .clause-card-header:hover { background: rgba(0,0,0,0.02) !important; }
-html[data-theme="light"] .clause-action-bar { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.06) !important; }
-html[data-theme="light"] .clause-note-input { background: #f8fafc !important; border-color: rgba(0,194,168,0.3) !important; color: #0f172a !important; }
-html[data-theme="light"] .doc-row { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .nav-link { color: #5a7394 !important; }
-html[data-theme="light"] .nav-link:hover { color: #00b89f !important; background: rgba(0,194,168,0.08) !important; }
-html[data-theme="light"] .nav-link.active { color: #009e88 !important; background: rgba(0,194,168,0.10) !important; }
-html[data-theme="light"] .audit-row { border-color: rgba(0,0,0,0.05) !important; }
-html[data-theme="light"] .audit-row:hover { background: rgba(0,0,0,0.02) !important; }
-html[data-theme="light"] .report-row { border-color: rgba(0,0,0,0.05) !important; }
-html[data-theme="light"] .report-row:hover { background: rgba(0,0,0,0.025) !important; }
-html[data-theme="light"] .notif-item { border-color: rgba(0,0,0,0.05) !important; }
-html[data-theme="light"] .upload-cta { background: linear-gradient(135deg, rgba(0,194,168,0.07) 0%, rgba(59,130,246,0.04) 100%) !important; border-color: rgba(0,194,168,0.2) !important; }
-html[data-theme="light"] .drop-zone { border-color: rgba(0,194,168,0.3) !important; }
-html[data-theme="light"] .drop-zone:hover,
-html[data-theme="light"] .drop-zone.dragging { border-color: #00c2a8 !important; background: rgba(0,194,168,0.04) !important; }
-html[data-theme="light"] .dk-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
-html[data-theme="light"] .dk-input:focus { border-color: rgba(0,194,168,0.5) !important; }
-html[data-theme="light"] .dk-input option { background: #f4f7fa !important; color: #0f172a !important; }
-html[data-theme="light"] .input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
-html[data-theme="light"] .input::placeholder { color: #94a3b8 !important; }
-html[data-theme="light"] .input:focus { border-color: #00c2a8 !important; }
-html[data-theme="light"] select.input option { background: #f4f7fa !important; color: #0f172a !important; }
-html[data-theme="light"] .brand-panel { background: #1a2744 !important; }
-html[data-theme="light"] .form-panel { background: #f8fafc !important; }
-html[data-theme="light"] .sso-btn { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
-html[data-theme="light"] .sso-btn:hover { background: #eef2f7 !important; }
-html[data-theme="light"] .checkbox-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.2) !important; }
-html[data-theme="light"] .checkbox-label { color: #1e293b !important; }
-html[data-theme="light"] .divider::before,
-html[data-theme="light"] .divider::after { background: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .divider span { color: #94a3b8 !important; }
-html[data-theme="light"] .form-title { color: #0f172a !important; }
-html[data-theme="light"] .form-subtitle { color: #64748b !important; }
+html[data-theme="light"] .left  { background: #111e38 !important; }
+html[data-theme="light"] .right { background: #f8fafc !important; }
 html[data-theme="light"] .field-label { color: #334155 !important; }
-html[data-theme="light"] .bp-logo-tag,
-html[data-theme="light"] .bp-sub,
-html[data-theme="light"] .bp-stat-label { color: rgba(255,255,255,0.55) !important; }
-html[data-theme="light"] .bp-stat-value { color: #5ef0d8 !important; }
-html[data-theme="light"] .bp-stat { background: rgba(255,255,255,0.06) !important; }
-html[data-theme="light"] .bp-stats { background: rgba(255,255,255,0.04) !important; }
-html[data-theme="light"] .bp-badge { color: #e0e6f0 !important; }
-html[data-theme="light"] .bp-badge-icon { background: rgba(0,194,168,0.15) !important; border-color: rgba(0,194,168,0.3) !important; }
-html[data-theme="light"] .bp-footer { color: rgba(255,255,255,0.4) !important; border-color: rgba(255,255,255,0.1) !important; }
-html[data-theme="light"] .signup-row { color: #64748b !important; border-color: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .form-footer { color: #94a3b8 !important; }
-html[data-theme="light"] .form-footer a { color: #64748b !important; }
-html[data-theme="light"] .back-link { color: #64748b !important; }
-html[data-theme="light"] .tab-inactive { color: #64748b !important; }
-html[data-theme="light"] .tab-active { color: #0d9488 !important; }
-html[data-theme="light"] .sidebar-tab.active { background: #eef2f7 !important; color: #0f172a !important; border-color: rgba(0,0,0,0.1) !important; }
-html[data-theme="light"] .sidebar-tab.inactive { color: #64748b !important; }
-html[data-theme="light"] .quota-bar-track { background: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .notif-dot { border-color: #f0f4f8 !important; }
-html[data-theme="light"] .plan-badge-bundle,
-html[data-theme="light"] .plan-badge-pay,
-html[data-theme="light"] .plan-badge-monitor { /* keep as-is — colored badges */ }
-html[data-theme="light"] .btn-ghost { color: #009e88 !important; border-color: rgba(0,158,136,0.3) !important; }
-html[data-theme="light"] .btn-ghost:hover { background: rgba(0,194,168,0.07) !important; }
-html[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f4f8 !important; }
-html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
-html[data-theme="light"] .scrollbar::-webkit-scrollbar-track { background: #f0f4f8 !important; }
-html[data-theme="light"] .scrollbar::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
-/* Stepper (audit page) */
-html[data-theme="light"] .step-circle { border-color: rgba(0,0,0,0.1) !important; color: #64748b !important; }
-html[data-theme="light"] .step-label { color: #64748b !important; }
-html[data-theme="light"] .step-line { background: rgba(0,0,0,0.1) !important; }
-/* Step pills (signup) */
-html[data-theme="light"] .step-pill { color: #94a3b8 !important; }
-html[data-theme="light"] .step-pill-num { background: rgba(0,0,0,0.06) !important; }
-html[data-theme="light"] .step-pill.active { color: #009e88 !important; background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.25) !important; }
-html[data-theme="light"] .step-pill.active .step-pill-num { background: #00c2a8 !important; color: #fff !important; }
-html[data-theme="light"] .step-pill.done .step-pill-num { background: rgba(0,194,168,0.12) !important; color: #009e88 !important; }
-html[data-theme="light"] .progress-track { background: rgba(0,0,0,0.07) !important; }
-html[data-theme="light"] .progress-label,
-html[data-theme="light"] .progress-fraction { color: #64748b !important; }
-html[data-theme="light"] .topbar-right { color: #64748b !important; }
-/* Alert banners */
-html[data-theme="light"] .alert-error { background: rgba(239,68,68,0.06) !important; border-color: rgba(239,68,68,0.2) !important; }
-html[data-theme="light"] .alert-success { background: rgba(34,197,94,0.06) !important; border-color: rgba(34,197,94,0.2) !important; }
-/* Severity badges — keep accent colors */
-html[data-theme="light"] .sev-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
-html[data-theme="light"] .sev-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
-html[data-theme="light"] .sev-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
-html[data-theme="light"] .badge-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
-html[data-theme="light"] .badge-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
-html[data-theme="light"] .badge-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
-/* Status badges */
-html[data-theme="light"] .status-pending  { background: rgba(245,158,11,0.08) !important; border-color: rgba(245,158,11,0.2) !important; }
-html[data-theme="light"] .status-review   { background: rgba(59,130,246,0.08) !important; border-color: rgba(59,130,246,0.2) !important; }
-html[data-theme="light"] .status-released { background: rgba(34,197,94,0.08) !important; border-color: rgba(34,197,94,0.2) !important; }
-html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.2) !important; }
+html[data-theme="light"] .inp { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .inp:focus { border-color: var(--teal-d) !important; }
+html[data-theme="light"] .form-title { color: #0f172a !important; }
+html[data-theme="light"] .form-sub   { color: #64748b !important; }
+html[data-theme="light"] .divider-line { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .chk-label  { color: #1e293b !important; }
+html[data-theme="light"] .chk { background: #f4f7fa !important; border-color: rgba(0,0,0,0.2) !important; }
+html[data-theme="light"] .bottom-row { color: #64748b !important; border-color: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .bottom-row a { color: #009e88 !important; }
+html[data-theme="light"] .partner-link { color: #64748b !important; }
+html[data-theme="light"] .partner-link a { color: #5a7394 !important; }
+html[data-theme="light"] .footer-note { color: #94a3b8 !important; }
+html[data-theme="light"] .footer-note a { color: #64748b !important; }
+html[data-theme="light"] .badge-item { color: #e0eaf8 !important; }
+html[data-theme="light"] .badge-icon { background: rgba(0,194,168,0.15) !important; border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .pw-btn { color: #94a3b8 !important; }
+html[data-theme="light"] .err-msg { color: #f87171 !important; }
 
-/* ═══════════════════════════════════════
-   DESIGN TOKENS
-═══════════════════════════════════════ */
-:root {
-  /* Colours */
-  --navy-950:  var(--ts-bg0);
-  --navy-900:  var(--ts-bg0);
-  --navy-800:  var(--ts-bg1);
-  --navy-700:  var(--ts-bg2);
-  --navy-600:  var(--ts-bg2);
-  --navy-500:  var(--ts-text4);
-  --teal-500:  #00c2a8;
-  --teal-400:  #00d9bc;
-  --teal-300:  #4debd8;
-  --teal-600:  #009e88;
-  --teal-faint: rgba(0,194,168,0.07);
-  --blue-500:  #3b82f6;
-  --red-500:   #ef4444;
-  --red-faint: rgba(239,68,68,0.08);
-  --amber-500: #f59e0b;
-  --green-500: #22c55e;
-
-  /* Text */
-  --text-100: var(--ts-text0);
-  --text-200: var(--ts-text1);
-  --text-400: var(--ts-text3);
-  --text-600: var(--ts-text3);
-
-  /* Borders */
-  --border-subtle:  rgba(255,255,255,0.06);
-  --border-default: rgba(255,255,255,0.10);
-  --border-strong:  rgba(255,255,255,0.18);
-  --border-teal:    rgba(0,194,168,0.35);
-
-  /* Surfaces */
-  --surface-0: var(--navy-950);
-  --surface-1: var(--navy-800);
-  --surface-2: var(--navy-700);
-  --surface-raised: rgba(255,255,255,0.035);
-
-  /* Radius */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 20px;
-  --r-full: 9999px;
-
-  /* Shadows */
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.4);
-  --shadow-teal: 0 0 0 3px rgba(0,194,168,0.20);
-  --shadow-btn:  0 2px 8px rgba(0,194,168,0.30);
-
-  /* Transitions */
-  --t-fast: 0.15s ease;
-  --t-med:  0.25s ease;
-}
-
-/* ═══════════════════════════════════════
-   RESET & BASE
-═══════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-  background: var(--surface-0);
-  color: var(--text-100);
-  height: 100%;
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
+html, body { height: 100%; overflow: hidden; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+       background: var(--bg0); color: var(--text0); font-size: 14px; line-height: 1.5;
+       -webkit-font-smoothing: antialiased; }
 
-/* ═══════════════════════════════════════
-   LAYOUT — TWO PANEL
-═══════════════════════════════════════ */
-.layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  min-height: 100vh;
-}
+/* ── LAYOUT ── */
+.layout { display: grid; grid-template-columns: 1fr 1fr; height: 100vh; overflow: hidden; }
 
-/* ── LEFT BRAND PANEL ── */
-.brand-panel {
-  background: var(--navy-900);
-  border-right: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  padding: 48px 56px;
+/* ── LEFT PANEL ── */
+.left {
+  background: #090f1d;
+  border-right: 1px solid var(--border-s);
+  display: flex; flex-direction: column;
+  padding: 32px 48px;
+  height: 100vh; overflow: hidden;
   position: relative;
-  overflow: hidden;
 }
-
-/* Subtle radial glow behind illustration */
-.brand-panel::before {
-  content: '';
-  position: absolute;
-  top: -120px; left: -80px;
-  width: 520px; height: 520px;
-  background: radial-gradient(circle, rgba(0,194,168,0.12) 0%, transparent 70%);
-  pointer-events: none;
-}
-.brand-panel::after {
-  content: '';
-  position: absolute;
-  bottom: -80px; right: -60px;
-  width: 380px; height: 380px;
-  background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+.left::before {
+  content: ''; position: absolute; top: -100px; left: -60px;
+  width: 480px; height: 480px;
+  background: radial-gradient(circle, rgba(0,194,168,0.11) 0%, transparent 70%);
   pointer-events: none;
 }
 
-/* Logo */
-.bp-logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  position: relative;
-  z-index: 1;
+.logo { display: flex; align-items: center; gap: 11px; position: relative; z-index: 1; flex-shrink: 0; }
+.logo-mark {
+  width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--teal) 0%, #3b82f6 100%);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  box-shadow: 0 2px 10px rgba(0,194,168,0.3);
 }
-.bp-logo-mark {
-  width: 40px; height: 40px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(135deg, var(--teal-500) 0%, #007aff 100%);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px;
-  box-shadow: 0 2px 12px rgba(0,194,168,0.35);
-  flex-shrink: 0;
-}
-.bp-logo-name {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-}
-.bp-logo-name span { color: var(--teal-500); }
-.bp-logo-tag {
-  font-size: 11px;
-  color: var(--text-400);
-  font-weight: 500;
-  letter-spacing: 0.3px;
-}
+.logo-name { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; }
+.logo-name span { color: var(--teal); }
+.logo-tag { font-size: 10px; color: var(--text3); font-weight: 500; }
 
-/* Hero text */
-.bp-hero {
-  margin-top: auto;
-  padding-bottom: 16px;
-  position: relative;
-  z-index: 1;
-}
-.bp-eyebrow {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--teal-500);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 16px;
-}
-.bp-headline {
-  font-size: 36px;
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.8px;
-  margin-bottom: 16px;
-}
-.bp-headline em {
-  font-style: normal;
-  background: linear-gradient(90deg, var(--teal-500), var(--teal-300));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.bp-sub {
-  color: var(--text-400);
-  font-size: 15px;
-  line-height: 1.6;
-  max-width: 380px;
-  margin-bottom: 40px;
-}
+.hero { margin-top: auto; position: relative; z-index: 1; }
+.eyebrow { font-size: 10px; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.headline { font-size: 28px; font-weight: 800; line-height: 1.15; letter-spacing: -0.6px; margin-bottom: 10px; }
+.headline em { font-style: normal; background: linear-gradient(90deg, var(--teal), #4debd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.sub { color: var(--text2); font-size: 13px; line-height: 1.55; max-width: 360px; margin-bottom: 20px; }
 
-/* Trust badges */
-.bp-badges {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-bottom: 48px;
-}
-.bp-badge {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--text-200);
-}
-.bp-badge-icon {
-  width: 32px; height: 32px;
-  border-radius: var(--r-sm);
-  background: var(--teal-faint);
-  border: 1px solid var(--border-teal);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px;
-  flex-shrink: 0;
-}
+.badges { display: flex; flex-direction: column; gap: 8px; }
+.badge-item { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text1); }
+.badge-icon { width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+              background: rgba(0,194,168,0.08); border: 1px solid rgba(0,194,168,0.25);
+              display: flex; align-items: center; justify-content: center; font-size: 14px; }
 
-/* Stats row */
-.bp-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: var(--border-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--r-md);
-  overflow: hidden;
+/* ── RIGHT PANEL ── */
+.right {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 24px 48px;
+  height: 100vh; overflow: hidden;
+  background: var(--bg1);
 }
-.bp-stat {
-  background: var(--surface-2);
-  padding: 16px;
-  text-align: center;
-}
-.bp-stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--teal-500);
-  letter-spacing: -0.5px;
-}
-.bp-stat-label {
-  font-size: 11px;
-  color: var(--text-400);
-  margin-top: 3px;
-}
+.form-box { width: 100%; max-width: 380px; }
 
-/* Footer note */
-.bp-footer {
-  margin-top: 40px;
-  padding-top: 24px;
-  border-top: 1px solid var(--border-subtle);
-  font-size: 12px;
-  color: var(--text-600);
-  position: relative;
-  z-index: 1;
+.pilot-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.pilot-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(0,194,168,0.10); border: 1px solid rgba(0,194,168,0.22);
+  border-radius: 999px; padding: 4px 11px;
+  font-size: 11px; font-weight: 600; color: var(--teal); letter-spacing: 0.3px;
 }
+.pilot-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+.autofill-btn {
+  background: rgba(0,194,168,0.08); border: 1px solid rgba(0,194,168,0.2);
+  color: var(--teal); font-size: 11px; font-weight: 600;
+  padding: 4px 11px; border-radius: 999px; cursor: pointer; font-family: inherit;
+}
+.autofill-btn:hover { background: rgba(0,194,168,0.15); }
 
-/* ── RIGHT FORM PANEL ── */
-.form-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 56px;
-  background: var(--surface-1);
-}
+.form-title { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 3px; }
+.form-sub { color: var(--text2); font-size: 13px; margin-bottom: 18px; }
 
-.form-box {
-  width: 100%;
-  max-width: 400px;
+.alert {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 12px; border-radius: var(--r); font-size: 12px;
+  margin-bottom: 10px; opacity: 0; height: 0; overflow: hidden; transition: opacity .2s, height .2s;
 }
+.alert.show { opacity: 1; height: auto; overflow: visible; }
+.alert-err  { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.22); color: #fca5a5; }
+.alert-ok   { background: rgba(34,197,94,0.07);  border: 1px solid rgba(34,197,94,0.22);  color: #86efac; }
 
-/* Form header */
-.form-header { margin-bottom: 32px; }
-.form-title {
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.4px;
-  margin-bottom: 6px;
-}
-.form-subtitle { color: var(--text-400); font-size: 14px; }
-
-/* SSO Button */
-.sso-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  padding: 11px 20px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-sm);
-  color: var(--text-100);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background var(--t-fast), border-color var(--t-fast);
-  margin-bottom: 24px;
-}
-.sso-btn:hover {
-  background: rgba(255,255,255,0.06);
-  border-color: var(--border-strong);
-}
-.sso-btn svg { flex-shrink: 0; }
-
-/* Divider */
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-.divider::before, .divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border-subtle);
-}
-.divider span {
-  font-size: 12px;
-  color: var(--text-600);
-  white-space: nowrap;
-}
-
-/* Form fields */
-.field { margin-bottom: 18px; }
+.field { margin-bottom: 11px; }
 .field-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 7px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-200);
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px; font-size: 12px; font-weight: 500; color: var(--text1);
 }
-.field-label a {
-  font-weight: 500;
-  color: var(--teal-500);
-  text-decoration: none;
-  font-size: 12px;
-  transition: color var(--t-fast);
+.field-label a { color: var(--teal); text-decoration: none; font-size: 11px; }
+.field-label a:hover { color: var(--teal-h); }
+.inp-wrap { position: relative; }
+.inp-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; display: flex; align-items: center; }
+.inp {
+  width: 100%; padding: 9px 12px 9px 36px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); color: var(--text0); font-size: 13px;
+  outline: none; font-family: inherit; transition: border-color var(--t), box-shadow var(--t);
 }
-.field-label a:hover { color: var(--teal-400); }
+.inp::placeholder { color: var(--text3); }
+.inp:focus { border-color: var(--teal); box-shadow: var(--shadow-teal); }
+.inp.err { border-color: var(--red); }
+.pw-btn {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: var(--text3);
+  padding: 3px; display: flex; align-items: center;
+}
+.err-msg { font-size: 11px; color: #fca5a5; margin-top: 4px; display: none; }
+.err-msg.show { display: block; }
 
-.input-wrap {
-  position: relative;
+.chk-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.chk {
+  width: 15px; height: 15px; border-radius: 4px; flex-shrink: 0;
+  border: 1.5px solid var(--border); background: var(--bg2);
+  appearance: none; cursor: pointer; position: relative;
+  transition: background var(--t), border-color var(--t);
 }
-.input-icon {
-  position: absolute;
-  left: 13px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-600);
-  font-size: 15px;
-  pointer-events: none;
-  transition: color var(--t-fast);
-  display: flex; align-items: center;
-}
-.input {
-  width: 100%;
-  padding: 11px 14px 11px 40px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-sm);
-  color: var(--text-100);
-  font-size: 14px;
-  outline: none;
-  transition: border-color var(--t-fast), box-shadow var(--t-fast);
-  font-family: inherit;
-}
-.input::placeholder { color: var(--text-600); }
-.input:hover { border-color: var(--border-strong); }
-.input:focus {
-  border-color: var(--teal-500);
-  box-shadow: var(--shadow-teal);
-}
-.input:focus ~ .input-icon,
-.input-wrap:focus-within .input-icon { color: var(--teal-500); }
-.input.error { border-color: var(--red-500); box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+.chk:checked { background: var(--teal); border-color: var(--teal); }
+.chk:checked::after { content: ''; position: absolute; top: 2px; left: 4px; width: 4px; height: 7px; border: 2px solid #000; border-top: none; border-left: none; transform: rotate(45deg); }
+.chk-label { font-size: 12px; color: var(--text1); cursor: pointer; }
 
-/* Password toggle */
-.pw-toggle {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-600);
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  border-radius: 4px;
-  transition: color var(--t-fast);
-}
-.pw-toggle:hover { color: var(--text-400); }
-
-/* Field error message */
-.field-error {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--red-500);
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity var(--t-fast), transform var(--t-fast);
-}
-.field-error.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Checkbox row */
-.checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 24px;
-}
-.checkbox-input {
-  width: 16px; height: 16px;
-  border-radius: 4px;
-  border: 1.5px solid var(--border-default);
-  background: var(--surface-2);
-  appearance: none;
-  cursor: pointer;
-  position: relative;
-  flex-shrink: 0;
-  transition: border-color var(--t-fast), background var(--t-fast);
-}
-.checkbox-input:checked {
-  background: var(--teal-500);
-  border-color: var(--teal-500);
-}
-.checkbox-input:checked::after {
-  content: '';
-  position: absolute;
-  top: 2px; left: 5px;
-  width: 4px; height: 7px;
-  border: 2px solid #000;
-  border-top: none; border-left: none;
-  transform: rotate(45deg);
-}
-.checkbox-label { font-size: 13px; color: var(--text-200); cursor: pointer; }
-
-/* Submit button */
 .btn-submit {
-  width: 100%;
-  padding: 13px 24px;
-  background: var(--teal-500);
-  border: none;
-  border-radius: var(--r-sm);
-  color: #000;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast);
-  font-family: inherit;
-  letter-spacing: 0.1px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  position: relative;
-  overflow: hidden;
+  width: 100%; padding: 11px 24px;
+  background: var(--teal); border: none; border-radius: var(--r);
+  color: #000; font-size: 14px; font-weight: 700; cursor: pointer;
+  font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background var(--t), box-shadow var(--t);
 }
-.btn-submit:hover {
-  background: var(--teal-400);
-  box-shadow: var(--shadow-btn);
-}
-.btn-submit:active { transform: scale(0.995); }
-.btn-submit:disabled {
-  background: rgba(0,194,168,0.3);
-  color: rgba(0,0,0,0.4);
-  cursor: not-allowed;
-  box-shadow: none;
-}
-.btn-submit .spinner {
-  width: 16px; height: 16px;
-  border: 2px solid rgba(0,0,0,0.2);
-  border-top-color: #000;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  display: none;
-}
-.btn-submit.loading .btn-label { display: none; }
-.btn-submit.loading .spinner { display: block; }
+.btn-submit:hover { background: var(--teal-h); box-shadow: 0 2px 8px rgba(0,194,168,0.3); }
+.btn-submit:disabled { background: rgba(0,194,168,0.3); color: rgba(0,0,0,0.4); cursor: not-allowed; }
+.btn-submit .spin { width: 15px; height: 15px; border: 2px solid rgba(0,0,0,0.2); border-top-color: #000; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+.btn-submit.loading .lbl { display: none; }
+.btn-submit.loading .spin { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Alert banner */
-.alert-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: var(--r-sm);
-  font-size: 13px;
-  margin-bottom: 18px;
-  opacity: 0;
-  height: 0;
-  overflow: hidden;
-  transition: opacity var(--t-med), height var(--t-med);
+.bottom-row {
+  text-align: center; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border-s); font-size: 12px; color: var(--text2);
 }
-.alert-banner.show {
-  opacity: 1;
-  height: auto;
-  overflow: visible;
-}
-.alert-error {
-  background: var(--red-faint);
-  border: 1px solid rgba(239,68,68,0.25);
-  color: #fca5a5;
-}
-.alert-success {
-  background: rgba(34,197,94,0.07);
-  border: 1px solid rgba(34,197,94,0.25);
-  color: #86efac;
-}
-.alert-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.bottom-row a { color: var(--teal); text-decoration: none; font-weight: 600; margin-left: 3px; }
+.bottom-row a:hover { color: var(--teal-h); }
 
-/* Sign up row */
-.signup-row {
-  text-align: center;
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid var(--border-subtle);
-  font-size: 13px;
-  color: var(--text-400);
-}
-.signup-row a {
-  color: var(--teal-500);
-  text-decoration: none;
-  font-weight: 600;
-  margin-left: 4px;
-  transition: color var(--t-fast);
-}
-.signup-row a:hover { color: var(--teal-400); }
+.partner-link { text-align: center; margin-top: 8px; font-size: 11px; color: var(--text3); }
+.partner-link a { color: var(--text2); text-decoration: none; }
+.partner-link a:hover { color: var(--text0); }
 
-/* Pilot tag */
-.pilot-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(0,194,168,0.10);
-  border: 1px solid rgba(0,194,168,0.25);
-  border-radius: var(--r-full);
-  padding: 4px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--teal-500);
-  letter-spacing: 0.3px;
-  margin-bottom: 20px;
-}
-.pilot-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--teal-500);
-  animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
-}
+.footer-note { margin-top: 10px; text-align: center; font-size: 10px; color: var(--text3); }
+.footer-note a { color: var(--text2); text-decoration: none; }
 
-/* Form footer */
-.form-footer {
-  margin-top: 40px;
-  text-align: center;
-  font-size: 11px;
-  color: var(--text-600);
+/* forgot password screen */
+.fp { display: none; }
+.fp.active { display: block; }
+.main-scr.hidden { display: none; }
+.back-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--text2); font-size: 12px; cursor: pointer;
+  background: none; border: none; padding: 0; font-family: inherit;
+  margin-bottom: 20px; transition: color var(--t);
 }
-.form-footer a { color: var(--text-400); text-decoration: none; }
-.form-footer a:hover { color: var(--text-200); }
+.back-btn:hover { color: var(--text0); }
 
-/* Forgot password screen */
-.fp-screen { display: none; }
-.fp-screen.active { display: block; }
-.main-screen { display: block; }
-.main-screen.hidden { display: none; }
-
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-400);
-  font-size: 13px;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: inherit;
-  transition: color var(--t-fast);
-  margin-bottom: 28px;
-}
-.back-link:hover { color: var(--text-100); }
-
-/* ── RESPONSIVE ── */
-@media (max-width: 860px) {
+@media (max-width: 800px) {
   .layout { grid-template-columns: 1fr; }
-  .brand-panel { display: none; }
-  .form-panel { padding: 40px 24px; min-height: 100vh; }
+  .left { display: none; }
+  .right { padding: 24px; height: 100vh; overflow-y: auto; }
 }
 </style>
 </head>
 <body>
-<div style="position:fixed;top:14px;right:20px;z-index:100;">
-<button id="ts-mode-btn"
-  onclick="tsModeToggle()"
-  title="Switch between DEV (mock data) and LIVE (real API) mode — admin only"
-  style="display:inline-flex;align-items:center;gap:6px;padding:0 10px;height:28px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:0.4px;cursor:pointer;border:none;transition:all 0.2s;flex-shrink:0;">
-  <span id="ts-mode-dot" style="width:7px;height:7px;border-radius:50%;flex-shrink:0;"></span>
-  <span id="ts-mode-label">···</span>
-</button>
-<button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
-  style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid var(--ts-border-rgba,rgba(255,255,255,0.07));background:var(--ts-raised,rgba(255,255,255,0.035));">
-  <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-  <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-</button>
+
+<!-- Theme toggle -->
+<div style="position:fixed;top:12px;right:16px;z-index:100">
+  <button id="thm" onclick="toggleTheme()" style="width:34px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--border);background:var(--raised)">
+    <svg id="ico-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    <svg id="ico-sun"  width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+  </button>
 </div>
 
 <div class="layout">
 
-  <!-- ════════════════════════════════════
-       LEFT — BRAND PANEL
-  ════════════════════════════════════ -->
-  <aside class="brand-panel">
-    <!-- Logo -->
-    <div class="bp-logo">
-      <div class="bp-logo-mark">🔍</div>
+  <!-- LEFT -->
+  <aside class="left">
+    <div class="logo">
+      <div class="logo-mark">🔍</div>
       <div>
-        <div class="bp-logo-name">TenantSentry<span>.ai</span></div>
-        <div class="bp-logo-tag">Lease Audit Platform</div>
+        <div class="logo-name">TenantSentry<span>.ai</span></div>
+        <div class="logo-tag">Lease Audit Platform</div>
       </div>
     </div>
 
-    <!-- Hero -->
-    <div class="bp-hero">
-      <div class="bp-eyebrow">For Australian commercial tenants</div>
-      <h1 class="bp-headline">
-        Know your lease.<br>
-        <em>Protect your business.</em>
-      </h1>
-      <p class="bp-sub">
-        AI-powered forensic lease auditing that catches CPI miscalculations, unlawful outgoings, and land tax overcharges — before your landlord gets away with it.
-      </p>
-
-      <div class="bp-badges">
-        <div class="bp-badge">
-          <div class="bp-badge-icon">⚖️</div>
-          <div>Grounded in <strong>state legislation</strong> — VIC, NSW, QLD, WA</div>
-        </div>
-        <div class="bp-badge">
-          <div class="bp-badge-icon">🔍</div>
-          <div><strong>Clause-by-clause</strong> forensic analysis with evidence citations</div>
-        </div>
-        <div class="bp-badge">
-          <div class="bp-badge-icon">📄</div>
-          <div>Dispute-ready <strong>letter generation</strong> reviewed by your legal advisor</div>
-        </div>
-        <div class="bp-badge">
-          <div class="bp-badge-icon">📊</div>
-          <div><strong>Ongoing monitoring</strong> — never miss an overcharge again</div>
-        </div>
+    <div class="hero">
+      <div class="eyebrow">For Australian commercial tenants</div>
+      <h1 class="headline">Know your lease.<br><em>Protect your business.</em></h1>
+      <p class="sub">AI-powered forensic lease auditing that catches CPI miscalculations, unlawful outgoings, and land tax overcharges — before your landlord gets away with it.</p>
+      <div class="badges">
+        <div class="badge-item"><div class="badge-icon">⚖️</div><div>Grounded in <strong>state legislation</strong> — VIC, NSW, QLD, WA</div></div>
+        <div class="badge-item"><div class="badge-icon">🔍</div><div><strong>Clause-by-clause</strong> forensic analysis with evidence citations</div></div>
+        <div class="badge-item"><div class="badge-icon">📄</div><div>Dispute-ready <strong>letter generation</strong> reviewed by your legal advisor</div></div>
       </div>
-
-      <div class="bp-stats">
-        <div class="bp-stat">
-          <div class="bp-stat-value">$4.2K</div>
-          <div class="bp-stat-label">avg. overcharge found</div>
-        </div>
-        <div class="bp-stat">
-          <div class="bp-stat-value">94%</div>
-          <div class="bp-stat-label">audit accuracy</div>
-        </div>
-        <div class="bp-stat">
-          <div class="bp-stat-value">&lt;5 min</div>
-          <div class="bp-stat-label">time to report</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="bp-footer">
-      Protected by 256-bit encryption &nbsp;·&nbsp; SOC 2 Type II (in progress) &nbsp;·&nbsp; Australian data residency
     </div>
   </aside>
 
-  <!-- ════════════════════════════════════
-       RIGHT — FORM PANEL
-  ════════════════════════════════════ -->
-  <section class="form-panel">
+  <!-- RIGHT -->
+  <section class="right">
     <div class="form-box">
 
-      <!-- ── MAIN SIGN-IN SCREEN ── -->
-      <div class="main-screen" id="mainScreen">
-
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-          <div class="pilot-tag" style="margin-bottom:0">
-            <div class="pilot-dot"></div>
-            Pilot · Limited Access
-          </div>
-          <button onclick="autofill()" style="background:rgba(0,194,168,0.08);border:1px solid rgba(0,194,168,0.2);color:var(--teal-500);font-size:11px;font-weight:600;padding:4px 12px;border-radius:var(--r-full);cursor:pointer;font-family:inherit;transition:background var(--t-fast)" onmouseover="this.style.background='rgba(0,194,168,0.16)'" onmouseout="this.style.background='rgba(0,194,168,0.08)'">⚡ Autofill</button>
+      <!-- MAIN SCREEN -->
+      <div class="main-scr" id="mainScr">
+        <div class="pilot-row">
+          <div class="pilot-tag"><div class="pilot-dot"></div>Pilot · Limited Access</div>
+          <button class="autofill-btn" onclick="autofill()">⚡ Autofill</button>
         </div>
 
-        <div class="form-header">
-          <div class="form-title">Welcome back</div>
-          <div class="form-subtitle">Sign in to your TenantSentry account</div>
-        </div>
+        <div class="form-title">Welcome back</div>
+        <div class="form-sub">Sign in to your TenantSentry account</div>
 
-        <!-- SSO -->
-        <button class="sso-btn" onclick="handleSSO()">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M17.64 9.2045C17.64 8.5663 17.5827 7.9527 17.4764 7.3636H9V10.845H13.8436C13.635 11.97 13.0009 12.9231 12.0477 13.5613V15.8195H14.9564C16.6582 14.2527 17.64 11.9454 17.64 9.2045Z" fill="#4285F4"/>
-            <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5613C11.2418 14.1013 10.2109 14.4204 9 14.4204C6.65591 14.4204 4.67182 12.8372 3.96409 10.71H0.957275V13.0418C2.43818 15.9831 5.48182 18 9 18Z" fill="#34A853"/>
-            <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.5931 3.68182 9C3.68182 8.4069 3.78409 7.83 3.96409 7.29V4.9582H0.957275C0.347727 6.1731 0 7.5477 0 9C0 10.4523 0.347727 11.8269 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"/>
-            <path d="M9 3.5795C10.3214 3.5795 11.5077 4.0336 12.4405 4.9254L15.0218 2.344C13.4632 0.891772 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.9582L3.96409 7.29C4.67182 5.1627 6.65591 3.5795 9 3.5795Z" fill="#EA4335"/>
-          </svg>
-          Continue with Google
-        </button>
+        <div class="alert alert-err" id="alert"><span>⚠</span><span id="alertMsg">Invalid email or password.</span></div>
 
-        <!-- Divider -->
-        <div class="divider"><span>or sign in with email</span></div>
-
-        <!-- Alert -->
-        <div class="alert-banner alert-error" id="alertBanner">
-          <div class="alert-icon">⚠</div>
-          <div id="alertText">Invalid email or password. Please try again.</div>
-        </div>
-
-        <!-- Form -->
         <form id="loginForm" novalidate>
-          <!-- Email -->
-          <div class="field" id="emailField">
+          <div class="field">
             <div class="field-label"><span>Email address</span></div>
-            <div class="input-wrap">
-              <span class="input-icon">
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4">
-                  <rect x="1" y="3" width="13" height="9" rx="1.5"/>
-                  <path d="M1 4.5l6.5 4.5L14 4.5"/>
-                </svg>
-              </span>
-              <input
-                type="email"
-                class="input"
-                id="emailInput"
-                placeholder="you@company.com.au"
-                autocomplete="email"
-                spellcheck="false"
-              />
+            <div class="inp-wrap">
+              <span class="inp-icon"><svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="3" width="13" height="9" rx="1.5"/><path d="M1 4.5l6.5 4.5L14 4.5"/></svg></span>
+              <input type="email" class="inp" id="email" placeholder="you@company.com.au" autocomplete="email" spellcheck="false"/>
             </div>
-            <div class="field-error" id="emailError">
-              <span>⚠</span><span id="emailErrorText">Please enter a valid email address</span>
-            </div>
+            <div class="err-msg" id="emailErr">Please enter a valid email</div>
           </div>
 
-          <!-- Password -->
-          <div class="field" id="passwordField">
+          <div class="field">
             <div class="field-label">
               <span>Password</span>
-              <a href="#" onclick="showForgotPassword(event)">Forgot password?</a>
+              <a href="#" onclick="showFP(event)">Forgot password?</a>
             </div>
-            <div class="input-wrap">
-              <span class="input-icon">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
-                  <rect x="2" y="6" width="10" height="7" rx="1.5"/>
-                  <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6"/>
-                </svg>
-              </span>
-              <input
-                type="password"
-                class="input"
-                id="passwordInput"
-                placeholder="Enter your password"
-                autocomplete="current-password"
-                id="passwordInput"
-              />
-              <button type="button" class="pw-toggle" id="pwToggle" onclick="togglePassword()" tabindex="-1" aria-label="Show password">
-                <svg id="eyeIcon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
-                  <path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z"/>
-                  <circle cx="8" cy="8" r="2"/>
-                </svg>
+            <div class="inp-wrap">
+              <span class="inp-icon"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="6" width="10" height="7" rx="1.5"/><path d="M4.5 6V4.5a2.5 2.5 0 015 0V6"/></svg></span>
+              <input type="password" class="inp" id="pw" placeholder="Enter your password" autocomplete="current-password"/>
+              <button type="button" class="pw-btn" onclick="togglePw()" tabindex="-1">
+                <svg id="eyeIco" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z"/><circle cx="8" cy="8" r="2"/></svg>
               </button>
             </div>
-            <div class="field-error" id="passwordError">
-              <span>⚠</span><span id="passwordErrorText">Password must be at least 8 characters</span>
-            </div>
+            <div class="err-msg" id="pwErr">Password is required</div>
           </div>
 
-          <!-- Remember me -->
-          <div class="checkbox-row">
-            <input type="checkbox" class="checkbox-input" id="rememberMe" checked />
-            <label class="checkbox-label" for="rememberMe">Keep me signed in for 30 days</label>
+          <div class="chk-row">
+            <input type="checkbox" class="chk" id="remember" checked/>
+            <label class="chk-label" for="remember">Keep me signed in for 30 days</label>
           </div>
 
-          <!-- Submit -->
           <button type="submit" class="btn-submit" id="submitBtn">
-            <span class="btn-label">Sign in to TenantSentry</span>
-            <div class="spinner"></div>
+            <span class="lbl">Sign in to TenantSentry</span>
+            <div class="spin"></div>
           </button>
         </form>
 
-        <!-- Sign up -->
-        <div class="signup-row">
-          Don't have an account?
-          <a href="#" onclick="handleSignUp(event)">Request pilot access</a>
-        </div>
-
-        <div class="form-footer">
-          By signing in you agree to our
-          <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.<br>
-          TenantSentry.ai is not a law firm. Reports are for review by your legal advisor.
-        </div>
+        <div class="bottom-row">Don't have an account?<a href="#" onclick="reqAccess(event)">Request pilot access</a></div>
+        <div class="partner-link">Channel Partner? <a href="/partners/login">Sign in to Partner Portal →</a></div>
+        <div class="footer-note">By signing in you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy Policy</a>. Not a law firm.</div>
       </div>
 
-      <!-- ── FORGOT PASSWORD SCREEN ── -->
-      <div class="fp-screen" id="fpScreen">
-        <button class="back-link" onclick="showLogin()">
-          ← Back to sign in
-        </button>
-
-        <div class="form-header">
-          <div class="form-title">Reset your password</div>
-          <div class="form-subtitle">Enter your email and we'll send a reset link.</div>
-        </div>
-
-        <div class="alert-banner alert-success" id="fpSuccess">
-          <div class="alert-icon">✓</div>
-          <div>Reset link sent. Check your inbox — it expires in 15 minutes.</div>
-        </div>
-
-        <div class="field" id="fpEmailField">
+      <!-- FORGOT PASSWORD SCREEN -->
+      <div class="fp" id="fpScr">
+        <button class="back-btn" onclick="showLogin()">← Back to sign in</button>
+        <div class="form-title" style="margin-bottom:4px">Reset password</div>
+        <div class="form-sub" style="margin-bottom:16px">Enter your email and we'll send a reset link.</div>
+        <div class="alert alert-ok" id="fpOk"><span>✓</span><span>Reset link sent — check your inbox.</span></div>
+        <div class="field" id="fpField">
           <div class="field-label"><span>Email address</span></div>
-          <div class="input-wrap">
-            <span class="input-icon">
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4">
-                <rect x="1" y="3" width="13" height="9" rx="1.5"/>
-                <path d="M1 4.5l6.5 4.5L14 4.5"/>
-              </svg>
-            </span>
-            <input type="email" class="input" id="fpEmailInput" placeholder="you@company.com.au" />
-          </div>
-          <div class="field-error" id="fpEmailError">
-            <span>⚠</span><span>Please enter a valid email address</span>
+          <div class="inp-wrap">
+            <span class="inp-icon"><svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="3" width="13" height="9" rx="1.5"/><path d="M1 4.5l6.5 4.5L14 4.5"/></svg></span>
+            <input type="email" class="inp" id="fpEmail" placeholder="you@company.com.au"/>
           </div>
         </div>
-
-        <button class="btn-submit" id="fpSubmitBtn" onclick="handleForgotSubmit()">
-          <span class="btn-label">Send reset link</span>
-          <div class="spinner"></div>
+        <button class="btn-submit" id="fpBtn" onclick="sendReset()">
+          <span class="lbl">Send reset link</span><div class="spin"></div>
         </button>
       </div>
 
     </div>
   </section>
-
 </div>
 
 <script>
-/* ═══════════════════════════════════════
-   HELPERS
-═══════════════════════════════════════ */
-function isValidEmail(v) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-}
-function setError(fieldId, errorId, msg) {
-  document.getElementById(fieldId + 'Input').classList.add('error');
-  if (msg) document.getElementById(errorId + 'Text').textContent = msg;
-  document.getElementById(errorId).classList.add('visible');
-}
-function clearError(fieldId, errorId) {
-  document.getElementById(fieldId + 'Input').classList.remove('error');
-  document.getElementById(errorId).classList.remove('visible');
-}
-function showAlert(msg, type) {
-  const el = document.getElementById('alertBanner');
-  document.getElementById('alertText').textContent = msg;
-  el.className = 'alert-banner show alert-' + type;
-}
-function hideAlert() {
-  document.getElementById('alertBanner').className = 'alert-banner alert-error';
-}
+const $ = id => document.getElementById(id);
 
-/* ═══════════════════════════════════════
-   LOGIN FORM
-═══════════════════════════════════════ */
-const form = document.getElementById('loginForm');
+function showAlert(msg, type) {
+  const el = $('alert');
+  $('alertMsg').textContent = msg;
+  el.className = 'alert show alert-' + type;
+}
+function hideAlert() { $('alert').className = 'alert alert-err'; }
 
 // Live validation
-document.getElementById('emailInput').addEventListener('input', function() {
+$('email').addEventListener('input', function() {
   hideAlert();
-  if (this.value && !isValidEmail(this.value)) {
-    setError('email', 'emailError', 'Please enter a valid email address');
-  } else {
-    clearError('email', 'emailError');
-  }
+  $('emailErr').classList.toggle('show', this.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value));
+  this.classList.toggle('err', this.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value));
 });
-document.getElementById('passwordInput').addEventListener('input', function() {
+$('pw').addEventListener('input', function() {
   hideAlert();
-  if (this.value && this.value.length < 8) {
-    setError('password', 'passwordError', 'Password must be at least 8 characters');
-  } else {
-    clearError('password', 'passwordError');
-  }
+  $('pwErr').classList.remove('show');
+  this.classList.remove('err');
 });
 
-// Submit
-form.addEventListener('submit', function(e) {
+$('loginForm').addEventListener('submit', function(e) {
   e.preventDefault();
   hideAlert();
-
-  const email = document.getElementById('emailInput').value.trim();
-  const password = document.getElementById('passwordInput').value;
-  let valid = true;
-
-  if (!email) {
-    setError('email', 'emailError', 'Email address is required'); valid = false;
-  } else if (!isValidEmail(email)) {
-    setError('email', 'emailError', 'Please enter a valid email address'); valid = false;
-  } else {
-    clearError('email', 'emailError');
+  const email = $('email').value.trim();
+  const pw    = $('pw').value;
+  let ok = true;
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    $('email').classList.add('err'); $('emailErr').classList.add('show'); ok = false;
   }
-
-  if (!password) {
-    setError('password', 'passwordError', 'Password is required'); valid = false;
-  } else if (password.length < 8) {
-    setError('password', 'passwordError', 'Password must be at least 8 characters'); valid = false;
-  } else {
-    clearError('password', 'passwordError');
+  if (!pw) {
+    $('pw').classList.add('err'); $('pwErr').classList.add('show'); ok = false;
   }
+  if (!ok) return;
 
-  if (!valid) return;
-
-  // Simulate auth
-  const btn = document.getElementById('submitBtn');
-  btn.classList.add('loading');
-  btn.disabled = true;
-
-  setTimeout(() => {
-    btn.classList.remove('loading');
-    btn.disabled = false;
-
-    // Demo credentials gate
-    if (email === 'garry@tenantsentry.ai' && password === 'demo1234') {
-      showAlert('Signed in successfully. Redirecting…', 'success');
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1200);
-    } else {
-      showAlert('Invalid email or password. Try garry@tenantsentry.ai / demo1234', 'error');
-      document.getElementById('passwordInput').value = '';
-      document.getElementById('passwordInput').focus();
-    }
-  }, 1400);
-});
-
-/* ═══════════════════════════════════════
-   PASSWORD VISIBILITY
-═══════════════════════════════════════ */
-let pwVisible = false;
-function togglePassword() {
-  pwVisible = !pwVisible;
-  const input = document.getElementById('passwordInput');
-  const icon = document.getElementById('eyeIcon');
-  input.type = pwVisible ? 'text' : 'password';
-  icon.innerHTML = pwVisible
-    ? `<path d="M2 2l12 12M6.5 6.7A2 2 0 0010.3 10M1 8C1 8 3.5 3 8 3c1.1 0 2.1.3 3 .7M14.3 10.5C13.1 11.9 10.7 13 8 13c-4.5 0-7-5-7-5" stroke="currentColor" stroke-width="1.4" fill="none"/>`
-    : `<path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z"/><circle cx="8" cy="8" r="2"/>`;
-}
-
-/* ═══════════════════════════════════════
-   FORGOT PASSWORD
-═══════════════════════════════════════ */
-function showForgotPassword(e) {
-  e && e.preventDefault();
-  document.getElementById('mainScreen').classList.add('hidden');
-  document.getElementById('fpScreen').classList.add('active');
-  document.getElementById('fpEmailInput').value =
-    document.getElementById('emailInput').value;
-  document.getElementById('fpEmailInput').focus();
-}
-
-function showLogin() {
-  document.getElementById('fpScreen').classList.remove('active');
-  document.getElementById('mainScreen').classList.remove('hidden');
-  document.getElementById('fpSuccess').classList.remove('show');
-}
-
-function handleForgotSubmit() {
-  const email = document.getElementById('fpEmailInput').value.trim();
-  const errorEl = document.getElementById('fpEmailError');
-  if (!isValidEmail(email)) {
-    document.getElementById('fpEmailInput').classList.add('error');
-    errorEl.classList.add('visible');
-    return;
-  }
-  document.getElementById('fpEmailInput').classList.remove('error');
-  errorEl.classList.remove('visible');
-
-  const btn = document.getElementById('fpSubmitBtn');
+  const btn = $('submitBtn');
   btn.classList.add('loading'); btn.disabled = true;
-
   setTimeout(() => {
     btn.classList.remove('loading'); btn.disabled = false;
-    document.getElementById('fpSuccess').classList.add('show');
-    document.getElementById('fpEmailField').style.display = 'none';
-    btn.style.display = 'none';
+    if (email === 'garry@tenantsentry.ai' && pw === 'demo1234') {
+      showAlert('Signed in. Redirecting…', 'ok');
+      setTimeout(() => window.location.href = '/dashboard', 1000);
+    } else {
+      showAlert('Invalid email or password. Try garry@tenantsentry.ai / demo1234', 'err');
+      $('pw').value = ''; $('pw').focus();
+    }
   }, 1200);
+});
+
+let pwVis = false;
+function togglePw() {
+  pwVis = !pwVis;
+  $('pw').type = pwVis ? 'text' : 'password';
+  $('eyeIco').innerHTML = pwVis
+    ? '<path d="M2 2l12 12M6.5 6.7A2 2 0 0010.3 10M1 8C1 8 3.5 3 8 3c1.1 0 2.1.3 3 .7M14.3 10.5C13.1 11.9 10.7 13 8 13c-4.5 0-7-5-7-5" stroke="currentColor" stroke-width="1.4" fill="none"/>'
+    : '<path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z"/><circle cx="8" cy="8" r="2"/>';
 }
 
-/* ═══════════════════════════════════════
-   SSO / SIGN UP
-═══════════════════════════════════════ */
 function autofill() {
-  document.getElementById('emailInput').value = 'garry@tenantsentry.ai';
-  document.getElementById('passwordInput').value = 'demo1234';
+  $('email').value = 'garry@tenantsentry.ai';
+  $('pw').value = 'demo1234';
   hideAlert();
-  clearError('email','emailError');
-  clearError('password','passwordError');
 }
-
-function handleSSO() {
-  showAlert('Google SSO is not yet enabled for pilot accounts. Use email sign-in.', 'error');
-}
-
-function handleSignUp(e) {
+function reqAccess(e) {
   e.preventDefault();
-  showAlert('Pilot access is invite-only. Contact garry@tenantsentry.ai to join the waitlist.', 'error');
+  showAlert('Pilot access is invite-only. Contact garry@tenantsentry.ai.', 'err');
 }
-</script>
-<script>
-/* ═══════════════════════════════════════
-   THEME TOGGLE
-═══════════════════════════════════════ */
-function tsApplyThemeIcons() {
-  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  var moon = document.getElementById('ts-icon-moon');
-  var sun  = document.getElementById('ts-icon-sun');
-  if (!moon || !sun) return;
-  moon.style.display = isLight ? 'none'  : 'block';
-  sun.style.display  = isLight ? 'block' : 'none';
-  // Update btn border/bg for light mode visibility
-  var btn = document.getElementById('ts-theme-btn');
-  if (btn) {
-    btn.style.borderColor = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.07)';
-    btn.style.background  = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.035)';
-  }
+function showFP(e) {
+  e && e.preventDefault();
+  $('fpEmail').value = $('email').value;
+  $('mainScr').classList.add('hidden');
+  $('fpScr').classList.add('active');
 }
-function tsToggleTheme() {
-  var current = document.documentElement.getAttribute('data-theme') || 'dark';
-  var next    = current === 'light' ? 'dark' : 'light';
+function showLogin() {
+  $('fpScr').classList.remove('active');
+  $('mainScr').classList.remove('hidden');
+  $('fpOk').className = 'alert alert-ok';
+}
+function sendReset() {
+  const email = $('fpEmail').value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('fpEmail').classList.add('err'); return; }
+  $('fpEmail').classList.remove('err');
+  const btn = $('fpBtn');
+  btn.classList.add('loading'); btn.disabled = true;
+  setTimeout(() => {
+    btn.classList.remove('loading'); btn.disabled = false;
+    $('fpOk').className = 'alert alert-ok show';
+    $('fpField').style.display = 'none';
+    btn.style.display = 'none';
+  }, 1000);
+}
+
+function applyThemeIcons() {
+  const light = document.documentElement.getAttribute('data-theme') === 'light';
+  $('ico-moon').style.display = light ? 'none' : 'block';
+  $('ico-sun').style.display  = light ? 'block' : 'none';
+}
+function toggleTheme() {
+  const cur  = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = cur === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('ts-theme', next);
-  tsApplyThemeIcons();
+  applyThemeIcons();
 }
-// Run on load
-document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
-// Also run immediately in case DOM is already ready
-tsApplyThemeIcons();
+document.addEventListener('DOMContentLoaded', applyThemeIcons);
+applyThemeIcons();
 </script>
-
-<script>
-/* ═══════════════════════════════════════
-   DEV / LIVE MODE TOGGLE
-═══════════════════════════════════════ */
-(function() {
-  function tsApplyModeBadge(data) {
-    var btn   = document.getElementById('ts-mode-btn');
-    var dot   = document.getElementById('ts-mode-dot');
-    var label = document.getElementById('ts-mode-label');
-    if (!btn) return;
-    if (data.is_dev) {
-      btn.style.background   = 'rgba(245,158,11,0.15)';
-      btn.style.border       = '1px solid rgba(245,158,11,0.4)';
-      btn.style.color        = '#fbbf24';
-      dot.style.background   = '#f59e0b';
-      label.textContent      = 'DEV';
-      btn.title = 'DEV mode — click to switch to LIVE (requires admin token)';
-    } else {
-      btn.style.background   = 'rgba(34,197,94,0.12)';
-      btn.style.border       = '1px solid rgba(34,197,94,0.3)';
-      btn.style.color        = '#4ade80';
-      dot.style.background   = '#22c55e';
-      label.textContent      = 'LIVE';
-      btn.title = 'LIVE mode — click to switch to DEV (requires admin token)';
-    }
-  }
-
-  function tsLoadMode() {
-    fetch('/api/mode').then(function(r){ return r.json(); }).then(tsApplyModeBadge).catch(function(){});
-  }
-
-  window.tsModeToggle = function() {
-    var token = localStorage.getItem('ts-admin-token') || '';
-    if (!token) {
-      token = prompt('Admin token required to switch mode:');
-      if (!token) return;
-      localStorage.setItem('ts-admin-token', token);
-    }
-    fetch('/api/admin/mode/toggle', {
-      method: 'POST',
-      headers: { 'X-Admin-Token': token }
-    })
-    .then(function(r) {
-      if (r.status === 401) {
-        localStorage.removeItem('ts-admin-token');
-        alert('Invalid admin token. Token cleared — try again.');
-        return null;
-      }
-      return r.json();
-    })
-    .then(function(data) {
-      if (data) tsApplyModeBadge(data);
-    })
-    .catch(function(e) { console.error('Mode toggle failed', e); });
-  };
-
-  document.addEventListener('DOMContentLoaded', tsLoadMode);
-  tsLoadMode();
-})();
-</script>
-
 </body>
 </html>

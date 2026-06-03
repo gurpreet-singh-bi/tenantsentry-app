@@ -223,6 +223,44 @@ def require_admin(
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
+# ── Partner auth ──────────────────────────────────────────────────────────────
+# Dev mode: validates against PARTNER_TOKEN env var (same pattern as admin).
+# Live mode: TODO — validate email+password against channel_partner_user table
+#            in Supabase, then issue a signed JWT cookie.
+#
+# Portal: tenantsentry.ai/partners/login
+# Admin:  admin.tenantsentry.ai  (separate subdomain — see deployment notes)
+# ─────────────────────────────────────────────────────────────────────────────
+PARTNER_TOKEN = os.environ.get("PARTNER_TOKEN", "partner-changeme-set-in-env")
+
+# Dev-mode demo credentials  (email → maps to a known partner in DEV seed data)
+_PARTNER_DEV_CREDENTIALS = {
+    "partner@tenantsentry.ai": "partner1234",
+}
+
+
+def require_partner(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> None:
+    """
+    Guard for partner-only API routes.
+    Accepts token via:
+      - Authorization: Bearer <token>
+      - X-Partner-Token: <token>
+      - Cookie: partner_token=<token>
+    """
+    token = None
+    if credentials:
+        token = credentials.credentials
+    if not token:
+        token = request.headers.get("X-Partner-Token")
+    if not token:
+        token = request.cookies.get("partner_token")
+    if not token or token != PARTNER_TOKEN:
+        raise HTTPException(status_code=401, detail="Partner authentication required")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Frontend routes
 # ══════════════════════════════════════════════════════════════════════════════
@@ -261,6 +299,106 @@ async def upload_page(request: Request):
 async def dashboard_page(request: Request):
     """Tenant dashboard — shown after login (F12)."""
     return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Channel Partner portal — tenantsentry.ai/partners/*
+# Separate login path from tenants: /partners/login vs /login
+# Admin subdomain: admin.tenantsentry.ai (handled at infra/Nginx level)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/partners/login", response_class=HTMLResponse)
+async def partners_login_page(request: Request):
+    """Channel Partner login — invite-only, separate from tenant /login."""
+    return templates.TemplateResponse("partners_login.html", {"request": request})
+
+
+@app.get("/partners/dashboard", response_class=HTMLResponse)
+async def partners_dashboard_page(request: Request):
+    """Channel Partner portal — multi-client management, white-label delivery."""
+    return templates.TemplateResponse("partners_dashboard.html", {"request": request})
+
+
+@app.post("/api/partners/login")
+async def partner_login(request: Request):
+    """
+    Authenticate a channel partner user.
+
+    DEV mode:  validates against _PARTNER_DEV_CREDENTIALS dict.
+    LIVE mode: TODO — validate against channel_partner_user table in Supabase,
+               issue JWT, store in httpOnly cookie.
+
+    Returns { ok: true } + sets partner_token cookie on success.
+    """
+    body = await request.json()
+    email    = (body.get("email") or "").strip().lower()
+    password = body.get("password") or ""
+
+    if is_dev():
+        # Dev mode: simple credential check against seed data
+        expected_pw = _PARTNER_DEV_CREDENTIALS.get(email)
+        if not expected_pw or password != expected_pw:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        token = PARTNER_TOKEN
+    else:
+        # Live mode: validate against Supabase channel_partner_user table
+        # TODO (F-PARTNER-AUTH): replace with real Supabase auth call
+        # For now fall back to token check to avoid blocking development
+        if email not in _PARTNER_DEV_CREDENTIALS or password != _PARTNER_DEV_CREDENTIALS[email]:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        token = PARTNER_TOKEN
+
+    response = JSONResponse({"ok": True, "mode": "dev" if is_dev() else "live"})
+    response.set_cookie(
+        key="partner_token",
+        value=token,
+        httponly=True,
+        samesite="strict",
+        max_age=86400 * 30,   # 30 days (partners log in daily)
+    )
+    logger.info(f"Partner login: {email} [{_mode_status()['mode'].upper()}]")
+    return response
+
+
+@app.post("/api/partners/logout")
+async def partner_logout():
+    """Clear partner session cookie."""
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("partner_token")
+    return response
+
+
+@app.get("/api/partners/clients")
+async def partner_clients(_: None = Depends(require_partner)):
+    """
+    Return the list of tenant clients managed by this partner.
+
+    DEV mode:  returns seed data from migration 005.
+    LIVE mode: queries partner_client + organisation tables for this partner_id.
+    """
+    if is_dev():
+        return JSONResponse({"clients": [
+            {"id": "1", "name": "Smith Retail Pty Ltd",   "location": "Sydney CBD, NSW",    "leases": 3, "status": "active",   "savings": 12400},
+            {"id": "2", "name": "Green Bean Café Group",  "location": "Melbourne, VIC",     "leases": 5, "status": "review",   "savings": 8750 },
+            {"id": "3", "name": "FastFit Gyms Australia", "location": "Brisbane, QLD",      "leases": 8, "status": "active",   "savings": 31200},
+            {"id": "4", "name": "Corner Pharmacy Network","location": "Perth, WA",           "leases": 2, "status": "overdue",  "savings": 0    },
+            {"id": "5", "name": "Harbour View Dental",    "location": "North Sydney, NSW",  "leases": 1, "status": "active",   "savings": 4100 },
+        ]})
+    # TODO (F-PARTNER-CLIENTS): query Supabase partner_client table
+    raise HTTPException(status_code=501, detail="Live partner clients API not yet implemented")
+
+
+@app.get("/api/partners/stats")
+async def partner_stats(_: None = Depends(require_partner)):
+    """Aggregate stats for the partner dashboard header."""
+    if is_dev():
+        return JSONResponse({
+            "total_clients":   5,
+            "active_audits":   2,
+            "total_savings":   56450,
+            "revenue_share":   1694,
+        })
+    raise HTTPException(status_code=501, detail="Live partner stats API not yet implemented")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -745,161 +883,5 @@ async def admin_review(job_id: str, body: ReviewRequest, _: None = Depends(requi
     """
     job = review_job(job_id, notes=body.notes)
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found or not complete")
-    return JSONResponse({"ok": True, "reviewed_at": job.reviewed_at})
-
-
-@app.get("/api/admin/document/{job_id}")
-async def admin_download_document(job_id: str, _: None = Depends(require_admin)):
-    """Download the original uploaded lease PDF."""
-    doc = get_document(job_id)
-    if not doc:
-        raise HTTPException(status_code=404, detail="Original document not available.")
-    from fastapi.responses import Response
-    return Response(
-        content=doc["data"],
-        media_type=doc["content_type"],
-        headers={"Content-Disposition": f'attachment; filename="{doc["filename"]}"'},
-    )
-
-
-@app.get("/api/admin/report/{job_id}")
-@app.get("/api/admin/report/{job_id}")
-async def admin_download_report(job_id: str, _: None = Depends(require_admin)):
-    """Auditor PDF download — bypasses release gate (auditor reviews before releasing)."""
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if job.status != JobStatus.COMPLETE:
-        raise HTTPException(status_code=409, detail="Audit not yet complete")
-    try:
-        from output.report_generator import generate_pdf_report
-        report_path = generate_pdf_report(get_job_result(job_id), job_id=job_id)
-        safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
-        filename = f"TenantSentry_DRAFT_Audit_{safe_name}_{job.jurisdiction}.pdf"
-        return FileResponse(path=report_path, media_type="application/pdf", filename=filename)
-    except Exception as e:
-        logger.exception(f"Admin report generation failed for {job_id}: {e}")
-        raise HTTPException(status_code=500, detail="Report generation failed.")
-
-
-@app.get("/api/admin/evidence/{job_id}")
-async def admin_download_evidence(job_id: str, _: None = Depends(require_admin)):
-    """G6: Admin evidence pack download — bypasses release gate for auditor review."""
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    if job.status != JobStatus.COMPLETE:
-        raise HTTPException(status_code=409, detail="Audit not yet complete.")
-    try:
-        from output.evidence_pack import generate_evidence_packs
-        result = get_job_result(job_id)
-        if not result:
-            raise HTTPException(status_code=404, detail="Audit result not found.")
-        zip_path = generate_evidence_packs(result, job_id=job_id)
-        if not zip_path:
-            raise HTTPException(status_code=404, detail="No HIGH-severity flags found.")
-        safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
-        filename = f"TenantSentry_DRAFT_EvidencePack_{safe_name}_{job.jurisdiction}.zip"
-        return FileResponse(path=zip_path, media_type="application/zip", filename=filename)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"Admin evidence pack failed for {job_id}: {e}")
-        raise HTTPException(status_code=500, detail="Evidence pack generation failed.")
-
-
-@app.post("/api/admin/release/{job_id}")
-async def admin_release(job_id: str, _: None = Depends(require_admin)):
-    """Release report to tenant. Only works after review."""
-    job = release_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found or not yet reviewed")
-    return JSONResponse({"ok": True, "released_at": job.released_at})
-
-
-@app.get("/api/audit/report/status/{job_id}")
-def get_report_release_status(job_id: str):
-    """Frontend polls this to know when a report has been released."""
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return JSONResponse({
-        "released": job.released,
-        "reviewed_by_human": job.reviewed_by_human,
-    })
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# V2: Bounded async dispatcher + background job runner
-# ══════════════════════════════════════════════════════════════════════════════
-
-async def _schedule_audit_job(
-    job_id: str,
-    pdf_bytes: bytes,
-    filename: str,
-    jurisdiction: str,
-    tenant_name: str,
-    document_hash: str = None,
-) -> None:
-    """
-    V2 fix: async dispatcher that runs _run_audit_job in the bounded
-    _audit_executor thread pool instead of FastAPI's shared anyio pool.
-    Concurrency cap: MAX_CONCURRENT_AUDITS (default 4).
-    Scale path: swap executor for Celery + Redis queue (F-ASYNC2).
-    """
-    loop = asyncio.get_running_loop()
-    await loop.run_in_executor(
-        _audit_executor,
-        lambda: _run_audit_job(
-            job_id=job_id,
-            pdf_bytes=pdf_bytes,
-            filename=filename,
-            jurisdiction=jurisdiction,
-            tenant_name=tenant_name,
-            document_hash=document_hash,
-        ),
-    )
-
-def _run_audit_job(
-    job_id: str,
-    pdf_bytes: bytes,
-    filename: str,
-    jurisdiction: str,
-    tenant_name: str,
-    document_hash: str = None,
-) -> None:
-    """Synchronous audit runner — executes in a thread from _audit_executor."""
-    tmp_path = None
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            tmp.write(pdf_bytes)
-            tmp_path = tmp.name
-
-        update_job_progress(job_id, 5, "Parsing PDF...")
-
-        pipeline = _get_pipeline()
-        result = pipeline(
-            pdf_path=tmp_path,
-            jurisdiction=jurisdiction,
-            tenant_name=tenant_name,
-            job_id=job_id,
-            document_hash=document_hash,
-            progress_callback=lambda pct, stage: update_job_progress(job_id, pct, stage),
-        )
-
-        complete_job(job_id, result.model_dump(mode="json"))
-        logger.info(f"[{job_id}] Audit complete — mode={_mode_status()['mode'].upper()}")
-
-    except NotImplementedError as e:
-        fail_job(job_id, str(e))
-        logger.warning(f"[{job_id}] Not implemented: {e}")
-    except Exception as e:
-        fail_job(job_id, f"Audit failed: {str(e)}")
-        logger.exception(f"[{job_id}] Audit error: {e}")
-    finally:
-        if tmp_path:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+        raise HTTPException(status_code=404, detail="Job not found or not yet complete")
+    return JSONResponse({"ok": True, "job_id": job_id})
