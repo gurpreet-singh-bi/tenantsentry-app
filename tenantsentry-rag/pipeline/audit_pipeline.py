@@ -37,6 +37,15 @@ USE_VECTOR_STORE = os.environ.get("USE_VECTOR_STORE", "false").lower() == "true"
 _RULES_CACHE: dict[str, str] = {}
 _RAW_RULES: list[dict] = []
 
+# G7: Keywords that indicate a clause involves CPI / rent review calculations.
+# When matched, the deterministic ABS CPI snapshot is pre-fetched and injected
+# into the Claude prompt so Claude interprets figures, never calculates them.
+_CPI_CLAUSE_KEYWORDS: frozenset[str] = frozenset([
+    "cpi", "consumer price index", "rent review", "market review",
+    "fixed increase", "ratchet", "annual increase", "escalation",
+    "percentage increase", "index", "inflation",
+])
+
 
 def _load_raw_rules() -> list[dict]:
     """Load red_flags.yaml once into module-level cache."""
@@ -101,6 +110,16 @@ def _build_rules_context(jurisdiction: str) -> str:
     _RULES_CACHE[jur_upper] = context
     logger.info(f"Built rules context for {jur_upper}: {len(applicable)}/{len(rules)} rules applicable")
     return context
+
+
+def _is_cpi_clause(chunk) -> bool:
+    """Return True if this chunk likely contains a CPI or rent review clause."""
+    combined = " ".join([
+        chunk.content,
+        chunk.metadata.get("clause_heading", ""),
+        chunk.metadata.get("clause_type", ""),
+    ]).lower()
+    return any(kw in combined for kw in _CPI_CLAUSE_KEYWORDS)
 
 
 def _progress(callback: ProgressCallback, pct: int, stage: str) -> None:
@@ -215,6 +234,27 @@ def run_audit(
     # 5. Build jurisdiction-filtered rules context
     rules_context = _build_rules_context(jur)
 
+    # G7: Pre-fetch CPI snapshot once for this jurisdiction.
+    # Used for any CPI/rent-review clause so Claude interprets, never calculates.
+    _cpi_snapshot: dict | None = None
+
+    def _get_cpi_context(chunk) -> str:
+        nonlocal _cpi_snapshot
+        if not _is_cpi_clause(chunk):
+            return ""
+        if _cpi_snapshot is None:
+            try:
+                from services.cpi_calculator import get_cpi_snapshot, format_for_prompt
+                _cpi_snapshot = get_cpi_snapshot(jur)
+                logger.info(f"[G7] CPI snapshot pre-fetched for {jur}: ok={_cpi_snapshot.get('ok')}")
+            except Exception as e:
+                logger.warning(f"[G7] CPI calculator import/fetch failed (non-fatal): {e}")
+                _cpi_snapshot = {"ok": False, "error": str(e)}
+        if not _cpi_snapshot.get("ok"):
+            return ""
+        from services.cpi_calculator import format_for_prompt
+        return format_for_prompt(_cpi_snapshot)
+
     # 6. Analyse each clause with LLM
     clause_analyses = []
     n = len(chunks)
@@ -246,11 +286,16 @@ def run_audit(
         else:
             legislation_context = ""
 
+        # G7: Inject pre-computed CPI data for rent review / CPI clauses.
+        # Empty string for non-CPI clauses — no-op in router.
+        cpi_context = _get_cpi_context(chunk)
+
         analysis = analyse_clause(
             clause_text=clause_text,
             legislation_context=legislation_context,
             rules_context=rules_context,
             jurisdiction=jur,
+            cpi_context=cpi_context,
         )
 
         clause_analyses.append(ClauseAnalysis(

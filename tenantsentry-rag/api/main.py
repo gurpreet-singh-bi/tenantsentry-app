@@ -51,6 +51,7 @@ from api.jobs import (
     create_job, get_job, get_job_result, update_job_progress, complete_job, fail_job, JobStatus,
     review_job, release_job, list_pending_review, list_reviewed,
     store_document, get_document,
+    _USE_SUPABASE, _jobs_fallback,
 )
 
 # ── Mode management (DEV / LIVE) ──────────────────────────────────────────────
@@ -431,6 +432,85 @@ async def toggle_mode():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# F-CHAT: Query logging
+# ══════════════════════════════════════════════════════════════════════════════
+
+VALID_CLAUSE_TYPES = {
+    "rent_review", "outgoings", "make_good",
+    "options", "holding_over", "land_tax", "other",
+}
+
+
+class ChatQueryRequest(BaseModel):
+    session_id: str                        # anonymous browser session UUID
+    raw_query: str
+    jurisdiction: str = ""                 # optional — inferred from query context
+    clause_type: str = ""                  # optional — caller can pass if already classified
+    matched_kb_article_id: str = ""        # empty string = KB gap
+
+
+@app.post("/api/chat/query")
+async def log_chat_query(body: ChatQueryRequest):
+    """
+    Log an F-CHAT widget query to chat_query.
+
+    Called by the website chat widget after every user message, passing:
+      - session_id: anonymous browser UUID (persisted in sessionStorage)
+      - raw_query:  verbatim user text
+      - jurisdiction, clause_type: optional — populated when KB search infers them
+      - matched_kb_article_id: the article slug returned by vector search,
+        or empty string if no article cleared the similarity threshold (KB gap)
+
+    Returns { query_id, is_kb_gap } so the front end can branch on gap state
+    (e.g. show "We're working on that — upload your lease for a personalised answer").
+
+    Non-fatal: logging failure never breaks the chat response.
+    """
+    from db.chat_query_store import log_query
+
+    jur = body.jurisdiction.upper().strip() or None
+    if jur and jur not in VALID_JURISDICTIONS:
+        jur = None  # silently drop invalid jurisdiction rather than erroring
+
+    clause = body.clause_type.strip().lower() or None
+    if clause and clause not in VALID_CLAUSE_TYPES:
+        clause = "other"
+
+    matched = body.matched_kb_article_id.strip() or None
+
+    row = log_query(
+        session_id=body.session_id,
+        raw_query=body.raw_query.strip(),
+        jurisdiction=jur,
+        clause_type=clause,
+        matched_kb_article_id=matched,
+    )
+
+    return JSONResponse({
+        "ok": True,
+        "query_id": row.get("query_id"),
+        "is_kb_gap": row.get("is_kb_gap", matched is None),
+    })
+
+
+@app.get("/api/admin/chat/gaps")
+async def admin_chat_gaps(limit: int = 50, _: None = Depends(require_admin)):
+    """
+    Admin: return the most recent KB gap queries (no article matched).
+    Used to prioritise new KB article topics.
+    """
+    from db.chat_query_store import fetch_gap_queries
+    return JSONResponse({"gaps": fetch_gap_queries(limit=limit)})
+
+
+@app.get("/api/admin/chat/queries")
+async def admin_chat_queries(limit: int = 100, _: None = Depends(require_admin)):
+    """Admin: return recent chat queries regardless of gap status."""
+    from db.chat_query_store import fetch_recent_queries
+    return JSONResponse({"queries": fetch_recent_queries(limit=limit)})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Audit API
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -440,6 +520,7 @@ async def submit_audit(
     file: UploadFile = File(..., description="Commercial lease PDF"),
     jurisdiction: str = Form(...),
     tenant_name: str = Form(""),
+    chat_session_id: str = Form(""),  # optional — links F-CHAT session to upload
 ):
     """
     Submit a lease PDF for async audit.
@@ -473,6 +554,17 @@ async def submit_audit(
 
     logger.info(f"Job {job.job_id} created: {file.filename} | {jur} | {tenant_name}")
 
+    # F-CHAT conversion attribution — mark all prior chat queries from this
+    # session as converted so we can measure chat→upload funnel performance.
+    if chat_session_id.strip():
+        try:
+            from db.chat_query_store import mark_converted
+            n = mark_converted(chat_session_id.strip())
+            if n:
+                logger.info(f"F-CHAT conversion: session={chat_session_id[:8]}… queries_attributed={n}")
+        except Exception as e:
+            logger.warning(f"F-CHAT mark_converted failed (non-fatal): {e}")
+
     # Persist original PDF for auditor download
     store_document(job.job_id, file.filename, content)
 
@@ -495,6 +587,55 @@ async def submit_audit(
     })
 
 
+async def _schedule_audit_job(
+    job_id: str,
+    pdf_bytes: bytes,
+    filename: str,
+    jurisdiction: str,
+    tenant_name: str,
+    document_hash: str,
+) -> None:
+    """
+    V2: Async wrapper that dispatches the blocking audit pipeline to the bounded
+    thread executor. BackgroundTasks awaits this; the actual pipeline runs off
+    the event loop in _audit_executor to prevent starvation.
+
+    Writes pdf_bytes to a temp file (pipelines expect pdf_path, not bytes),
+    then calls the appropriate pipeline, then cleans up.
+    """
+    loop = asyncio.get_event_loop()
+    pipeline = _get_pipeline()
+
+    def _run():
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(pdf_bytes)
+            tmp_path = tmp.name
+        try:
+            result = pipeline(
+                pdf_path=tmp_path,
+                jurisdiction=jurisdiction,
+                tenant_name=tenant_name,
+                job_id=job_id,
+                document_hash=document_hash,
+                progress_callback=lambda pct, stage: update_job_progress(job_id, pct, stage),
+            )
+            complete_job(job_id, result if isinstance(result, dict) else result.__dict__)
+        except Exception as e:
+            logger.exception(f"[{job_id}] Audit pipeline failed: {e}")
+            fail_job(job_id, str(e))
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    try:
+        await loop.run_in_executor(_audit_executor, _run)
+    except Exception as e:
+        logger.exception(f"[{job_id}] Executor dispatch failed: {e}")
+        fail_job(job_id, str(e))
+
+
 @app.get("/reports", response_class=HTMLResponse)
 async def reports_page(request: Request):
     """Reports library — all released audit reports."""
@@ -507,7 +648,6 @@ def list_reports():
     Return all complete audit jobs regardless of release status.
     Frontend shows status: released = downloadable, complete = pending admin review, failed = error.
     """
-    from api.jobs import _USE_SUPABASE, _jobs_fallback
     if _USE_SUPABASE:
         try:
             from db.audit_run_store import _get_client
@@ -840,7 +980,6 @@ async def admin_queue(_: None = Depends(require_admin)):
     Failed = status FAILED — visible so they're never silently lost.
     """
     from db.audit_run_store import fetch_failed
-    from api.jobs import _USE_SUPABASE, _jobs_fallback
     failed_rows = fetch_failed() if _USE_SUPABASE else [
         j.to_dict() for j in _jobs_fallback.values() if j.status.value == "failed"
     ]
@@ -884,4 +1023,16 @@ async def admin_review(job_id: str, body: ReviewRequest, _: None = Depends(requi
     job = review_job(job_id, notes=body.notes)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found or not yet complete")
+    return JSONResponse({"ok": True, "job_id": job_id})
+
+
+@app.post("/api/admin/release/{job_id}")
+async def admin_release(job_id: str, _: None = Depends(require_admin)):
+    """
+    Release a reviewed report to the tenant.
+    Requires reviewed_by_human = True. Sets released = True.
+    """
+    job = release_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found or not yet reviewed")
     return JSONResponse({"ok": True, "job_id": job_id})

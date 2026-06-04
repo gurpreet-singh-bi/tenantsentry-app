@@ -71,6 +71,7 @@ def analyse_clause(
     legislation_context: str,
     rules_context: str,
     jurisdiction: str,
+    cpi_context: str = "",
 ) -> dict:
     """
     Analyse a single lease clause with grounded RAG context.
@@ -124,13 +125,24 @@ def analyse_clause(
 
     leg_context = legislation_context or "No specific legislation retrieved -- apply your expertise and the risk rules below."
 
-    user_prompt = "\n".join([
+    user_prompt_parts = [
         "LEGISLATION CONTEXT (cite when available -- flag even if empty):",
         leg_context,
         "",
         "RISK FLAG RULES (MANDATORY -- check every rule against this clause):",
         rules_context,
         "",
+    ]
+
+    # G7: Inject pre-computed ABS CPI data when available.
+    # Claude must interpret this figure, not recalculate it.
+    if cpi_context:
+        user_prompt_parts += [
+            cpi_context,
+            "",
+        ]
+
+    user_prompt_parts += [
         "LEASE CLAUSE TO ANALYSE:",
         clause_text,
         "",
@@ -139,7 +151,9 @@ def analyse_clause(
         "If you identify 3 risks, risk_flags must have 3 entries. An empty risk_flags array means the clause is completely fair and standard.",
         "",
         "Now analyse the clause above and respond with JSON only -- no preamble, no markdown fences:",
-    ])
+    ]
+
+    user_prompt = "\n".join(user_prompt_parts)
 
     logger.info(f"Analysing clause with {model}")
 

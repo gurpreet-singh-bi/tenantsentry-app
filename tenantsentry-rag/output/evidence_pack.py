@@ -36,7 +36,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-import httpx
 from loguru import logger
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
@@ -68,22 +67,8 @@ MARGIN = 20 * mm
 PACKS_DIR = Path(tempfile.gettempdir()) / "tenantsentry_evidence_packs"
 PACKS_DIR.mkdir(exist_ok=True)
 
-# ── ABS CPI API ───────────────────────────────────────────────────────────────
-ABS_API_BASE = "https://api.data.abs.gov.au"
-
-# CPI series keys: jurisdiction → (region_code, city_name)
-# Used in ABS SDMX API: Measure.Region.Index.Type.Frequency
-_JUR_CPI_REGION = {
-    "NSW": ("1",     "Sydney"),
-    "VIC": ("2",     "Melbourne"),
-    "QLD": ("3",     "Brisbane"),
-    "SA":  ("4",     "Adelaide"),
-    "WA":  ("5",     "Perth"),
-    "TAS": ("6",     "Hobart"),
-    "NT":  ("7",     "Darwin"),
-    "ACT": ("8",     "Canberra"),
-}
-_ALL_CITIES_REGION = ("10001", "Weighted Average of Eight Capital Cities")
+# G7: CPI data is now fetched via services.cpi_calculator (single source of truth).
+# The private _fetch_abs_cpi() has been removed — use get_cpi_snapshot() instead.
 
 # CPI flag trigger keywords — determines whether CPI verification section is generated
 _CPI_KEYWORDS = {
@@ -463,72 +448,6 @@ def _is_cpi_flag(flag: dict, clause: dict) -> bool:
     return any(kw in combined for kw in _CPI_KEYWORDS)
 
 
-def _fetch_abs_cpi(jurisdiction: str) -> dict:
-    """
-    Fetch the last 8 quarters of CPI data from the ABS SDMX API.
-    Returns a dict with:
-        city, region_code, periods, values, latest_quarter, base_quarter,
-        latest_value, base_value, change_pct, source_url
-    Returns an error dict if the fetch fails.
-    """
-    region_code, city = _JUR_CPI_REGION.get(jurisdiction.upper(), _ALL_CITIES_REGION)
-
-    # All Groups CPI: Measure=1, Index=10, Type=50 (index numbers), Freq=Q
-    data_key = f"1.{region_code}.10.50.Q"
-    url = f"{ABS_API_BASE}/data/CPI/{data_key}"
-    params = {"format": "jsondata"}
-
-    try:
-        resp = httpx.get(url, params=params, timeout=15.0)
-        resp.raise_for_status()
-        data = resp.json()
-
-        # Navigate SDMX-JSON structure
-        obs = data["data"]["dataSets"][0]["series"]["0:0:0:0:0"]["observations"]
-        time_periods = data["data"]["structure"]["dimensions"]["observation"][0]["values"]
-
-        # Build sorted (period, value) list — last 8 quarters
-        pairs = []
-        for idx_str, vals in obs.items():
-            idx = int(idx_str)
-            period = time_periods[idx]["id"]   # e.g. "2024-Q2"
-            value  = vals[0]
-            pairs.append((period, float(value)))
-
-        pairs.sort(key=lambda x: x[0])
-        pairs = pairs[-8:]   # last 8 quarters
-
-        if len(pairs) < 2:
-            raise ValueError("Insufficient CPI data points")
-
-        base_period, base_value = pairs[0]
-        latest_period, latest_value = pairs[-1]
-        change_pct = round(((latest_value - base_value) / base_value) * 100, 2)
-
-        return {
-            "ok": True,
-            "city": city,
-            "region_code": region_code,
-            "periods": [p for p, _ in pairs],
-            "values":  [v for _, v in pairs],
-            "base_quarter": base_period,
-            "latest_quarter": latest_period,
-            "base_value": base_value,
-            "latest_value": latest_value,
-            "change_pct": change_pct,
-            "source_url": url,
-        }
-
-    except Exception as e:
-        logger.warning(f"ABS CPI fetch failed ({url}): {e}")
-        return {
-            "ok": False,
-            "error": str(e),
-            "city": city,
-            "source_url": url,
-        }
-
-
 def _build_cpi_verification_pdf(flag: dict, clause: dict, result: dict) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -547,7 +466,8 @@ def _build_cpi_verification_pdf(flag: dict, clause: dict, result: dict) -> bytes
     small = ParagraphStyle("Small", fontSize=7.5, textColor=SLATE, leading=11)
 
     jurisdiction = result.get("jurisdiction", "")
-    cpi = _fetch_abs_cpi(jurisdiction)
+    from services.cpi_calculator import get_cpi_snapshot
+    cpi = get_cpi_snapshot(jurisdiction)
 
     story.append(Paragraph("CPI Calculation Verification", h2))
     story.append(HRFlowable(width="100%", thickness=2, color=TEAL))
