@@ -1,7 +1,0 @@
-# Ignore local dev files
-.env
-*.pyc
-__pycache__/
-output/
-signups.json
-tests/
