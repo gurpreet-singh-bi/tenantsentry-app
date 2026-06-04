@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+/* Theme: apply before paint to avoid flash */
+(function(){
+  var t = localStorage.getItem('ts-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TenantSentry.ai — AI-Powered Lease Audit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+/* ═══════════════════════════════════════
+   THEME CUSTOM PROPERTIES
+═══════════════════════════════════════ */
+:root {
+  --ts-bg0:       #080f1c;
+  --ts-bg1:       #0f1e36;
+  --ts-bg1i:      #111c30;
+  --ts-bg2:       #162844;
+  --ts-bginput:   #0d1a2e;
+  --ts-border-s:  #1e2a3a;
+  --ts-text0:     #e0e6f0;
+  --ts-text1:     #cbd5e8;
+  --ts-text2:     #4a6a8a;
+  --ts-text3:     #8fa3bf;
+  --ts-text4:     #2a4a68;
+  /* rgba border helpers */
+  --ts-border-rgba:   rgba(255,255,255,0.07);
+  --ts-border-subtle: rgba(255,255,255,0.04);
+  --ts-border-def:    rgba(255,255,255,0.10);
+  --ts-border-strong: rgba(255,255,255,0.18);
+  --ts-raised:        rgba(255,255,255,0.035);
+  --ts-scrollbar:     #1e2a3a;
+  --ts-scrollbar-bg:  #080f1c;
+}
+
+/* ── LIGHT THEME OVERRIDES ── */
+html[data-theme="light"] {
+  --ts-bg0:       #f0f4f8;
+  --ts-bg1:       #ffffff;
+  --ts-bg1i:      #f4f7fa;
+  --ts-bg2:       #eef2f7;
+  --ts-bginput:   #f4f7fa;
+  --ts-border-s:  #d1dae6;
+  --ts-text0:     #0f172a;
+  --ts-text1:     #1e293b;
+  --ts-text2:     #5a7394;
+  --ts-text3:     #64748b;
+  --ts-text4:     #94a3b8;
+  --ts-border-rgba:   rgba(0,0,0,0.08);
+  --ts-border-subtle: rgba(0,0,0,0.04);
+  --ts-border-def:    rgba(0,0,0,0.09);
+  --ts-border-strong: rgba(0,0,0,0.14);
+  --ts-raised:        rgba(0,0,0,0.02);
+  --ts-scrollbar:     #c2cdd9;
+  --ts-scrollbar-bg:  #f0f4f8;
+}
+
+/* ── LIGHT: High-specificity overrides for components ── */
+html[data-theme="light"] body { background: var(--ts-bg0) !important; color: var(--ts-text0) !important; }
+html[data-theme="light"] nav,
+html[data-theme="light"] .topbar { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card-inner { background: #f4f7fa !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .stat-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .dk-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .clause-card { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+html[data-theme="light"] .clause-card.confirmed { border-color: rgba(34,197,94,0.35) !important; }
+html[data-theme="light"] .clause-card.flagged-card { border-color: rgba(245,158,11,0.4) !important; }
+html[data-theme="light"] .clause-card.rejected { border-color: rgba(239,68,68,0.4) !important; background: rgba(239,68,68,0.03) !important; }
+html[data-theme="light"] .clause-card.active-doc { border-color: #0d9488 !important; }
+html[data-theme="light"] .clause-card-body { border-color: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .clause-card-header:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .clause-action-bar { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .clause-note-input { background: #f8fafc !important; border-color: rgba(0,194,168,0.3) !important; color: #0f172a !important; }
+html[data-theme="light"] .doc-row { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .nav-link { color: #5a7394 !important; }
+html[data-theme="light"] .nav-link:hover { color: #00b89f !important; background: rgba(0,194,168,0.08) !important; }
+html[data-theme="light"] .nav-link.active { color: #009e88 !important; background: rgba(0,194,168,0.10) !important; }
+html[data-theme="light"] .audit-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .audit-row:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .report-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .report-row:hover { background: rgba(0,0,0,0.025) !important; }
+html[data-theme="light"] .notif-item { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .upload-cta { background: linear-gradient(135deg, rgba(0,194,168,0.07) 0%, rgba(59,130,246,0.04) 100%) !important; border-color: rgba(0,194,168,0.2) !important; }
+html[data-theme="light"] .drop-zone { border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .drop-zone:hover,
+html[data-theme="light"] .drop-zone.dragging { border-color: #00c2a8 !important; background: rgba(0,194,168,0.04) !important; }
+html[data-theme="light"] .dk-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .dk-input:focus { border-color: rgba(0,194,168,0.5) !important; }
+html[data-theme="light"] .dk-input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .input::placeholder { color: #94a3b8 !important; }
+html[data-theme="light"] .input:focus { border-color: #00c2a8 !important; }
+html[data-theme="light"] select.input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .brand-panel { background: #1a2744 !important; }
+html[data-theme="light"] .form-panel { background: #f8fafc !important; }
+html[data-theme="light"] .sso-btn { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .sso-btn:hover { background: #eef2f7 !important; }
+html[data-theme="light"] .checkbox-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.2) !important; }
+html[data-theme="light"] .checkbox-label { color: #1e293b !important; }
+html[data-theme="light"] .divider::before,
+html[data-theme="light"] .divider::after { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .divider span { color: #94a3b8 !important; }
+html[data-theme="light"] .form-title { color: #0f172a !important; }
+html[data-theme="light"] .form-subtitle { color: #64748b !important; }
+html[data-theme="light"] .field-label { color: #334155 !important; }
+html[data-theme="light"] .bp-logo-tag,
+html[data-theme="light"] .bp-sub,
+html[data-theme="light"] .bp-stat-label { color: rgba(255,255,255,0.55) !important; }
+html[data-theme="light"] .bp-stat-value { color: #5ef0d8 !important; }
+html[data-theme="light"] .bp-stat { background: rgba(255,255,255,0.06) !important; }
+html[data-theme="light"] .bp-stats { background: rgba(255,255,255,0.04) !important; }
+html[data-theme="light"] .bp-badge { color: #e0e6f0 !important; }
+html[data-theme="light"] .bp-badge-icon { background: rgba(0,194,168,0.15) !important; border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .bp-footer { color: rgba(255,255,255,0.4) !important; border-color: rgba(255,255,255,0.1) !important; }
+html[data-theme="light"] .signup-row { color: #64748b !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .form-footer { color: #94a3b8 !important; }
+html[data-theme="light"] .form-footer a { color: #64748b !important; }
+html[data-theme="light"] .back-link { color: #64748b !important; }
+html[data-theme="light"] .tab-inactive { color: #64748b !important; }
+html[data-theme="light"] .tab-active { color: #0d9488 !important; }
+html[data-theme="light"] .sidebar-tab.active { background: #eef2f7 !important; color: #0f172a !important; border-color: rgba(0,0,0,0.1) !important; }
+html[data-theme="light"] .sidebar-tab.inactive { color: #64748b !important; }
+html[data-theme="light"] .quota-bar-track { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .notif-dot { border-color: #f0f4f8 !important; }
+html[data-theme="light"] .plan-badge-bundle,
+html[data-theme="light"] .plan-badge-pay,
+html[data-theme="light"] .plan-badge-monitor { /* keep as-is — colored badges */ }
+html[data-theme="light"] .btn-ghost { color: #009e88 !important; border-color: rgba(0,158,136,0.3) !important; }
+html[data-theme="light"] .btn-ghost:hover { background: rgba(0,194,168,0.07) !important; }
+html[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+/* Stepper (audit page) */
+html[data-theme="light"] .step-circle { border-color: rgba(0,0,0,0.1) !important; color: #64748b !important; }
+html[data-theme="light"] .step-label { color: #64748b !important; }
+html[data-theme="light"] .step-line { background: rgba(0,0,0,0.1) !important; }
+/* Step pills (signup) */
+html[data-theme="light"] .step-pill { color: #94a3b8 !important; }
+html[data-theme="light"] .step-pill-num { background: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .step-pill.active { color: #009e88 !important; background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.25) !important; }
+html[data-theme="light"] .step-pill.active .step-pill-num { background: #00c2a8 !important; color: #fff !important; }
+html[data-theme="light"] .step-pill.done .step-pill-num { background: rgba(0,194,168,0.12) !important; color: #009e88 !important; }
+html[data-theme="light"] .progress-track { background: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .progress-label,
+html[data-theme="light"] .progress-fraction { color: #64748b !important; }
+html[data-theme="light"] .topbar-right { color: #64748b !important; }
+/* Alert banners */
+html[data-theme="light"] .alert-error { background: rgba(239,68,68,0.06) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .alert-success { background: rgba(34,197,94,0.06) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Severity badges — keep accent colors */
+html[data-theme="light"] .sev-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .sev-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .sev-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .badge-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .badge-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .badge-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Status badges */
+html[data-theme="light"] .status-pending  { background: rgba(245,158,11,0.08) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .status-review   { background: rgba(59,130,246,0.08) !important; border-color: rgba(59,130,246,0.2) !important; }
+html[data-theme="light"] .status-released { background: rgba(34,197,94,0.08) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.2) !important; }
+
+    [x-cloak] { display: none !important; }
+
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--ts-bg0); color: var(--ts-text0); }
+
+    /* ── NAV ── */
+    .nav-link { color: var(--ts-text2); font-size: 13px; font-weight: 500; padding: 6px 10px; border-radius: 6px; transition: all 0.15s; display: flex; align-items: center; gap: 6px; cursor: pointer; text-decoration: none; }
+    .nav-link:hover { color: #5ef0d8; background: rgba(0,194,168,0.08); }
+    .nav-link.active { color: #5ef0d8; background: rgba(0,194,168,0.10); }
+
+    /* ── CARDS ── */
+    .dk-card { background: var(--ts-bg1); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; }
+
+    /* Drag-drop zone */
+    .drop-zone { transition: all 0.2s ease; border: 2px dashed rgba(255,255,255,0.12); border-radius: 12px; cursor: pointer; }
+    .drop-zone:hover, .drop-zone.dragging { border-color: #00c2a8; background: rgba(0,194,168,0.05); }
+    .drop-zone.has-file { border-color: rgba(0,194,168,0.4); background: rgba(0,194,168,0.05); }
+
+    /* Progress bar */
+    .progress-bar { transition: width 0.6s ease; }
+
+    /* Clause card */
+    .clause-card { background: var(--ts-bg1); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; transition: border-color 0.15s; }
+    .clause-card:hover { border-color: rgba(255,255,255,0.14); }
+
+    /* Severity badges */
+    .badge-high   { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .badge-medium { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .badge-low    { background: rgba(34,197,94,0.12);  color: #4ade80; border: 1px solid rgba(34,197,94,0.25); padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--ts-bg0); }
+    ::-webkit-scrollbar-thumb { background: var(--ts-border-s); border-radius: 4px; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 1s linear infinite; }
+
+    /* Form inputs */
+    .dk-input { background: var(--ts-bginput); border: 1px solid rgba(255,255,255,0.1); color: var(--ts-text0); border-radius: 8px; padding: 10px 12px; font-size: 13px; width: 100%; transition: border-color 0.15s; outline: none; }
+    .dk-input:focus { border-color: rgba(0,194,168,0.5); box-shadow: 0 0 0 3px rgba(0,194,168,0.08); }
+    .dk-input option { background: var(--ts-bg1); }
+
+    /* Buttons */
+    .btn-primary { background: linear-gradient(135deg,#00c2a8,#009e88); color:#fff; font-weight:600; font-size:14px; padding:12px 24px; border-radius:10px; border:none; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; transition:all 0.15s; box-shadow:0 2px 12px rgba(0,194,168,0.25); width:100%; }
+    .btn-primary:hover:not(:disabled) { background:linear-gradient(135deg,#00d9bc,#00c2a8); box-shadow:0 4px 20px rgba(0,194,168,0.35); }
+    .btn-primary:disabled { opacity:0.45; cursor:not-allowed; }
+    .btn-ghost { background:transparent; color:#5ef0d8; border:1px solid rgba(0,194,168,0.3); font-size:13px; font-weight:500; padding:9px 18px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s; }
+    .btn-ghost:hover { background:rgba(0,194,168,0.08); border-color:rgba(0,194,168,0.5); }
+    .btn-dark { background:var(--ts-bg1i); color:var(--ts-text0); border:1px solid rgba(255,255,255,0.1); font-size:13px; font-weight:500; padding:9px 18px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s; }
+    .btn-dark:hover { background:var(--ts-bg2); }
+
+    /* Stage tracker */
+    .stage-done   { background:#00c2a8; }
+    .stage-active { background:#f59e0b; }
+    .stage-wait   { background:transparent; border:2px solid rgba(255,255,255,0.15); }
+
+    /* Filter buttons */
+    .filter-btn { padding:6px 14px; border-radius:8px; font-size:12px; font-weight:500; cursor:pointer; transition:all 0.15s; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:var(--ts-text2); }
+    .filter-btn.active { background:rgba(0,194,168,0.12); border-color:rgba(0,194,168,0.3); color:#5ef0d8; }
+    .filter-btn-high.active   { background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.3); color:#f87171; }
+    .filter-btn-amber.active  { background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.3); color:#fbbf24; }
+  </style>
+</head>
+<body class="min-h-screen" x-data="app()" x-init="init()">
+
+  <!-- ═══════════════════════════════════════════
+       NAV — persistent, matches dashboard
+  ════════════════════════════════════════════ -->
+  <nav class="sticky top-0 z-50 border-b border-white/[0.06]" style="background:var(--ts-bg0);">
+    <div class="w-full px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-5">
+        <!-- Logo -->
+        <a href="/dashboard" class="flex items-center gap-2" title="Home">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style="background:linear-gradient(135deg,#00c2a8,#009e88);">TS</div>
+          <span class="font-semibold text-sm tracking-tight" style="color:var(--ts-text0);">TenantSentry<span style="color:#00c2a8;">.ai</span></span>
+        </a>
+        <!-- Nav links -->
+        <div class="hidden md:flex items-center gap-1">
+          <a href="/dashboard" class="nav-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Home
+          </a>
+          <a href="/audit" class="nav-link active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            New Audit
+          </a>
+          <a href="/dashboard" class="nav-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            My Audits
+          </a>
+          <a href="/reports" class="nav-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Reports
+          </a>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Reset to upload when in processing/results -->
+        <button x-show="view !== 'upload'" @click="resetToUpload()" class="btn-ghost text-xs">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16m8-8H4"/></svg>
+          New Audit
+        </button>
+<button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
+  style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid var(--ts-border-rgba,rgba(255,255,255,0.07));background:var(--ts-raised,rgba(255,255,255,0.035));">
+  <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+        <a href="/dashboard" class="nav-link text-xs">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Dashboard
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW: UPLOAD
+  ════════════════════════════════════════════ -->
+  <div x-show="view === 'upload'" x-cloak class="max-w-2xl mx-auto px-4 py-12">
+
+    <!-- Hero -->
+    <div class="text-center mb-10">
+      <h1 class="text-3xl font-bold mb-3" style="color:var(--ts-text0);">
+        Know Your Lease. Protect Your Business.
+      </h1>
+      <p class="text-base max-w-lg mx-auto" style="color:var(--ts-text2);">
+        Upload your commercial lease and get an AI-powered clause-by-clause audit in minutes.
+        We flag risk, cite legislation, and tell you what to do next.
+      </p>
+    </div>
+
+    <!-- Upload card -->
+    <div class="dk-card p-8">
+
+      <!-- Error banner -->
+      <div x-show="error" x-cloak class="mb-5 rounded-lg p-4 flex items-start gap-3" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);">
+        <svg class="w-5 h-5 mt-0.5 shrink-0" fill="none" stroke="#f87171" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <p class="text-sm" style="color:#f87171;" x-text="error"></p>
+      </div>
+
+      <form @submit.prevent="submitAudit()">
+        <!-- Drop zone -->
+        <div class="drop-zone p-10 text-center mb-6"
+          :class="{ 'dragging': isDragging, 'has-file': selectedFile }"
+          @dragover.prevent="isDragging = true"
+          @dragleave.prevent="isDragging = false"
+          @drop.prevent="handleDrop($event)"
+          @click="$refs.fileInput.click()">
+          <input type="file" accept=".pdf" class="hidden" x-ref="fileInput" @change="handleFileSelect($event)" />
+
+          <template x-if="!selectedFile">
+            <div>
+              <div class="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center" style="background:rgba(0,194,168,0.10);">
+                <svg class="w-7 h-7" fill="none" stroke="#00c2a8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              </div>
+              <p class="font-semibold mb-1" style="color:var(--ts-text0);">Drop your lease PDF here</p>
+              <p class="text-sm" style="color:var(--ts-text2);">or click to browse · Max 50MB</p>
+            </div>
+          </template>
+
+          <template x-if="selectedFile">
+            <div class="flex items-center justify-center gap-3">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(0,194,168,0.12);">
+                <svg class="w-5 h-5" fill="none" stroke="#00c2a8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              </div>
+              <div class="text-left">
+                <p class="font-medium text-sm" style="color:var(--ts-text0);" x-text="selectedFile.name"></p>
+                <p class="text-xs" style="color:var(--ts-text2);" x-text="formatFileSize(selectedFile.size)"></p>
+              </div>
+              <button type="button" @click.stop="clearFile()" style="color:var(--ts-text2);" class="ml-2 hover:text-red-400 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </template>
+        </div>
+
+        <!-- Form fields -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-xs font-semibold mb-2 uppercase tracking-wide" style="color:var(--ts-text2);">Jurisdiction <span style="color:#ef4444;">*</span></label>
+            <select x-model="jurisdiction" required class="dk-input">
+              <option value="">Select state</option>
+              <option value="NSW">New South Wales</option>
+              <option value="VIC">Victoria</option>
+              <option value="QLD">Queensland</option>
+              <option value="SA">South Australia</option>
+              <option value="WA">Western Australia</option>
+              <option value="TAS">Tasmania</option>
+              <option value="ACT">ACT</option>
+              <option value="NT">Northern Territory</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-2 uppercase tracking-wide" style="color:var(--ts-text2);">Tenant Name</label>
+            <input type="text" x-model="tenantName" placeholder="e.g. Acme Pty Ltd" class="dk-input" />
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn-primary" :disabled="!selectedFile || !jurisdiction || isSubmitting">
+          <template x-if="isSubmitting">
+            <svg class="spinner w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </template>
+          <template x-if="!isSubmitting">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </template>
+          <span x-text="isSubmitting ? 'Submitting...' : 'Start Audit'"></span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Trust signals -->
+    <div class="mt-6 flex items-center justify-center gap-6 text-xs" style="color:var(--ts-text4);">
+      <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>Secure upload</span>
+      <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>AU legislation grounded</span>
+      <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Results in 2–5 minutes</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW: PROCESSING
+  ════════════════════════════════════════════ -->
+  <div x-show="view === 'processing'" x-cloak class="max-w-lg mx-auto px-4 py-20 text-center">
+    <div class="dk-card p-10">
+      <!-- Animated icon -->
+      <div class="w-16 h-16 mx-auto mb-6 relative">
+        <div class="absolute inset-0 rounded-2xl animate-pulse" style="background:rgba(0,194,168,0.15);"></div>
+        <div class="relative w-16 h-16 rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#00c2a8,#009e88);">
+          <svg class="w-8 h-8 text-white spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </div>
+      </div>
+
+      <h2 class="text-xl font-bold mb-2" style="color:var(--ts-text0);">Auditing Your Lease</h2>
+      <p class="text-sm mb-8" style="color:var(--ts-text2);" x-text="jobStage || 'Starting...'"></p>
+
+      <!-- Progress bar -->
+      <div class="rounded-full h-2 mb-3 overflow-hidden" style="background:rgba(255,255,255,0.06);">
+        <div class="h-2 rounded-full progress-bar" style="background:linear-gradient(90deg,#00c2a8,#009e88);" :style="`width: ${jobProgress}%`"></div>
+      </div>
+      <p class="text-xs mb-8" style="color:var(--ts-text2);" x-text="`${jobProgress}% complete`"></p>
+
+      <!-- Stage indicators -->
+      <div class="space-y-3 text-left">
+        <template x-for="stage in processingStages" :key="stage.label">
+          <div class="flex items-center gap-3 text-sm"
+               :style="stage.done ? 'color:#00c2a8' : (stage.active ? 'color:var(--ts-text0)' : 'color:var(--ts-text4)')">
+            <template x-if="stage.done">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="#00c2a8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            </template>
+            <template x-if="stage.active && !stage.done">
+              <svg class="spinner w-4 h-4 shrink-0" fill="none" stroke="#5ef0d8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </template>
+            <template x-if="!stage.active && !stage.done">
+              <div class="w-4 h-4 rounded-full shrink-0" style="border:2px solid rgba(255,255,255,0.12);"></div>
+            </template>
+            <span x-text="stage.label"></span>
+          </div>
+        </template>
+      </div>
+
+      <!-- Error state -->
+      <div x-show="jobError" x-cloak class="mt-6 rounded-lg p-4 text-left" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);">
+        <p class="text-sm font-semibold mb-1" style="color:#f87171;">Audit failed</p>
+        <p class="text-sm" style="color:#f87171;" x-text="jobError"></p>
+        <button @click="resetToUpload()" class="mt-3 text-sm underline" style="color:#f87171;">Try again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW: UNDER REVIEW
+  ════════════════════════════════════════════ -->
+  <div x-show="view === 'review'" x-cloak class="max-w-lg mx-auto px-4 py-20 text-center">
+    <div class="dk-card p-10">
+      <div class="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#00c2a8,#009e88);">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      </div>
+
+      <h2 class="text-xl font-bold mb-2" style="color:var(--ts-text0);">AI Analysis Complete</h2>
+      <p class="text-sm mb-8" style="color:var(--ts-text2);">Your lease has been processed. A qualified commercial lease auditor is now reviewing the findings before your report is released.</p>
+
+      <!-- 4-stage tracker -->
+      <div class="space-y-3 text-left mb-8">
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style="background:#00c2a8;">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium" style="color:var(--ts-text0);">Lease uploaded &amp; parsed</p>
+            <p class="text-xs" style="color:var(--ts-text2);">Clauses identified and indexed</p>
+          </div>
+        </div>
+        <div class="ml-3.5 w-px h-4" style="background:rgba(0,194,168,0.3);"></div>
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style="background:#00c2a8;">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium" style="color:var(--ts-text0);">AI risk analysis complete</p>
+            <p class="text-xs" style="color:var(--ts-text2);" x-text="`${reviewClauseCount} clauses analysed · risk flags identified`"></p>
+          </div>
+        </div>
+        <div class="ml-3.5 w-px h-4" style="background:rgba(245,158,11,0.3);"></div>
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 animate-pulse" style="background:#f59e0b;">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold" style="color:var(--ts-text0);">Expert review in progress</p>
+            <p class="text-xs" style="color:var(--ts-text2);">A qualified commercial lease auditor is reviewing your findings</p>
+          </div>
+        </div>
+        <div class="ml-3.5 w-px h-4" style="background:rgba(255,255,255,0.06);"></div>
+        <div class="flex items-center gap-3 opacity-40">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style="border:2px solid rgba(255,255,255,0.15);">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="#4a6a8a" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium" style="color:var(--ts-text2);">Report released to you</p>
+            <p class="text-xs" style="color:var(--ts-text4);">You'll see your full audit report here once approved</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg px-4 py-3 text-xs text-left mb-4" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);">
+        <span class="font-semibold" style="color:var(--ts-text0);">Typical review time:</span>
+        <span style="color:var(--ts-text2);"> Within 1 business day. This page updates automatically.</span>
+      </div>
+
+      <p class="text-xs flex items-center justify-center gap-1.5" style="color:var(--ts-text4);">
+        <svg class="spinner w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Checking for updates every 30 seconds
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW: RESULTS
+  ════════════════════════════════════════════ -->
+  <div x-show="view === 'results'" x-cloak class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- Results header -->
+    <div class="dk-card p-6 mb-6">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+        <!-- Risk gauge -->
+        <div class="flex flex-col items-center shrink-0">
+          <canvas id="gaugeChart" width="160" height="90" class="gauge-canvas"></canvas>
+          <div class="text-center -mt-2">
+            <span class="text-3xl font-bold" :style="`color: ${riskColor}`" x-text="result?.risk_score"></span>
+            <span class="text-sm" style="color:var(--ts-text2);">/100</span>
+            <p class="text-xs font-semibold mt-0.5" :style="`color: ${riskColor}`" x-text="riskLabel"></p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="flex-1">
+          <h2 class="text-xl font-bold mb-1" style="color:var(--ts-text0);">Audit Complete — <span x-text="result?.tenant_name"></span></h2>
+          <p class="text-sm mb-4" style="color:var(--ts-text2);">
+            <span x-text="result?.filename"></span> · <span x-text="result?.jurisdiction"></span> · <span x-text="result?.total_clauses"></span> clauses reviewed
+          </p>
+          <div class="flex gap-3">
+            <div class="rounded-lg px-4 py-2 text-center" style="background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.2);">
+              <p class="text-2xl font-bold" style="color:#f87171;" x-text="highCount"></p>
+              <p class="text-xs font-semibold" style="color:#f87171;">HIGH</p>
+            </div>
+            <div class="rounded-lg px-4 py-2 text-center" style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.2);">
+              <p class="text-2xl font-bold" style="color:#fbbf24;" x-text="mediumCount"></p>
+              <p class="text-xs font-semibold" style="color:#fbbf24;">MEDIUM</p>
+            </div>
+            <div class="rounded-lg px-4 py-2 text-center" style="background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.2);">
+              <p class="text-2xl font-bold" style="color:#4ade80;" x-text="lowCount"></p>
+              <p class="text-xs font-semibold" style="color:#4ade80;">LOW</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-col gap-2 shrink-0">
+          <a :href="`/api/audit/report/${jobId}`" target="_blank" class="btn-primary" style="width:auto;">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Download PDF Report
+          </a>
+          <!-- G6: Evidence pack — only shown when HIGH flags exist -->
+          <a x-show="highCount > 0"
+             :href="`/api/audit/evidence/${jobId}`"
+             target="_blank"
+             class="btn-dark"
+             style="border-color:rgba(239,68,68,0.35);color:#f87171;"
+             title="Download dispute letters + legislation + CPI verification for all HIGH-risk findings">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Generate Dispute Letters
+            <span class="text-xs px-1.5 py-0.5 rounded-full font-bold" style="background:rgba(239,68,68,0.2);color:#f87171;" x-text="`${highCount} HIGH`"></span>
+          </a>
+          <div class="flex items-center gap-1.5 text-xs rounded-lg px-3 py-2" style="background:rgba(0,194,168,0.08);border:1px solid rgba(0,194,168,0.2);color:#5ef0d8;">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            Auditor reviewed &amp; approved
+          </div>
+          <!-- Email -->
+          <button @click="emailReport()" class="btn-dark">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Email
+          </button>
+          <!-- Feedback -->
+          <button @click="feedbackOpen=true" class="btn-dark">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            Feedback
+          </button>
+          <!-- New audit -->
+          <button @click="resetToUpload()" class="btn-dark">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Audit
+          </button>
+          <!-- Back to reports -->
+          <a href="/reports" class="btn-dark">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            All Reports
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="rounded-lg px-4 py-3 mb-6 flex gap-3" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);">
+      <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="#f59e0b" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <p class="text-xs" style="color:#fbbf24;">
+        <strong>Important:</strong> This audit is AI-generated for informational purposes only. It does not constitute legal advice. Consult a qualified commercial lease solicitor before taking action on any identified risk.
+      </p>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button @click="filterSeverity='all'" :class="filterSeverity==='all'?'active':''" class="filter-btn">All Clauses (<span x-text="result?.clause_analyses?.length||0"></span>)</button>
+      <button @click="filterSeverity='high'" :class="filterSeverity==='high'?'active filter-btn-high':''" class="filter-btn">High Risk (<span x-text="highCount"></span>)</button>
+      <button @click="filterSeverity='medium'" :class="filterSeverity==='medium'?'active filter-btn-amber':''" class="filter-btn">Medium (<span x-text="mediumCount"></span>)</button>
+      <button @click="filterSeverity='flagged'" :class="filterSeverity==='flagged'?'active':''" class="filter-btn">Flagged Only</button>
+    </div>
+
+    <!-- Clause cards -->
+    <div class="space-y-3">
+      <template x-for="(clause, idx) in filteredClauses" :key="idx">
+        <div class="clause-card"
+             :style="clauseMaxSeverity(clause)==='high' ? 'border-left:3px solid #ef4444' : clauseMaxSeverity(clause)==='medium' ? 'border-left:3px solid #f59e0b' : clauseMaxSeverity(clause)==='low' && clause.risk_flags?.length>0 ? 'border-left:3px solid #22c55e' : ''">
+
+          <button class="w-full text-left px-5 py-4 flex items-start justify-between gap-3" @click="clause._open = !clause._open">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="font-semibold text-sm" style="color:var(--ts-text0);" x-text="clause.clause_heading || `Clause ${idx+1}`"></span>
+                <template x-if="clause.clause_type">
+                  <span class="text-xs" style="color:var(--ts-text2);" x-text="`· ${clause.clause_type}`"></span>
+                </template>
+              </div>
+              <p class="text-sm line-clamp-2" style="color:var(--ts-text2);" x-text="clause.plain_english_summary || 'No summary available.'"></p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <template x-if="clause.risk_flags?.length > 0">
+                <span :class="`badge-${clauseMaxSeverity(clause)}`" x-text="clauseMaxSeverity(clause).toUpperCase()"></span>
+              </template>
+              <template x-if="!clause.risk_flags?.length">
+                <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:rgba(255,255,255,0.05);color:var(--ts-text2);border:1px solid rgba(255,255,255,0.08);">CLEAR</span>
+              </template>
+              <svg class="w-4 h-4 transition-transform" :class="clause._open ? 'rotate-180' : ''" fill="none" stroke="#4a6a8a" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </button>
+
+          <div x-show="clause._open" x-cloak class="px-5 py-4 space-y-4" style="border-top:1px solid rgba(255,255,255,0.06);">
+            <template x-if="clause.risk_flags?.length > 0">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:var(--ts-text2);">Risk Flags</p>
+                <div class="space-y-2">
+                  <template x-for="(flag, fi) in clause.risk_flags" :key="fi">
+                    <div class="flex gap-3 items-start p-3 rounded-lg"
+                         :style="flag.severity==='high' ? 'background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15)' : flag.severity==='medium' ? 'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.15)' : 'background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.15)'">
+                      <span class="text-xs font-bold shrink-0 mt-0.5"
+                            :style="flag.severity==='high' ? 'color:#f87171' : flag.severity==='medium' ? 'color:#fbbf24' : 'color:#4ade80'"
+                            x-text="flag.severity?.toUpperCase()"></span>
+                      <div>
+                        <p class="text-sm" style="color:var(--ts-text0);" x-text="flag.description"></p>
+                        <template x-if="flag.legislation_ref">
+                          <p class="text-xs mt-0.5 italic" style="color:var(--ts-text2);" x-text="flag.legislation_ref"></p>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <template x-if="clause.key_terms?.length > 0">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:var(--ts-text2);">Key Terms</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <template x-for="term in clause.key_terms" :key="term">
+                    <span class="text-xs px-2 py-0.5 rounded-md" style="background:rgba(255,255,255,0.05);color:var(--ts-text3);border:1px solid rgba(255,255,255,0.07);" x-text="term"></span>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <template x-if="clause.recommended_action">
+              <div class="rounded-lg p-3 flex gap-2" style="background:rgba(0,194,168,0.07);border:1px solid rgba(0,194,168,0.15);">
+                <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="#00c2a8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                <div>
+                  <p class="text-xs font-semibold mb-0.5" style="color:#5ef0d8;">Recommended Action</p>
+                  <p class="text-sm" style="color:#a0c4b8;" x-text="clause.recommended_action"></p>
+                </div>
+              </div>
+            </template>
+
+            <div>
+              <button @click="clause._showText = !clause._showText" class="text-xs flex items-center gap-1 transition-colors" style="color:var(--ts-text4);">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span x-text="clause._showText ? 'Hide clause text' : 'Show clause text'"></span>
+              </button>
+              <div x-show="clause._showText" x-cloak class="mt-2 rounded-lg p-3 text-xs leading-relaxed font-mono max-h-40 overflow-y-auto" style="background:rgba(0,0,0,0.2);color:var(--ts-text2);" x-text="clause.clause_text"></div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="filteredClauses.length === 0">
+        <div class="text-center py-12" style="color:var(--ts-text2);">
+          <svg class="w-10 h-10 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <p class="font-medium">No clauses match this filter</p>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       ALPINE APP
+  ════════════════════════════════════════════ -->
+  <script>
+  function app() {
+    return {
+      // State
+      view: 'upload',           // 'upload' | 'processing' | 'results'
+      selectedFile: null,
+      isDragging: false,
+      jurisdiction: '',
+      tenantName: '',
+      isSubmitting: false,
+      error: null,
+
+      // Job
+      jobId: null,
+      jobProgress: 0,
+      jobStage: '',
+      jobError: null,
+      pollTimer: null,
+      reviewPollTimer: null,
+      reviewClauseCount: 0,
+
+      // Results
+      result: null,
+      filterSeverity: 'all',
+      gaugeChart: null,
+
+      // Feedback
+      feedbackOpen: false,
+      feedbackRating: null,
+      feedbackComment: '',
+      submittingFeedback: false,
+      feedbackSuccess: false,
+
+      // Processing stages for display
+      processingStages: [
+        { label: 'Parsing PDF', threshold: 10, done: false, active: false },
+        { label: 'Identifying clauses', threshold: 30, done: false, active: false },
+        { label: 'Embedding & indexing', threshold: 50, done: false, active: false },
+        { label: 'AI clause analysis', threshold: 90, done: false, active: false },
+        { label: 'Generating report', threshold: 100, done: false, active: false },
+      ],
+
+      // Computed
+      get highCount() {
+        if (!this.result) return 0;
+        return (this.result.all_risk_flags || []).filter(f => f.severity === 'high').length;
+      },
+      get mediumCount() {
+        if (!this.result) return 0;
+        return (this.result.all_risk_flags || []).filter(f => f.severity === 'medium').length;
+      },
+      get lowCount() {
+        if (!this.result) return 0;
+        return (this.result.all_risk_flags || []).filter(f => f.severity === 'low').length;
+      },
+      get riskColor() {
+        const score = this.result?.risk_score || 0;
+        return score >= 60 ? '#dc2626' : score >= 30 ? '#d97706' : '#16a34a';
+      },
+      get riskLabel() {
+        const score = this.result?.risk_score || 0;
+        return score >= 60 ? 'HIGH RISK' : score >= 30 ? 'MEDIUM RISK' : 'LOW RISK';
+      },
+      get filteredClauses() {
+        if (!this.result?.clause_analyses) return [];
+        const clauses = this.result.clause_analyses;
+        if (this.filterSeverity === 'all') return clauses;
+        if (this.filterSeverity === 'flagged') return clauses.filter(c => c.risk_flags?.length > 0);
+        return clauses.filter(c => this.clauseMaxSeverity(c) === this.filterSeverity);
+      },
+
+      async init() {
+        // If ?job_id= is in the URL, load that saved report directly
+        const params = new URLSearchParams(window.location.search);
+        const savedJobId = params.get('job_id');
+        if (savedJobId) {
+          this.jobId = savedJobId;
+          await this.loadResult();
+        }
+      },
+
+      handleDrop(e) {
+        this.isDragging = false;
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === 'application/pdf') {
+          this.selectedFile = file;
+          this.error = null;
+        } else {
+          this.error = 'Please drop a PDF file.';
+        }
+      },
+
+      handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) {
+          this.selectedFile = file;
+          this.error = null;
+        }
+      },
+
+      clearFile() {
+        this.selectedFile = null;
+        this.$refs.fileInput.value = '';
+      },
+
+      formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      },
+
+      async submitAudit() {
+        if (!this.selectedFile || !this.jurisdiction) return;
+        this.isSubmitting = true;
+        this.error = null;
+
+        const formData = new FormData();
+        formData.append('file', this.selectedFile);
+        formData.append('jurisdiction', this.jurisdiction);
+        formData.append('tenant_name', this.tenantName);
+
+        try {
+          const res = await fetch('/api/audit/submit', { method: 'POST', body: formData });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || 'Submission failed');
+          }
+          const data = await res.json();
+          this.jobId = data.job_id;
+          this.view = 'processing';
+          this.startPolling();
+        } catch (e) {
+          this.error = e.message;
+        } finally {
+          this.isSubmitting = false;
+        }
+      },
+
+      startPolling() {
+        this.pollTimer = setInterval(() => this.pollStatus(), 3000);
+      },
+
+      async pollStatus() {
+        try {
+          const res = await fetch(`/api/audit/status/${this.jobId}`);
+          const data = await res.json();
+
+          this.jobProgress = data.progress || 0;
+          this.jobStage = data.stage || '';
+
+          // Update stage indicators
+          this.processingStages.forEach(s => {
+            s.done = this.jobProgress > s.threshold;
+            s.active = !s.done && this.jobProgress >= (s.threshold - 20);
+          });
+
+          if (data.status === 'complete') {
+            clearInterval(this.pollTimer);
+            // Don't show results yet — go to review holding view
+            // and poll for auditor release
+            await this.transitionToReview();
+          } else if (data.status === 'failed') {
+            clearInterval(this.pollTimer);
+            this.jobError = data.error || 'An unexpected error occurred.';
+          }
+        } catch (e) {
+          // Swallow polling errors silently
+        }
+      },
+
+      async transitionToReview() {
+        // Grab clause count for the status display (doesn't expose findings)
+        try {
+          const res = await fetch(`/api/audit/result/${this.jobId}`);
+          if (res.ok) {
+            const data = await res.json();
+            this.reviewClauseCount = data.total_clauses || 0;
+          }
+        } catch (_) {}
+        this.view = 'review';
+        // Poll every 30s to see if auditor has released the report
+        this.reviewPollTimer = setInterval(() => this.pollRelease(), 30000);
+        // Also check immediately in case it was already released
+        await this.pollRelease();
+      },
+
+      async pollRelease() {
+        try {
+          const res = await fetch(`/api/audit/report/status/${this.jobId}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.released) {
+            clearInterval(this.reviewPollTimer);
+            await this.loadResult();
+          }
+        } catch (_) {}
+      },
+
+      async loadResult() {
+        const res = await fetch(`/api/audit/result/${this.jobId}`);
+        this.result = await res.json();
+        this.view = 'results';
+        // Init gauge after DOM renders
+        this.$nextTick(() => this.initGauge());
+      },
+
+      initGauge() {
+        const canvas = document.getElementById('gaugeChart');
+        if (!canvas || !this.result) return;
+        if (this.gaugeChart) this.gaugeChart.destroy();
+
+        const score = this.result.risk_score || 0;
+        const color = score >= 60 ? '#dc2626' : score >= 30 ? '#d97706' : '#16a34a';
+        const remaining = 100 - score;
+
+        this.gaugeChart = new Chart(canvas, {
+          type: 'doughnut',
+          data: {
+            datasets: [{
+              data: [score, remaining],
+              backgroundColor: [color, 'rgba(255,255,255,0.06)'],
+              borderWidth: 0,
+              circumference: 180,
+              rotation: 270,
+            }]
+          },
+          options: {
+            responsive: false,
+            cutout: '72%',
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          }
+        });
+      },
+
+      clauseMaxSeverity(clause) {
+        const flags = clause.risk_flags || [];
+        if (flags.some(f => f.severity === 'high')) return 'high';
+        if (flags.some(f => f.severity === 'medium')) return 'medium';
+        if (flags.length > 0) return 'low';
+        return 'none';
+      },
+
+      emailReport() {
+        const subject = encodeURIComponent(`TenantSentry Audit Report — ${this.result?.tenant_name || ''}`);
+        const body = encodeURIComponent(
+          `Hi,\n\nPlease find the TenantSentry.ai lease audit report details below.\n\n` +
+          `Tenant: ${this.result?.tenant_name || 'N/A'}\n` +
+          `File: ${this.result?.filename || 'N/A'}\n` +
+          `Jurisdiction: ${this.result?.jurisdiction || 'N/A'}\n` +
+          `Risk Score: ${this.result?.risk_score || 0}/100\n\n` +
+          `Download PDF: ${window.location.origin}/api/audit/report/${this.jobId}\n\n` +
+          `TenantSentry.ai — Commercial Lease Audit Platform\nNot legal advice. Consult a solicitor before taking action.`
+        );
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+      },
+
+      async submitFeedback() {
+        if (this.feedbackRating === null) return;
+        this.submittingFeedback = true;
+        try {
+          await fetch('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ job_id: this.jobId, rating: this.feedbackRating, comment: this.feedbackComment }),
+          });
+          this.feedbackSuccess = true;
+          setTimeout(() => { this.feedbackOpen = false; this.feedbackSuccess = false; }, 2000);
+        } catch(e) { console.error(e); }
+        finally { this.submittingFeedback = false; }
+      },
+
+      resetToUpload() {
+        clearInterval(this.pollTimer);
+        clearInterval(this.reviewPollTimer);
+        this.view = 'upload';
+        this.selectedFile = null;
+        this.jurisdiction = '';
+        this.tenantName = '';
+        this.error = null;
+        this.jobId = null;
+        this.jobProgress = 0;
+        this.jobStage = '';
+        this.jobError = null;
+        this.result = null;
+        this.reviewClauseCount = 0;
+        this.filterSeverity = 'all';
+        if (this.gaugeChart) { this.gaugeChart.destroy(); this.gaugeChart = null; }
+        this.processingStages.forEach(s => { s.done = false; s.active = false; });
+      },
+    }
+  }
+  </script>
+
+<!-- FEEDBACK MODAL -->
+<div x-show="feedbackOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.75);" @click.self="feedbackOpen=false">
+  <div class="w-full max-w-md p-6 rounded-xl" style="background:var(--ts-bg1);border:1px solid rgba(255,255,255,0.10);">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold" style="color:var(--ts-text0);">Report Feedback</h2>
+      <button @click="feedbackOpen=false" style="color:var(--ts-text2);font-size:18px;">✕</button>
+    </div>
+    <p class="text-xs mb-4" style="color:var(--ts-text2);">Help us improve — was the AI analysis accurate for this lease?</p>
+
+    <p class="text-xs font-semibold mb-2 uppercase tracking-wide" style="color:var(--ts-text2);">Overall accuracy</p>
+    <div class="flex gap-2 mb-4">
+      <button @click="feedbackRating=1" class="flex-1 py-2 rounded-lg border text-xs font-medium transition-all" :style="feedbackRating===1?'background:rgba(0,194,168,0.15);border-color:#00c2a8;color:#5ef0d8':'background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:var(--ts-text2)'">👍 Accurate</button>
+      <button @click="feedbackRating=0" class="flex-1 py-2 rounded-lg border text-xs font-medium transition-all" :style="feedbackRating===0?'background:rgba(245,158,11,0.12);border-color:#f59e0b;color:#fbbf24':'background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:var(--ts-text2)'">🤔 Partially</button>
+      <button @click="feedbackRating=-1" class="flex-1 py-2 rounded-lg border text-xs font-medium transition-all" :style="feedbackRating===-1?'background:rgba(239,68,68,0.12);border-color:#ef4444;color:#f87171':'background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:var(--ts-text2)'">👎 Inaccurate</button>
+    </div>
+
+    <p class="text-xs font-semibold mb-2 uppercase tracking-wide" style="color:var(--ts-text2);">Comments (optional)</p>
+    <textarea x-model="feedbackComment" rows="3" placeholder="What was correct or incorrect? Any missed flags?" class="w-full text-sm rounded-lg p-3 resize-none outline-none mb-4" style="background:var(--ts-bginput);border:1px solid rgba(255,255,255,0.1);color:var(--ts-text0);"></textarea>
+
+    <div class="flex gap-2">
+      <button @click="submitFeedback()" class="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-all" style="background:linear-gradient(135deg,#00c2a8,#009e88);" :disabled="feedbackRating===null||submittingFeedback">
+        <span x-text="submittingFeedback?'Submitting…':'Submit Feedback'"></span>
+      </button>
+      <button @click="feedbackOpen=false" class="px-4 py-2 rounded-lg text-sm font-medium" style="border:1px solid rgba(0,194,168,0.3);color:#5ef0d8;">Cancel</button>
+    </div>
+    <p x-show="feedbackSuccess" class="text-xs text-center mt-3" style="color:#4ade80;">✓ Thank you for your feedback!</p>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   THEME TOGGLE
+═══════════════════════════════════════ */
+function tsApplyThemeIcons() {
+  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  var moon = document.getElementById('ts-icon-moon');
+  var sun  = document.getElementById('ts-icon-sun');

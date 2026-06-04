@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+/* Theme: apply before paint to avoid flash */
+(function(){
+  var t = localStorage.getItem('ts-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TenantSentry.ai — Create Account</title>
+<style>
+/* ═══════════════════════════════════════
+   THEME CUSTOM PROPERTIES
+═══════════════════════════════════════ */
+:root {
+  --ts-bg0:       #080f1c;
+  --ts-bg1:       #0f1e36;
+  --ts-bg1i:      #111c30;
+  --ts-bg2:       #162844;
+  --ts-bginput:   #0d1a2e;
+  --ts-border-s:  #1e2a3a;
+  --ts-text0:     #e0e6f0;
+  --ts-text1:     #cbd5e8;
+  --ts-text2:     #4a6a8a;
+  --ts-text3:     #8fa3bf;
+  --ts-text4:     #2a4a68;
+  /* rgba border helpers */
+  --ts-border-rgba:   rgba(255,255,255,0.07);
+  --ts-border-subtle: rgba(255,255,255,0.04);
+  --ts-border-def:    rgba(255,255,255,0.10);
+  --ts-border-strong: rgba(255,255,255,0.18);
+  --ts-raised:        rgba(255,255,255,0.035);
+  --ts-scrollbar:     #1e2a3a;
+  --ts-scrollbar-bg:  #080f1c;
+}
+
+/* ── LIGHT THEME OVERRIDES ── */
+html[data-theme="light"] {
+  --ts-bg0:       #f0f4f8;
+  --ts-bg1:       #ffffff;
+  --ts-bg1i:      #f4f7fa;
+  --ts-bg2:       #eef2f7;
+  --ts-bginput:   #f4f7fa;
+  --ts-border-s:  #d1dae6;
+  --ts-text0:     #0f172a;
+  --ts-text1:     #1e293b;
+  --ts-text2:     #5a7394;
+  --ts-text3:     #64748b;
+  --ts-text4:     #94a3b8;
+  --ts-border-rgba:   rgba(0,0,0,0.08);
+  --ts-border-subtle: rgba(0,0,0,0.04);
+  --ts-border-def:    rgba(0,0,0,0.09);
+  --ts-border-strong: rgba(0,0,0,0.14);
+  --ts-raised:        rgba(0,0,0,0.02);
+  --ts-scrollbar:     #c2cdd9;
+  --ts-scrollbar-bg:  #f0f4f8;
+}
+
+/* ── LIGHT: High-specificity overrides for components ── */
+html[data-theme="light"] body { background: var(--ts-bg0) !important; color: var(--ts-text0) !important; }
+html[data-theme="light"] nav,
+html[data-theme="light"] .topbar { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card-inner { background: #f4f7fa !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .stat-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .dk-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .clause-card { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+html[data-theme="light"] .clause-card.confirmed { border-color: rgba(34,197,94,0.35) !important; }
+html[data-theme="light"] .clause-card.flagged-card { border-color: rgba(245,158,11,0.4) !important; }
+html[data-theme="light"] .clause-card.rejected { border-color: rgba(239,68,68,0.4) !important; background: rgba(239,68,68,0.03) !important; }
+html[data-theme="light"] .clause-card.active-doc { border-color: #0d9488 !important; }
+html[data-theme="light"] .clause-card-body { border-color: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .clause-card-header:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .clause-action-bar { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .clause-note-input { background: #f8fafc !important; border-color: rgba(0,194,168,0.3) !important; color: #0f172a !important; }
+html[data-theme="light"] .doc-row { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .nav-link { color: #5a7394 !important; }
+html[data-theme="light"] .nav-link:hover { color: #00b89f !important; background: rgba(0,194,168,0.08) !important; }
+html[data-theme="light"] .nav-link.active { color: #009e88 !important; background: rgba(0,194,168,0.10) !important; }
+html[data-theme="light"] .audit-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .audit-row:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .report-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .report-row:hover { background: rgba(0,0,0,0.025) !important; }
+html[data-theme="light"] .notif-item { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .upload-cta { background: linear-gradient(135deg, rgba(0,194,168,0.07) 0%, rgba(59,130,246,0.04) 100%) !important; border-color: rgba(0,194,168,0.2) !important; }
+html[data-theme="light"] .drop-zone { border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .drop-zone:hover,
+html[data-theme="light"] .drop-zone.dragging { border-color: #00c2a8 !important; background: rgba(0,194,168,0.04) !important; }
+html[data-theme="light"] .dk-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .dk-input:focus { border-color: rgba(0,194,168,0.5) !important; }
+html[data-theme="light"] .dk-input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .input::placeholder { color: #94a3b8 !important; }
+html[data-theme="light"] .input:focus { border-color: #00c2a8 !important; }
+html[data-theme="light"] select.input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .brand-panel { background: #1a2744 !important; }
+html[data-theme="light"] .form-panel { background: #f8fafc !important; }
+html[data-theme="light"] .sso-btn { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .sso-btn:hover { background: #eef2f7 !important; }
+html[data-theme="light"] .checkbox-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.2) !important; }
+html[data-theme="light"] .checkbox-label { color: #1e293b !important; }
+html[data-theme="light"] .divider::before,
+html[data-theme="light"] .divider::after { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .divider span { color: #94a3b8 !important; }
+html[data-theme="light"] .form-title { color: #0f172a !important; }
+html[data-theme="light"] .form-subtitle { color: #64748b !important; }
+html[data-theme="light"] .field-label { color: #334155 !important; }
+html[data-theme="light"] .bp-logo-tag,
+html[data-theme="light"] .bp-sub,
+html[data-theme="light"] .bp-stat-label { color: rgba(255,255,255,0.55) !important; }
+html[data-theme="light"] .bp-stat-value { color: #5ef0d8 !important; }
+html[data-theme="light"] .bp-stat { background: rgba(255,255,255,0.06) !important; }
+html[data-theme="light"] .bp-stats { background: rgba(255,255,255,0.04) !important; }
+html[data-theme="light"] .bp-badge { color: #e0e6f0 !important; }
+html[data-theme="light"] .bp-badge-icon { background: rgba(0,194,168,0.15) !important; border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .bp-footer { color: rgba(255,255,255,0.4) !important; border-color: rgba(255,255,255,0.1) !important; }
+html[data-theme="light"] .signup-row { color: #64748b !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .form-footer { color: #94a3b8 !important; }
+html[data-theme="light"] .form-footer a { color: #64748b !important; }
+html[data-theme="light"] .back-link { color: #64748b !important; }
+html[data-theme="light"] .tab-inactive { color: #64748b !important; }
+html[data-theme="light"] .tab-active { color: #0d9488 !important; }
+html[data-theme="light"] .sidebar-tab.active { background: #eef2f7 !important; color: #0f172a !important; border-color: rgba(0,0,0,0.1) !important; }
+html[data-theme="light"] .sidebar-tab.inactive { color: #64748b !important; }
+html[data-theme="light"] .quota-bar-track { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .notif-dot { border-color: #f0f4f8 !important; }
+html[data-theme="light"] .plan-badge-bundle,
+html[data-theme="light"] .plan-badge-pay,
+html[data-theme="light"] .plan-badge-monitor { /* keep as-is — colored badges */ }
+html[data-theme="light"] .btn-ghost { color: #009e88 !important; border-color: rgba(0,158,136,0.3) !important; }
+html[data-theme="light"] .btn-ghost:hover { background: rgba(0,194,168,0.07) !important; }
+html[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+/* Stepper (audit page) */
+html[data-theme="light"] .step-circle { border-color: rgba(0,0,0,0.1) !important; color: #64748b !important; }
+html[data-theme="light"] .step-label { color: #64748b !important; }
+html[data-theme="light"] .step-line { background: rgba(0,0,0,0.1) !important; }
+/* Step pills (signup) */
+html[data-theme="light"] .step-pill { color: #94a3b8 !important; }
+html[data-theme="light"] .step-pill-num { background: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .step-pill.active { color: #009e88 !important; background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.25) !important; }
+html[data-theme="light"] .step-pill.active .step-pill-num { background: #00c2a8 !important; color: #fff !important; }
+html[data-theme="light"] .step-pill.done .step-pill-num { background: rgba(0,194,168,0.12) !important; color: #009e88 !important; }
+html[data-theme="light"] .progress-track { background: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .progress-label,
+html[data-theme="light"] .progress-fraction { color: #64748b !important; }
+html[data-theme="light"] .topbar-right { color: #64748b !important; }
+/* Alert banners */
+html[data-theme="light"] .alert-error { background: rgba(239,68,68,0.06) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .alert-success { background: rgba(34,197,94,0.06) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Severity badges — keep accent colors */
+html[data-theme="light"] .sev-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .sev-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .sev-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .badge-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .badge-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .badge-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Status badges */
+html[data-theme="light"] .status-pending  { background: rgba(245,158,11,0.08) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .status-review   { background: rgba(59,130,246,0.08) !important; border-color: rgba(59,130,246,0.2) !important; }
+html[data-theme="light"] .status-released { background: rgba(34,197,94,0.08) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.2) !important; }
+
+:root {
+  --navy-950:var(--ts-bg0);--navy-900:var(--ts-bg0);--navy-800:var(--ts-bg1);--navy-700:var(--ts-bg2);--navy-600:var(--ts-bg2);
+  --teal-500:#00c2a8;--teal-400:#00d9bc;--teal-300:#4debd8;--teal-600:#009e88;
+  --teal-faint:rgba(0,194,168,0.07);
+  --red-500:#ef4444;--green-500:#22c55e;--amber-500:#f59e0b;--blue-500:#3b82f6;
+  --text-100:var(--ts-text0);--text-200:var(--ts-text1);--text-400:var(--ts-text3);--text-600:var(--ts-text3);
+  --border-subtle:rgba(255,255,255,0.06);--border-default:rgba(255,255,255,0.10);
+  --border-strong:rgba(255,255,255,0.18);--border-teal:rgba(0,194,168,0.35);
+  --surface-0:var(--navy-950);--surface-1:var(--navy-800);--surface-2:var(--navy-700);
+  --surface-raised:rgba(255,255,255,0.035);
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-full:9999px;
+  --shadow-teal:0 0 0 3px rgba(0,194,168,0.20);--shadow-btn:0 2px 8px rgba(0,194,168,0.30);
+  --t-fast:0.15s ease;--t-med:0.25s ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:var(--surface-0);color:var(--text-100);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;}
+
+/* TOPBAR */
+.topbar{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 40px;background:var(--navy-900);border-bottom:1px solid var(--border-subtle);position:sticky;top:0;z-index:50;}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-mark{width:34px;height:34px;border-radius:var(--r-sm);background:linear-gradient(135deg,var(--teal-500),#007aff);display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 10px rgba(0,194,168,0.3);}
+.logo-name{font-size:16px;font-weight:700;color:var(--text-100);}
+.logo-name span{color:var(--teal-500);}
+.topbar-right{font-size:13px;color:var(--text-400);}
+.topbar-right a{color:var(--teal-500);text-decoration:none;font-weight:600;margin-left:4px;}
+
+/* PAGE */
+.page{max-width:720px;margin:0 auto;padding:28px 24px 40px;}
+
+/* PROGRESS */
+.progress-header{margin-bottom:20px;}
+.progress-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.progress-label{font-size:12px;color:var(--text-400);font-weight:500;}
+.progress-fraction{font-size:12px;color:var(--text-400);}
+.progress-fraction strong{color:var(--teal-500);}
+.progress-track{height:4px;background:var(--border-subtle);border-radius:var(--r-full);overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--teal-500),var(--teal-300));border-radius:var(--r-full);transition:width 0.45s cubic-bezier(0.4,0,0.2,1);}
+.step-pills{display:flex;gap:8px;margin-top:8px;}
+.step-pill{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 8px;border-radius:var(--r-full);font-size:12px;font-weight:600;color:var(--text-600);background:transparent;border:1px solid transparent;white-space:nowrap;transition:all var(--t-med);}
+.step-pill-num{width:20px;height:20px;border-radius:50%;background:var(--border-subtle);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;transition:all var(--t-med);}
+.step-pill.done{color:var(--text-400);}
+.step-pill.done .step-pill-num{background:rgba(0,194,168,0.15);color:var(--teal-500);}
+.step-pill.active{color:var(--teal-500);background:rgba(0,194,168,0.08);border-color:rgba(0,194,168,0.25);}
+.step-pill.active .step-pill-num{background:var(--teal-500);color:#000;}
+
+/* SCREENS */
+.screen{display:none;}
+.screen.active{display:block;animation:slideIn 0.3s cubic-bezier(0.4,0,0.2,1);}
+@keyframes slideIn{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
+.screen-eyebrow{font-size:11px;font-weight:600;color:var(--teal-500);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
+.screen-title{font-size:22px;font-weight:800;letter-spacing:-0.4px;margin-bottom:4px;}
+.screen-sub{color:var(--text-400);font-size:13px;max-width:480px;}
+
+/* FORM */
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field{margin-bottom:14px;}
+.field:last-child{margin-bottom:0;}
+.field-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;font-size:13px;font-weight:500;color:var(--text-200);}
+.field-optional{font-size:11px;color:var(--text-600);font-weight:400;}
+.input-wrap{position:relative;}
+.input-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-600);display:flex;align-items:center;pointer-events:none;transition:color var(--t-fast);}
+.input{width:100%;padding:11px 14px 11px 40px;background:var(--surface-2);border:1px solid var(--border-default);border-radius:var(--r-sm);color:var(--text-100);font-size:14px;font-family:inherit;outline:none;transition:border-color var(--t-fast),box-shadow var(--t-fast);appearance:none;}
+.input.no-icon{padding-left:14px;}
+.input::placeholder{color:var(--text-600);}
+.input:hover{border-color:var(--border-strong);}
+.input:focus{border-color:var(--teal-500);box-shadow:var(--shadow-teal);}
+.input-wrap:focus-within .input-icon{color:var(--teal-500);}
+.input.error{border-color:var(--red-500)!important;box-shadow:0 0 0 3px rgba(239,68,68,0.12)!important;}
+select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238fa3bf' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;cursor:pointer;}
+select.input option{background:var(--ts-bg2);color:var(--text-100);}
+.pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-600);padding:4px;border-radius:4px;display:flex;align-items:center;transition:color var(--t-fast);}
+.pw-toggle:hover{color:var(--text-400);}
+.pw-strength{margin-top:8px;}
+.pw-strength-track{height:3px;background:var(--border-subtle);border-radius:var(--r-full);overflow:hidden;margin-bottom:5px;}
+.pw-strength-fill{height:100%;border-radius:var(--r-full);transition:width 0.3s,background 0.3s;width:0%;}
+.pw-strength-label{font-size:11px;color:var(--text-600);}
+.field-error{display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;color:var(--red-500);opacity:0;transform:translateY(-3px);transition:opacity var(--t-fast),transform var(--t-fast);pointer-events:none;}
+.field-error.show{opacity:1;transform:translateY(0);}
+.field-hint{margin-top:6px;font-size:12px;color:var(--text-600);}
+
+/* CHECKBOX */
+.check-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;cursor:pointer;}
+.check-row:last-child{margin-bottom:0;}
+.check-input{width:17px;height:17px;border-radius:4px;border:1.5px solid var(--border-default);background:var(--surface-2);appearance:none;cursor:pointer;position:relative;flex-shrink:0;margin-top:1px;transition:border-color var(--t-fast),background var(--t-fast);}
+.check-input:checked{background:var(--teal-500);border-color:var(--teal-500);}
+.check-input:checked::after{content:'';position:absolute;top:2px;left:5px;width:5px;height:8px;border:2px solid #000;border-top:none;border-left:none;transform:rotate(45deg);}
+.check-text{font-size:13px;color:var(--text-200);line-height:1.5;}
+.check-text a{color:var(--teal-500);text-decoration:none;}
+
+/* RADIO CARDS */
+.radio-group{display:flex;flex-direction:column;gap:7px;}
+.radio-card{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;background:var(--surface-2);border:1.5px solid var(--border-default);border-radius:var(--r-md);cursor:pointer;transition:border-color var(--t-fast),background var(--t-fast);position:relative;}
+.radio-card:hover{border-color:var(--border-strong);}
+.radio-card.selected{border-color:var(--teal-500);background:rgba(0,194,168,0.06);}
+.radio-input{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border-default);background:var(--surface-2);appearance:none;cursor:pointer;position:relative;flex-shrink:0;margin-top:2px;transition:border-color var(--t-fast);}
+.radio-input:checked{border-color:var(--teal-500);border-width:5px;background:var(--teal-500);}
+.radio-card-body{flex:1;}
+.radio-card-title{font-size:14px;font-weight:600;margin-bottom:3px;}
+.radio-card-sub{font-size:12px;color:var(--text-400);line-height:1.45;}
+
+/* STATE GRID */
+.state-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.state-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 8px;background:var(--surface-2);border:1.5px solid var(--border-default);border-radius:var(--r-md);cursor:pointer;transition:border-color var(--t-fast),background var(--t-fast);text-align:center;position:relative;user-select:none;}
+.state-tile:hover{border-color:var(--border-strong);}
+.state-tile.selected{border-color:var(--teal-500);background:rgba(0,194,168,0.07);}
+.state-tile.no-legislation{opacity:0.5;cursor:default;}
+.state-tile.no-legislation:hover{border-color:var(--border-default);}
+.state-code{font-size:15px;font-weight:800;letter-spacing:-0.3px;color:var(--text-100);}
+.state-tile.selected .state-code{color:var(--teal-500);}
+.state-name{font-size:10px;color:var(--text-400);line-height:1.3;}
+.state-act{font-size:9px;color:var(--teal-600);font-weight:600;margin-top:2px;}
+.state-tile.no-legislation .state-act{color:var(--text-600);}
+.state-check{position:absolute;top:6px;right:6px;width:14px;height:14px;border-radius:50%;background:var(--teal-500);color:#000;font-size:8px;font-weight:900;display:none;align-items:center;justify-content:center;}
+.state-tile.selected .state-check{display:flex;}
+.state-coming-soon{position:absolute;top:4px;right:4px;font-size:8px;font-weight:700;color:var(--text-600);background:rgba(255,255,255,0.05);border-radius:3px;padding:1px 4px;text-transform:uppercase;letter-spacing:0.3px;}
+
+/* PLAN CARDS */
+.plan-card{background:var(--surface-2);border:1.5px solid var(--border-default);border-radius:var(--r-lg);transition:border-color var(--t-fast),background var(--t-fast),box-shadow var(--t-fast);}
+.plan-card:hover{border-color:var(--border-strong);}
+.plan-card.selected{border-color:var(--teal-500);background:rgba(0,194,168,0.05);box-shadow:0 0 0 1px rgba(0,194,168,0.2);}
+.plan-card-check{position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border-default);background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;transition:all var(--t-fast);}
+
+/* BUNDLE TOOLTIP */
+.bundle-tip-wrap{overflow:visible!important;}
+.bundle-tooltip{display:none;position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);width:230px;background:var(--navy-700);border:1px solid var(--border-strong);border-radius:var(--r-md);padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,0.6);z-index:999;pointer-events:none;}
+.bundle-tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:var(--border-strong);}
+.bundle-tooltip::before{content:'';position:absolute;top:calc(100% - 1px);left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:var(--navy-700);z-index:1;}
+.bundle-tip-wrap:hover .bundle-tooltip{display:block;}
+.tt-title{font-size:12px;font-weight:700;color:var(--text-100);margin-bottom:6px;}
+.tt-price{font-size:20px;font-weight:800;letter-spacing:-0.5px;color:var(--teal-500);margin-bottom:10px;}
+.tt-price span{font-size:11px;font-weight:500;color:var(--text-400);}
+.tt-row{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-200);margin-bottom:5px;}
+.tt-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.tt-dot.teal{background:var(--teal-500);}
+.tt-dot.green{background:var(--green-500);}
+.tt-divider{height:1px;background:var(--border-subtle);margin:10px 0;}
+.tt-breakdown{display:flex;justify-content:space-between;font-size:11px;color:var(--text-400);margin-bottom:3px;}
+.tt-total{font-size:12px;font-weight:700;color:var(--text-100);margin-top:4px;}
+
+/* CREDIT CARD BOX */
+.cc-box{background:var(--surface-2);border:1.5px solid var(--border-default);border-radius:var(--r-lg);padding:20px 22px;margin-top:16px;}
+.cc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.cc-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--text-100);}
+.cc-brands{display:flex;gap:6px;}
+.cc-brand-pill{font-size:9px;font-weight:800;letter-spacing:0.5px;padding:3px 7px;border-radius:4px;background:rgba(255,255,255,0.07);border:1px solid var(--border-default);color:var(--text-400);}
+.cc-type-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:800;color:var(--teal-500);letter-spacing:0.3px;}
+.cc-footer{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle);}
+.cc-secure-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text-400);}
+
+/* VERIFY */
+.verify-card{background:var(--surface-2);border:1px solid var(--border-default);border-radius:var(--r-lg);padding:40px;text-align:center;max-width:440px;margin:0 auto;}
+.verify-icon{width:72px;height:72px;border-radius:50%;background:rgba(0,194,168,0.1);border:1px solid rgba(0,194,168,0.25);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 24px;}
+.verify-title{font-size:22px;font-weight:700;margin-bottom:8px;}
+.verify-sub{color:var(--text-400);font-size:14px;margin-bottom:16px;line-height:1.6;}
+.verify-email{display:inline-block;background:rgba(0,194,168,0.08);border:1px solid rgba(0,194,168,0.2);border-radius:var(--r-sm);padding:4px 14px;color:var(--teal-500);font-weight:600;font-size:14px;margin-bottom:24px;}
+.otp-group{display:flex;gap:10px;justify-content:center;margin-bottom:16px;}
+.otp-input{width:52px;height:60px;background:var(--surface-2);border:1.5px solid var(--border-default);border-radius:var(--r-md);color:var(--text-100);font-size:22px;font-weight:700;text-align:center;font-family:inherit;outline:none;transition:border-color var(--t-fast),box-shadow var(--t-fast);caret-color:var(--teal-500);}
+.otp-input:focus{border-color:var(--teal-500);box-shadow:var(--shadow-teal);}
+.otp-input.filled{border-color:rgba(0,194,168,0.4);}
+.otp-input.error{border-color:var(--red-500);box-shadow:0 0 0 3px rgba(239,68,68,0.12);}
+.otp-error{font-size:13px;color:var(--red-500);margin-bottom:12px;min-height:20px;}
+.otp-resend{font-size:13px;color:var(--text-400);margin-bottom:20px;}
+.otp-resend button{background:none;border:none;cursor:pointer;color:var(--teal-500);font-size:13px;font-weight:600;font-family:inherit;padding:0;}
+
+/* SUCCESS */
+.success-card{text-align:center;padding:20px 0 40px;}
+.success-icon{width:80px;height:80px;border-radius:50%;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 28px;animation:popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275);}
+@keyframes popIn{from{transform:scale(0.5);opacity:0;}to{transform:scale(1);opacity:1;}}
+.success-title{font-size:28px;font-weight:800;letter-spacing:-0.5px;margin-bottom:10px;}
+.success-sub{color:var(--text-400);font-size:15px;max-width:400px;margin:0 auto 32px;line-height:1.6;}
+.next-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px;}
+.next-step{background:var(--surface-2);border:1px solid var(--border-default);border-radius:var(--r-md);padding:18px 16px;text-align:center;}
+.next-step-num{width:28px;height:28px;border-radius:50%;background:rgba(0,194,168,0.12);border:1px solid rgba(0,194,168,0.25);color:var(--teal-500);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;}
+.next-step-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+.next-step-sub{font-size:11px;color:var(--text-400);line-height:1.4;}
+
+/* BUTTONS */
+.btn-row{display:flex;align-items:center;justify-content:space-between;margin-top:18px;gap:12px;}
+.btn-row-right{display:flex;gap:12px;margin-left:auto;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:var(--r-sm);font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all var(--t-fast);font-family:inherit;}
+.btn-primary{background:var(--teal-500);color:#000;min-width:160px;}
+.btn-primary:hover{background:var(--teal-400);box-shadow:var(--shadow-btn);}
+.btn-primary:disabled{background:rgba(0,194,168,0.25);color:rgba(0,0,0,0.3);cursor:not-allowed;box-shadow:none;}
+.btn-ghost{background:transparent;color:var(--text-400);border:1px solid var(--border-default);}
+.btn-ghost:hover{color:var(--text-100);border-color:var(--border-strong);}
+.btn-full{width:100%;}
+.btn .spinner{width:15px;height:15px;border:2px solid rgba(0,0,0,0.15);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;display:none;}
+.btn.loading .btn-label{display:none;}
+.btn.loading .spinner{display:block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.sso-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:10px 20px;background:var(--surface-raised);border:1px solid var(--border-default);border-radius:var(--r-sm);color:var(--text-100);font-size:14px;font-weight:500;cursor:pointer;transition:background var(--t-fast),border-color var(--t-fast);font-family:inherit;margin-bottom:14px;}
+.sso-btn:hover{background:rgba(255,255,255,0.06);border-color:var(--border-strong);}
+.divider{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border-subtle);}
+.divider span{font-size:12px;color:var(--text-600);white-space:nowrap;}
+.section-gap{margin-top:16px;}
+.section-label{font-size:11px;font-weight:700;color:var(--text-600);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;}
+.alert{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:var(--r-sm);font-size:13px;margin-bottom:16px;}
+.alert-info{background:rgba(0,194,168,0.07);border:1px solid rgba(0,194,168,0.2);}
+.autofill-btn{background:rgba(0,194,168,0.08);border:1px solid rgba(0,194,168,0.2);color:var(--teal-500);font-size:11px;font-weight:600;padding:5px 13px;border-radius:var(--r-full);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;transition:background var(--t-fast);}
+.autofill-btn:hover{background:rgba(0,194,168,0.16);}
+.rec-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(90deg,var(--teal-500),#007aff);color:#000;font-size:10px;font-weight:800;padding:3px 12px;border-radius:var(--r-full);white-space:nowrap;letter-spacing:0.3px;box-shadow:0 2px 8px rgba(0,194,168,0.4);}
+.form-footer-note{font-size:11px;color:var(--text-600);text-align:center;margin-top:16px;}
+.form-footer-note a{color:var(--teal-500);text-decoration:none;font-weight:600;}
+@media(max-width:700px){.form-grid-2,.state-grid,.next-steps{grid-template-columns:1fr;}nav{padding:0 16px;}.page{padding-left:16px;padding-right:16px;}}
+</style>
+</head>
+<body>
+<nav class="topbar">
+  <a class="logo" href="/login">
+    <div class="logo-mark">🔍</div>
+    <div class="logo-name">TenantSentry<span>.ai</span></div>
+  </a>
+  <div class="topbar-right" style="display:flex;align-items:center;gap:12px;">
+<button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
+  style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid var(--ts-border-rgba,rgba(255,255,255,0.07));background:var(--ts-raised,rgba(255,255,255,0.035));">
+  <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>Already have an account?<a href="/login">Sign in</a></div>
+</nav>
+
+<div class="page">
+  <div class="progress-header">
+    <div class="progress-top">
+      <div class="progress-label" id="progressLabel">Step 1 of 4 — Create your account</div>
+      <div class="progress-fraction">Step <strong id="progressCurrent">1 of 4</strong></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:25%"></div></div>
+    <div class="step-pills">
+      <div class="step-pill active" id="pill1"><div class="step-pill-num" id="pillNum1">1</div>Account</div>
+      <div class="step-pill" id="pill2"><div class="step-pill-num" id="pillNum2">2</div>Business</div>
+      <div class="step-pill" id="pill3"><div class="step-pill-num" id="pillNum3">3</div>Plan</div>
+      <div class="step-pill" id="pill4"><div class="step-pill-num" id="pillNum4">4</div>Verify</div>
+    </div>
+  </div>
+
+  <!-- STEP 1: ACCOUNT -->
+  <div class="screen active" id="step1">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px">
+      <div>
+        <div class="screen-eyebrow">Get started free</div>
+        <div class="screen-title">Create your account</div>
+        <div class="screen-sub">Start your first lease audit in under 5 minutes.</div>
+      </div>
+      <button onclick="autofillStep1()" class="autofill-btn">⚡ Autofill</button>
+    </div>
+    <button class="sso-btn" onclick="ssoNote()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2C17.64 8.57 17.58 7.95 17.48 7.36H9v3.48h4.84c-.21 1.13-.84 2.08-1.79 2.72v2.26h2.91C16.66 14.25 17.64 11.95 17.64 9.2z" fill="#4285F4"/><path d="M9 18c2.43 0 4.47-.81 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.33C2.44 15.98 5.48 18 9 18z" fill="#34A853"/><path d="M3.96 10.71A5.41 5.41 0 013.68 9c0-.59.1-1.17.28-1.71V4.96H.96A9 9 0 000 9c0 1.45.35 2.82.96 4.04l3-2.33z" fill="#FBBC05"/><path d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l3 2.33C4.67 5.16 6.66 3.58 9 3.58z" fill="#EA4335"/></svg>
+      Sign up with Google
+    </button>
+    <div class="divider"><span>or create account with email</span></div>
+    <div class="form-grid-2">
+      <div class="field">
+        <div class="field-label">First name</div>
+        <div class="input-wrap">
+          <span class="input-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="5" r="3"/><path d="M1.5 12.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg></span>
+          <input type="text" class="input" id="firstName" placeholder="Garry" autocomplete="given-name"/>
+        </div>
+        <div class="field-error" id="firstNameErr"><span>⚠</span><span>Required</span></div>
+      </div>
+      <div class="field">
+        <div class="field-label">Last name</div>
+        <div class="input-wrap">
+          <span class="input-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="5" r="3"/><path d="M1.5 12.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg></span>
+          <input type="text" class="input" id="lastName" placeholder="Forster" autocomplete="family-name"/>
+        </div>
+        <div class="field-error" id="lastNameErr"><span>⚠</span><span>Required</span></div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Work email</div>
+      <div class="input-wrap">
+        <span class="input-icon"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="3" width="13" height="9" rx="1.5"/><path d="M1 4.5l6.5 4.5L14 4.5"/></svg></span>
+        <input type="email" class="input" id="regEmail" placeholder="garry@company.com.au" autocomplete="email" spellcheck="false"/>
+      </div>
+      <div class="field-error" id="regEmailErr"><span>⚠</span><span id="regEmailErrText">Enter a valid email</span></div>
+    </div>
+    <div class="field">
+      <div class="field-label">Password</div>
+      <div class="input-wrap">
+        <span class="input-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="6" width="10" height="7" rx="1.5"/><path d="M4.5 6V4.5a2.5 2.5 0 015 0V6"/></svg></span>
+        <input type="password" class="input" id="regPassword" placeholder="Min. 8 characters" autocomplete="new-password" oninput="checkPasswordStrength(this.value)"/>
+        <button type="button" class="pw-toggle" onclick="togglePw('regPassword')" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z"/><circle cx="8" cy="8" r="2"/></svg></button>
+      </div>
+      <div class="pw-strength"><div class="pw-strength-track"><div class="pw-strength-fill" id="pwStrFill"></div></div><div class="pw-strength-label" id="pwStrLabel"></div></div>
+      <div class="field-error" id="regPasswordErr"><span>⚠</span><span id="regPasswordErrText">Minimum 8 characters</span></div>
+    </div>
+    <div class="field">
+      <div class="field-label">Confirm password</div>
+      <div class="input-wrap">
+        <span class="input-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="6" width="10" height="7" rx="1.5"/><path d="M4.5 6V4.5a2.5 2.5 0 015 0V6"/></svg></span>
+        <input type="password" class="input" id="regConfirm" placeholder="Repeat password" autocomplete="new-password"/>
+        <button type="button" class="pw-toggle" onclick="togglePw('regConfirm')" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z"/><circle cx="8" cy="8" r="2"/></svg></button>
+      </div>
+      <div class="field-error" id="regConfirmErr"><span>⚠</span><span>Passwords do not match</span></div>
+    </div>
+    <label class="check-row" style="margin-top:8px">
+      <input type="checkbox" class="check-input" id="agreeTerms"/>
+      <div class="check-text">I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>. TenantSentry.ai is not a law firm.</div>
+    </label>
+    <div class="btn-row">
+      <div></div>
+      <button class="btn btn-primary" onclick="submitStep1()"><span class="btn-label">Continue →</span><div class="spinner"></div></button>
+    </div>
+    <div class="form-footer-note">Already have an account? <a href="/login">Sign in</a></div>
+  </div>
+
+  <!-- STEP 2: BUSINESS -->
+  <div class="screen" id="step2">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px">
+      <div>
+        <div class="screen-eyebrow">Business profile</div>
+        <div class="screen-title">Tell us about your tenancy</div>
+        <div class="screen-sub">Helps us apply the correct state legislation and tailor your audit.</div>
+      </div>
+      <button onclick="autofillStep2()" class="autofill-btn">⚡ Autofill</button>
+    </div>
+    <div class="form-grid-2">
+      <div class="field" style="grid-column:1/-1">
+        <div class="field-label">Company / trading name</div>
+        <div class="input-wrap">
+          <span class="input-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3" width="11" height="9" rx="1"/><path d="M5 3V2a2 2 0 014 0v1"/><path d="M1.5 7h11"/></svg></span>
+          <input type="text" class="input" id="companyName" placeholder="e.g. Coastal Brew Co. Pty Ltd" autocomplete="organization"/>
+        </div>
+        <div class="field-error" id="companyNameErr"><span>⚠</span><span>Required</span></div>
+      </div>
+      <div class="field">
+        <div class="field-label">ABN <span class="field-optional">optional</span></div>
+        <div class="input-wrap">
+          <span class="input-icon" style="font-size:11px;font-weight:700">AU</span>
+          <input type="text" class="input" id="abn" placeholder="12 345 678 901" maxlength="14" oninput="formatABN(this)"/>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label">Number of leases</div>
+        <div class="input-wrap">
+          <select class="input no-icon" id="leaseCount" style="padding-left:14px">
+            <option value="">Select</option>
+            <option>1 lease</option>
+            <option>2–5 leases</option>
+            <option>6–20 leases</option>
+            <option>20+ leases</option>
+          </select>
+        </div>
+        <div class="field-error" id="leaseCountErr"><span>⚠</span><span>Required</span></div>
+      </div>
+    </div>
+    <div class="field" style="margin-top:4px">
+      <div class="field-label">States of operation <span class="field-optional">Select all that apply</span></div>
+      <div class="state-grid" id="stateGrid">
+        <div class="state-tile" data-state="VIC" onclick="toggleState(this)"><div class="state-check">✓</div><div class="state-code">VIC</div><div class="state-name">Victoria</div><div class="state-act">Retail Leases Act 2003</div></div>
+        <div class="state-tile" data-state="NSW" onclick="toggleState(this)"><div class="state-check">✓</div><div class="state-code">NSW</div><div class="state-name">New South Wales</div><div class="state-act">Retail Leases Act 1994</div></div>
+        <div class="state-tile" data-state="QLD" onclick="toggleState(this)"><div class="state-check">✓</div><div class="state-code">QLD</div><div class="state-name">Queensland</div><div class="state-act">Retail Shop Leases Act 1994</div></div>
+        <div class="state-tile" data-state="WA" onclick="toggleState(this)"><div class="state-check">✓</div><div class="state-code">WA</div><div class="state-name">Western Australia</div><div class="state-act">Commercial Tenancy Act 1985</div></div>
+        <div class="state-tile" data-state="SA" onclick="toggleState(this)"><div class="state-check">✓</div><div class="state-code">SA</div><div class="state-name">South Australia</div><div class="state-act">Retail and Commercial Leases Act 1995</div></div>
+        <div class="state-tile no-legislation"><div class="state-code">ACT</div><div class="state-name">ACT</div><div class="state-act">Coming soon</div><div class="state-coming-soon">Soon</div></div>
+        <div class="state-tile no-legislation"><div class="state-code">TAS</div><div class="state-name">Tasmania</div><div class="state-act">Coming soon</div><div class="state-coming-soon">Soon</div></div>
+        <div class="state-tile no-legislation"><div class="state-code">NT</div><div class="state-name">N. Territory</div><div class="state-act">Coming soon</div><div class="state-coming-soon">Soon</div></div>
+      </div>
+      <div class="field-error" id="stateErr" style="margin-top:8px"><span>⚠</span><span>Select at least one state</span></div>
+      <div class="field-hint" style="margin-top:8px">Legislation is applied per-lease at audit time based on premises location.</div>
+    </div>
+    <div class="section-gap">
+      <div class="section-label">How did you hear about us? <span style="text-transform:none;letter-spacing:0;font-size:11px;font-weight:400">(optional)</span></div>
+      <div class="radio-group">
+        <label class="radio-card" id="rc1" onclick="selectRadio('referral','rc1')"><input type="radio" class="radio-input" name="referral" value="solicitor"/><div class="radio-card-body"><div class="radio-card-title">Solicitor or lease consultant</div><div class="radio-card-sub">Referred by my legal or property advisor</div></div></label>
+        <label class="radio-card" id="rc2" onclick="selectRadio('referral','rc2')"><input type="radio" class="radio-input" name="referral" value="accountant"/><div class="radio-card-body"><div class="radio-card-title">Accountant or bookkeeper</div><div class="radio-card-sub">Referred through my financial advisor</div></div></label>
+        <label class="radio-card" id="rc3" onclick="selectRadio('referral','rc3')"><input type="radio" class="radio-input" name="referral" value="search"/><div class="radio-card-body"><div class="radio-card-title">Google / online search</div><div class="radio-card-sub">Found TenantSentry through research</div></div></label>
+        <label class="radio-card" id="rc4" onclick="selectRadio('referral','rc4')"><input type="radio" class="radio-input" name="referral" value="other"/><div class="radio-card-body"><div class="radio-card-title">Other</div><div class="radio-card-sub">Word of mouth, social media, or other</div></div></label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goToStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="submitStep2()"><span class="btn-label">Continue →</span><div class="spinner"></div></button>
+    </div>
+  </div>
+
+  <!-- STEP 3: PLAN + PAYMENT -->
+  <div class="screen" id="step3">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px">
+      <div>
+        <div class="screen-eyebrow">Choose your plan</div>
+        <div class="screen-title">Select the right coverage for your portfolio</div>
+        <div class="screen-sub">Every plan includes a full audit + 12-month monitoring. <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,194,168,0.10);border:1px solid rgba(0,194,168,0.25);border-radius:4px;padding:2px 10px;margin-left:4px;font-size:12px;font-weight:600;color:var(--teal-500);white-space:nowrap">🔒 Charged only when report is delivered</span></div>
+      </div>
+      <button onclick="autofillStep3()" class="autofill-btn">⚡ Autofill</button>
+    </div>
+    <!-- Feature note -->
+    <div class="alert alert-info" style="margin-bottom:12px">
+      <span style="color:var(--teal-500)">✓</span>
+      <span>Every plan: <strong>forensic audit · CPI &amp; outgoings check · dispute letter · 12-month monitoring · anomaly alerts</strong></span>
+    </div>
+    <!-- 4 plan cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+      <div class="plan-card bundle-tip-wrap" id="planStd" onclick="selectStandard()" style="cursor:pointer;padding:18px 16px;position:relative">
+        <div class="plan-card-check" id="checkStd">✓</div>
+        <div style="font-size:9px;font-weight:700;color:var(--text-400);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Standard</div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:-0.8px;line-height:1">$399</div>
+        <div style="font-size:11px;color:var(--text-400);margin:4px 0 12px">inc. GST · per lease</div>
+        <div style="height:1px;background:var(--border-subtle);margin-bottom:12px"></div>
+        <div style="font-size:12px;color:var(--text-400);margin-bottom:4px">1 lease</div>
+        <div style="font-size:12px;color:var(--text-600)">$399 / lease</div>
+        <div class="bundle-tooltip"><div class="tt-title">Standard — 1 Lease</div><div class="tt-price">$399 <span>inc. GST</span></div><div class="tt-row"><span class="tt-dot teal"></span>Full forensic lease audit</div><div class="tt-row"><span class="tt-dot teal"></span>CPI &amp; rent review check</div><div class="tt-row"><span class="tt-dot teal"></span>Outgoings &amp; land tax validation</div><div class="tt-row"><span class="tt-dot teal"></span>Forensic discrepancy report</div><div class="tt-row"><span class="tt-dot teal"></span>Draft dispute letter</div><div class="tt-row"><span class="tt-dot teal"></span>12-month invoice monitoring</div><div class="tt-divider"></div><div class="tt-breakdown"><span>Ex-GST</span><span>$362.73</span></div><div class="tt-breakdown"><span>GST (10%)</span><span>$36.27</span></div><div class="tt-breakdown tt-total"><span>Total</span><span>$399.00</span></div></div>
+      </div>
+      <div class="plan-card bundle-tip-wrap" id="planS" onclick="selectBundle('S')" style="cursor:pointer;padding:18px 16px;position:relative">
+        <div class="plan-card-check" id="checkS">✓</div>
+        <div style="font-size:9px;font-weight:700;color:var(--text-400);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Starter</div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:-0.8px;line-height:1">$999</div>
+        <div style="font-size:11px;color:var(--text-400);margin:4px 0 12px">inc. GST · 3 leases</div>
+        <div style="height:1px;background:var(--border-subtle);margin-bottom:12px"></div>
+        <div style="font-size:12px;color:var(--green-500);font-weight:600;margin-bottom:4px">Save $198</div>
+        <div style="font-size:12px;color:var(--text-600)">$333 / lease</div>
+        <div class="bundle-tooltip"><div class="tt-title">Starter — 3 Leases</div><div class="tt-price">$999 <span>inc. GST</span></div><div class="tt-row"><span class="tt-dot teal"></span>All Standard features on each lease</div><div class="tt-row"><span class="tt-dot teal"></span>3 full forensic audits</div><div class="tt-row"><span class="tt-dot green"></span>Save $198 vs 3 × Standard</div><div class="tt-divider"></div><div class="tt-breakdown"><span>Ex-GST</span><span>$908.18</span></div><div class="tt-breakdown"><span>GST (10%)</span><span>$90.82</span></div><div class="tt-breakdown tt-total"><span>Total</span><span>$999.00</span></div><div class="tt-breakdown" style="margin-top:6px"><span style="color:var(--text-600)">Per lease</span><span>$333 inc. GST</span></div></div>
+      </div>
+      <div class="plan-card bundle-tip-wrap" id="planP" onclick="selectBundle('P')" style="cursor:pointer;padding:18px 16px;position:relative">
+        <div class="plan-card-check" id="checkP">✓</div>
+        <div style="font-size:9px;font-weight:700;color:var(--teal-500);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Portfolio</div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:-0.8px;line-height:1">$1,499</div>
+        <div style="font-size:11px;color:var(--text-400);margin:4px 0 12px">inc. GST · 5 leases</div>
+        <div style="height:1px;background:var(--border-subtle);margin-bottom:12px"></div>
+        <div style="font-size:12px;color:var(--green-500);font-weight:600;margin-bottom:4px">Save $496</div>
+        <div style="font-size:12px;color:var(--text-600)">$300 / lease</div>
+        <div class="bundle-tooltip"><div class="tt-title">Portfolio — 5 Leases</div><div class="tt-price">$1,499 <span>inc. GST</span></div><div class="tt-row"><span class="tt-dot teal"></span>All Standard features on each lease</div><div class="tt-row"><span class="tt-dot teal"></span>5 full forensic audits</div><div class="tt-row"><span class="tt-dot green"></span>Save $496 vs 5 × Standard</div><div class="tt-divider"></div><div class="tt-breakdown"><span>Ex-GST</span><span>$1,362.73</span></div><div class="tt-breakdown"><span>GST (10%)</span><span>$136.27</span></div><div class="tt-breakdown tt-total"><span>Total</span><span>$1,499.00</span></div><div class="tt-breakdown" style="margin-top:6px"><span style="color:var(--text-600)">Per lease</span><span>$300 inc. GST</span></div></div>
+      </div>
+      <div class="plan-card bundle-tip-wrap" id="planE" onclick="selectBundle('E')" style="cursor:pointer;padding:18px 16px;position:relative">
+        <div class="plan-card-check" id="checkE">✓</div>
+        <div style="font-size:9px;font-weight:700;color:var(--text-400);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Enterprise</div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:-0.8px;line-height:1">$2,499</div>
+        <div style="font-size:11px;color:var(--text-400);margin:4px 0 12px">inc. GST · 10 leases</div>
+        <div style="height:1px;background:var(--border-subtle);margin-bottom:12px"></div>
+        <div style="font-size:12px;color:var(--green-500);font-weight:600;margin-bottom:4px">Save $1,491</div>
+        <div style="font-size:12px;color:var(--text-600)">$250 / lease</div>
+        <div class="bundle-tooltip"><div class="tt-title">Enterprise — 10 Leases</div><div class="tt-price">$2,499 <span>inc. GST</span></div><div class="tt-row"><span class="tt-dot teal"></span>All Standard features on each lease</div><div class="tt-row"><span class="tt-dot teal"></span>10 full forensic audits</div><div class="tt-row"><span class="tt-dot green"></span>Save $1,491 vs 10 × Standard</div><div class="tt-row"><span class="tt-dot teal"></span>Priority support &amp; onboarding</div><div class="tt-divider"></div><div class="tt-breakdown"><span>Ex-GST</span><span>$2,272.73</span></div><div class="tt-breakdown"><span>GST (10%)</span><span>$227.27</span></div><div class="tt-breakdown tt-total"><span>Total</span><span>$2,499.00</span></div><div class="tt-breakdown" style="margin-top:6px"><span style="color:var(--text-600)">Per lease</span><span>$250 inc. GST</span></div></div>
+      </div>
+    </div>
+    <!-- Order summary strip -->
+    <div style="background:var(--surface-2);border:1px solid var(--border-default);border-radius:var(--r-md);padding:14px 18px;margin-bottom:4px">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr) auto;gap:0;align-items:center">
+        <div style="padding:0 14px 0 0;border-right:1px solid var(--border-subtle)"><div style="font-size:10px;color:var(--text-600);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:3px">Plan</div><div style="font-size:13px;font-weight:600" id="summPlan">—</div></div>
+        <div style="padding:0 14px;border-right:1px solid var(--border-subtle)"><div style="font-size:10px;color:var(--text-600);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:3px">Leases</div><div style="font-size:13px;font-weight:600" id="summLeases">—</div></div>
+        <div style="padding:0 14px;border-right:1px solid var(--border-subtle)"><div style="font-size:10px;color:var(--text-600);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:3px">State(s)</div><div style="font-size:13px;font-weight:600" id="summState">—</div></div>
+        <div style="padding:0 14px;border-right:1px solid var(--border-subtle)"><div style="font-size:10px;color:var(--text-600);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:3px">Ex-GST</div><div style="font-size:13px;font-weight:600" id="summPrice">—</div></div>
+        <div style="padding:0 14px;border-right:1px solid var(--border-subtle)"><div style="font-size:10px;color:var(--text-600);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:3px">GST</div><div style="font-size:13px;font-weight:600" id="summGST">—</div></div>
+        <div style="padding:0 0 0 14px;text-align:right"><div style="font-size:10px;color:var(--text-600);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:3px">Total</div><div style="font-size:15px;font-weight:800;color:var(--teal-500);white-space:nowrap" id="summTotal">—</div></div>
+      </div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-subtle);font-size:11px;color:var(--text-600)">🔒 Card secured now · charged only when your report is delivered &nbsp;·&nbsp; Additional leases always at <strong style="color:var(--text-400)">$399 inc. GST</strong></div>
+    </div>
+    <!-- Credit card -->
+    <div class="cc-box">
+      <div class="cc-header">
+        <div class="cc-title"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="3" width="14" height="10" rx="2"/><path d="M1 7h14"/></svg>Payment details</div>
+        <div class="cc-brands"><div class="cc-brand-pill">VISA</div><div class="cc-brand-pill">MC</div><div class="cc-brand-pill">AMEX</div></div>
+      </div>
+      <div class="field">
+        <div class="field-label">Card number</div>
+        <div class="input-wrap">
+          <span class="input-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="3" width="14" height="10" rx="2"/><path d="M1 7h14"/></svg></span>
+          <input type="text" class="input" id="ccNumber" placeholder="1234 5678 9012 3456" maxlength="19" oninput="formatCard(this)" autocomplete="cc-number"/>
+          <span class="cc-type-icon" id="ccTypeIcon"></span>
+        </div>
+        <div class="field-error" id="ccNumberErr"><span>⚠</span><span>Enter a valid card number</span></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="field">
+          <div class="field-label">Expiry</div>
+          <div class="input-wrap">
+            <span class="input-icon" style="font-size:11px;font-weight:600;color:var(--text-600)">MM/YY</span>
+            <input type="text" class="input" id="ccExpiry" placeholder="MM / YY" maxlength="7" oninput="formatExpiry(this)" autocomplete="cc-exp"/>
+          </div>
+          <div class="field-error" id="ccExpiryErr"><span>⚠</span><span>Invalid expiry</span></div>
+        </div>
+        <div class="field">
+          <div class="field-label">CVV</div>
+          <div class="input-wrap">
+            <span class="input-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="4" width="12" height="8" rx="1.5"/><path d="M4 4V3a3 3 0 016 0v1"/></svg></span>
+            <input type="text" class="input" id="ccCvv" placeholder="•••" maxlength="4" oninput="this.value=this.value.replace(/\D/g,'')" autocomplete="cc-csc"/>
+          </div>
+          <div class="field-error" id="ccCvvErr"><span>⚠</span><span>Enter CVV</span></div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label">Name on card</div>
+        <div class="input-wrap">
+          <span class="input-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="5" r="3"/><path d="M1.5 12.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg></span>
+          <input type="text" class="input" id="ccName" placeholder="Garry Forster" autocomplete="cc-name"/>
+        </div>
+        <div class="field-error" id="ccNameErr"><span>⚠</span><span>Enter name as it appears on card</span></div>
+      </div>
+      <div class="cc-footer">
+        <span class="cc-secure-badge"><svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5.5 1L2 2.5v3c0 2 1.5 3.5 3.5 4.5C7.5 9 9 7.5 9 5.5v-3L5.5 1z"/></svg>Secured by Stripe</span>
+        <span style="color:var(--text-600);font-size:11px">256-bit TLS · PCI DSS compliant</span>
+        <span style="color:var(--teal-500);font-size:11px;font-weight:600">🔒 Charged only when report is delivered</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goToStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="submitStep3()"><span class="btn-label">Secure card &amp; continue →</span><div class="spinner"></div></button>
+    </div>
+  </div>
+
+  <!-- STEP 4: VERIFY -->
+  <div class="screen" id="step4">
+    <div class="verify-card">
+      <div class="verify-icon">📧</div>
+      <div class="verify-title">Check your inbox</div>
+      <div class="verify-sub">We've sent a 6-digit verification code to</div>
+      <div class="verify-email" id="verifyEmailDisplay">garry@company.com.au</div>
+      <div class="otp-group">
+        <input class="otp-input" maxlength="1" id="otp0" type="text" inputmode="numeric" pattern="[0-9]*"/>
+        <input class="otp-input" maxlength="1" id="otp1" type="text" inputmode="numeric" pattern="[0-9]*"/>
+        <input class="otp-input" maxlength="1" id="otp2" type="text" inputmode="numeric" pattern="[0-9]*"/>
+        <input class="otp-input" maxlength="1" id="otp3" type="text" inputmode="numeric" pattern="[0-9]*"/>
+        <input class="otp-input" maxlength="1" id="otp4" type="text" inputmode="numeric" pattern="[0-9]*"/>
+        <input class="otp-input" maxlength="1" id="otp5" type="text" inputmode="numeric" pattern="[0-9]*"/>
+      </div>
+      <div class="otp-error" id="otpError"></div>
+      <div class="otp-resend">Didn't receive it? <button id="resendBtn" onclick="resendCode()">Resend code</button><span id="resendTimer" style="display:none"></span></div>
+      <div style="margin-bottom:16px"><button onclick="autofillOTP()" class="autofill-btn" style="width:100%;display:flex;justify-content:center">⚡ Autofill code</button></div>
+      <button class="btn btn-primary btn-full" id="verifyBtn" onclick="submitVerification()"><span class="btn-label">Verify &amp; Create Account</span><div class="spinner"></div></button>
+      <div style="margin-top:12px"><button class="btn btn-ghost btn-full" onclick="goToStep(3)" style="font-size:13px">← Back to plan</button></div>
+    </div>
+  </div>
+
+  <!-- STEP 5: SUCCESS -->
+  <div class="screen" id="step5">
+    <div class="success-card">
+      <div class="success-icon">✓</div>
+      <div class="success-title">You're all set, <span id="successName">Garry</span>!</div>
+      <div class="success-sub">Your TenantSentry account is ready. Upload your first lease and get a forensic audit report in minutes.</div>
+      <div class="next-steps">
+        <div class="next-step"><div class="next-step-num">1</div><div class="next-step-title">Upload your lease</div><div class="next-step-sub">PDF, scanned or digital — we handle both</div></div>
+        <div class="next-step"><div class="next-step-num">2</div><div class="next-step-title">Review extracted clauses</div><div class="next-step-sub">Confirm AI-extracted terms before audit runs</div></div>
+        <div class="next-step"><div class="next-step-num">3</div><div class="next-step-title">Get your report</div><div class="next-step-sub">Forensic findings &amp; dispute letter in &lt;5 min</div></div>
+      </div>
+      <button class="btn btn-primary" onclick="window.location.href='/audit'" style="font-size:15px;padding:14px 32px">Start Your First Audit →</button>
+      <div style="margin-top:14px;font-size:12px;color:var(--text-600)">We'll email <span id="successEmail" style="color:var(--text-400)">you</span> when your report is ready.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+var state = { step:1, plan:'Std', email:'', leaseCount:'', statesLabel:'' };
+
+var STEP_LABELS = [
+  'Step 1 of 4 — Create your account',
+  'Step 2 of 4 — Business profile',
+  'Step 3 of 4 — Plan &amp; payment',
+  'Step 4 of 4 — Verify your email'
+];
+var PROGRESS_PCT = ['25%','50%','75%','100%'];
+
+var BUNDLES = {
+  Std:{ name:'Standard', price:399,  leases:1,  save:0    },
+  S:  { name:'Starter',  price:999,  leases:3,  save:198  },
+  P:  { name:'Portfolio',price:1499, leases:5,  save:496  },
+  E:  { name:'Enterprise',price:2499,leases:10, save:1491 }
+};
+var LEASE_TO_BUNDLE = { '1 lease':'Std','2–5 leases':'P','6–20 leases':'E','20+ leases':'E' };
+
+function updateProgress(n) {
+  document.getElementById('progressFill').style.width = PROGRESS_PCT[Math.min(n,4)-1] || '100%';
+  document.getElementById('progressLabel').textContent = (n>=1&&n<=4) ? STEP_LABELS[n-1] : 'Complete';
+  document.getElementById('progressCurrent').textContent = Math.min(n,4) + ' of 4';
+  [1,2,3,4].forEach(function(i) {
+    var pill = document.getElementById('pill'+i);
+    var num  = document.getElementById('pillNum'+i);
+    if (!pill) return;
+    pill.classList.remove('active','done');
+    if (i < n)  { pill.classList.add('done');   num.textContent = '✓'; }
+    if (i === n) { pill.classList.add('active'); num.textContent = i; }
+    if (i > n)  { num.textContent = i; }
+  });
+}
+
+function goToStep(n) {
+  var prev = document.getElementById('step'+state.step);
+  if (prev) prev.classList.remove('active');
+  state.step = n;
+  var next = document.getElementById('step'+n);
+  if (next) next.classList.add('active');
+  updateProgress(n);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function showErr(fieldId, errId, msg) {
+  var inp = document.getElementById(fieldId);
+  if (inp) inp.classList.add('error');
+  var el = document.getElementById(errId);
+  if (!el) return;
+  if (msg) { var sp = el.querySelectorAll('span'); if (sp[1]) sp[1].textContent = msg; }
+  el.classList.add('show');
+}
+function hideErr(id) {
+  var el = document.getElementById(id); if (el) el.classList.remove('show');
+  var inp = document.getElementById(id.replace('Err','')); if (inp) inp.classList.remove('error');
+}
+function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); }
+
+function checkPasswordStrength(pw) {
+  var score = 0;
+  if (pw.length>=8) score++; if (pw.length>=12) score++;
+  if (/[A-Z]/.test(pw)) score++; if (/[0-9]/.test(pw)) score++; if (/[^A-Za-z0-9]/.test(pw)) score++;
+  var fill = document.getElementById('pwStrFill'); var label = document.getElementById('pwStrLabel');
+  var levels = [{pct:'20%',bg:'#ef4444',text:'Too weak'},{pct:'40%',bg:'#f59e0b',text:'Weak'},{pct:'60%',bg:'#f59e0b',text:'Fair'},{pct:'80%',bg:'#22c55e',text:'Good'},{pct:'100%',bg:'#00c2a8',text:'Strong ✓'}];
+  var lvl = levels[Math.min(score,4)];
+  fill.style.width = pw ? lvl.pct : '0%'; fill.style.background = lvl.bg;
+  label.textContent = pw ? lvl.text : ''; label.style.color = lvl.bg;
+}
+function togglePw(id) { var inp = document.getElementById(id); inp.type = inp.type==='password'?'text':'password'; }
+
+function submitStep1() {
+  var fn=document.getElementById('firstName').value.trim();
+  var ln=document.getElementById('lastName').value.trim();
+  var em=document.getElementById('regEmail').value.trim();
+  var pw=document.getElementById('regPassword').value;
+  var cf=document.getElementById('regConfirm').value;
+  var ag=document.getElementById('agreeTerms').checked;
+  var ok=true;
+  fn ? hideErr('firstNameErr') : (showErr('firstName','firstNameErr'), ok=false);
+  ln ? hideErr('lastNameErr')  : (showErr('lastName','lastNameErr'), ok=false);
+  if (!em) { showErr('regEmail','regEmailErr','Email is required'); ok=false; }
+  else if (!isEmail(em)) { showErr('regEmail','regEmailErr','Enter a valid email'); ok=false; }
+  else hideErr('regEmailErr');
+  if (!pw) { showErr('regPassword','regPasswordErr','Password is required'); ok=false; }
+  else if (pw.length<8) { showErr('regPassword','regPasswordErr','Minimum 8 characters'); ok=false; }
+  else hideErr('regPasswordErr');
+  if (pw && cf!==pw) { showErr('regConfirm','regConfirmErr'); ok=false; } else hideErr('regConfirmErr');
+  if (!ag) { alert('Please agree to the Terms of Service.'); ok=false; }
+  if (!ok) return;
+  state.email = em;
+  document.getElementById('verifyEmailDisplay').textContent = em;
+  document.getElementById('successEmail').textContent = em;
+  document.getElementById('successName').textContent = fn;
+  var btn = event.target.closest('.btn');
+  btn.classList.add('loading'); btn.disabled=true;
+  setTimeout(function(){ btn.classList.remove('loading'); btn.disabled=false; goToStep(2); },900);
+}
+
+function submitStep2() {
+  var co=document.getElementById('companyName').value.trim();
+  var sel=getSelectedStates();
+  var lc=document.getElementById('leaseCount').value;
+  var ok=true;
+  co ? hideErr('companyNameErr') : (showErr('companyName','companyNameErr'), ok=false);
+  sel.length ? hideErr('stateErr') : (showErr(null,'stateErr'), ok=false);
+  lc ? hideErr('leaseCountErr') : (showErr('leaseCount','leaseCountErr'), ok=false);
+  if (!ok) return;
+  state.leaseCount  = lc;
+  state.statesLabel = sel.length>3 ? sel.slice(0,3).join(', ')+' +'+( sel.length-3) : sel.join(', ');
+  var btn = event.target.closest('.btn');
+  btn.classList.add('loading'); btn.disabled=true;
+  setTimeout(function(){ btn.classList.remove('loading'); btn.disabled=false; applyRecommendation(); goToStep(3); },700);
+}
+
+function getRecommendedKey() { return LEASE_TO_BUNDLE[state.leaseCount]||'Std'; }
+
+function applyRecommendation() {
+  document.querySelectorAll('.rec-badge').forEach(function(el){ el.remove(); });
+  selectCard(getRecommendedKey(), true);
+}
+
+function selectCard(key, isRec) {
+  ['Std','S','P','E'].forEach(function(k){
+    var c=document.getElementById('plan'+k); var ch=document.getElementById('check'+k);
+    if (!c) return;
+    c.classList.remove('selected'); c.style.marginTop='';
+    if (ch){ch.style.background='';ch.style.borderColor='';ch.style.color='transparent';}
+  });
+  var card=document.getElementById('plan'+key); var check=document.getElementById('check'+key);
+  if (!card) return;
+  card.classList.add('selected');
+  if (check){check.style.background='var(--teal-500)';check.style.borderColor='var(--teal-500)';check.style.color='#000';}
+  if (isRec) {
+    var badge=document.createElement('div'); badge.className='rec-badge';
+    badge.textContent='⭐ Recommended for your portfolio';
+    card.style.marginTop='14px'; card.style.position='relative';
+    card.insertBefore(badge,card.firstChild);
+  }
+  state.plan=key; updateSummary(key);
+}
+
+function fmt(n){ return n.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function updateSummary(key) {
+  var b=BUNDLES[key]; if (!b) return;
+  var gst=b.price/11; var exGST=b.price-gst;
+  var lbl=key==='Std'&&state.leaseCount ? state.leaseCount : (b.leases===1?'1 lease':b.leases+' leases');
+  document.getElementById('summPlan').textContent  = b.name;
+  document.getElementById('summLeases').textContent= lbl;
+  document.getElementById('summState').textContent = state.statesLabel||'—';
+  document.getElementById('summPrice').textContent = '$'+fmt(exGST)+' ex-GST';
+  document.getElementById('summGST').textContent   = '$'+fmt(gst);
+  document.getElementById('summTotal').textContent = '$'+b.price.toLocaleString()+' inc. GST';
+}
+
+function selectBundle(key) {
+  document.querySelectorAll('.rec-badge').forEach(function(el){el.remove();});
+  selectCard(key, false);
+}
+function selectStandard() { selectBundle('Std'); }
+
+function formatCard(inp) {
+  var v=inp.value.replace(/\D/g,'').slice(0,16);
+  var parts=[]; for(var i=0;i<v.length;i+=4) parts.push(v.slice(i,i+4));
+  inp.value=parts.join(' ');
+  var icon=document.getElementById('ccTypeIcon'); if(!icon) return;
+  if(/^4/.test(v)) icon.textContent='VISA';
+  else if(/^5[1-5]|^2[2-7]/.test(v)) icon.textContent='MC';
+  else if(/^3[47]/.test(v)) icon.textContent='AMEX';
+  else icon.textContent='';
+}
+function formatExpiry(inp) {
+  var v=inp.value.replace(/\D/g,'').slice(0,4);
+  if(v.length>=3) v=v.slice(0,2)+' / '+v.slice(2);
+  inp.value=v;
+}
+function validateCard() {
+  var num=document.getElementById('ccNumber').value.replace(/\s/g,'');
+  var exp=document.getElementById('ccExpiry').value;
+  var cvv=document.getElementById('ccCvv').value;
+  var name=document.getElementById('ccName').value.trim();
+  var ok=true;
+  if(num.length<15){showErr('ccNumber','ccNumberErr','Enter a valid card number');ok=false;}else hideErr('ccNumberErr');
+  var expClean=exp.replace(/[\s\/]/g,'');
+  if(expClean.length<4){showErr('ccExpiry','ccExpiryErr','Enter expiry as MM / YY');ok=false;}
+  else{
+    var mo=parseInt(expClean.slice(0,2)),yr=parseInt(expClean.slice(2));
+    var now=new Date(),fullYr=2000+yr;
+    if(mo<1||mo>12||fullYr<now.getFullYear()||(fullYr===now.getFullYear()&&mo<now.getMonth()+1)){showErr('ccExpiry','ccExpiryErr','Card appears expired');ok=false;}
+    else hideErr('ccExpiryErr');
+  }
+  if(cvv.length<3){showErr('ccCvv','ccCvvErr','Enter 3 or 4 digit CVV');ok=false;}else hideErr('ccCvvErr');
+  if(!name){showErr('ccName','ccNameErr','Enter name as it appears on card');ok=false;}else hideErr('ccNameErr');
+  return ok;
+}
+
+function submitStep3() {
+  if(!validateCard()) return;
+  updateSummary(state.plan||getRecommendedKey());
+  var btn=event.target.closest('.btn');
+  btn.classList.add('loading'); btn.disabled=true;
+  setTimeout(function(){ btn.classList.remove('loading'); btn.disabled=false; goToStep(4); startResendTimer(); },1200);
+}
+
+function getOTPValue() { return [0,1,2,3,4,5].map(function(i){return document.getElementById('otp'+i).value;}).join(''); }
+
+function submitVerification() {
+  var code=getOTPValue();
+  var btn=document.getElementById('verifyBtn');
+  if(code.length<6){document.getElementById('otpError').textContent='Please enter all 6 digits.';document.querySelectorAll('.otp-input').forEach(function(x){x.classList.add('error');});return;}
+  btn.classList.add('loading'); btn.disabled=true;
+  setTimeout(function(){
+    btn.classList.remove('loading'); btn.disabled=false;
+    if(code==='000000'){
+      document.getElementById('otpError').textContent='Incorrect code. Please try again.';
+      document.querySelectorAll('.otp-input').forEach(function(x){x.classList.add('error');x.value='';x.classList.remove('filled');});
+      document.getElementById('otp0').focus();
+    } else { goToStep(5); }
+  },1200);
+}
+
+var resendInterval;
+function startResendTimer(secs) {
+  secs=secs||30;
+  var btn=document.getElementById('resendBtn'); var timer=document.getElementById('resendTimer');
+  btn.style.display='none'; timer.style.display='inline';
+  var remaining=secs;
+  timer.textContent='Resend in '+remaining+'s';
+  clearInterval(resendInterval);
+  resendInterval=setInterval(function(){
+    remaining--;
+    if(remaining<=0){clearInterval(resendInterval);timer.style.display='none';btn.style.display='inline';}
+    else timer.textContent='Resend in '+remaining+'s';
+  },1000);
+}
+function resendCode() {
+  document.getElementById('otpError').textContent='';
+  document.querySelectorAll('.otp-input').forEach(function(x){x.value='';x.classList.remove('filled','error');});
+  document.getElementById('otp0').focus();
+  startResendTimer(30);
+}
+function autofillOTP() {
+  '123456'.split('').forEach(function(d,i){var inp=document.getElementById('otp'+i);inp.value=d;inp.classList.add('filled');inp.classList.remove('error');});
+  document.getElementById('otpError').textContent='';
+}
+
+function toggleState(tile) {
+  if(tile.classList.contains('no-legislation')) return;
+  tile.classList.toggle('selected');
+  if(getSelectedStates().length) hideErr('stateErr');
+}
+function getSelectedStates() {
+  return Array.from(document.querySelectorAll('.state-tile.selected')).map(function(t){return t.dataset.state;});
+}
+
+function autofillCard() {
+  document.getElementById('ccNumber').value='4242 4242 4242 4242';
+  var icon=document.getElementById('ccTypeIcon'); if(icon) icon.textContent='VISA';
+  document.getElementById('ccExpiry').value='12 / 28';
+  document.getElementById('ccCvv').value='123';
+  document.getElementById('ccName').value='Garry Forster';
+  ['ccNumberErr','ccExpiryErr','ccCvvErr','ccNameErr'].forEach(hideErr);
+}
+function autofillStep1() {
+  document.getElementById('firstName').value='Garry';
+  document.getElementById('lastName').value='Forster';
+  document.getElementById('regEmail').value='garry@tenantsentry.ai';
+  document.getElementById('regPassword').value='Demo@1234!';
+  document.getElementById('regConfirm').value='Demo@1234!';
+  document.getElementById('agreeTerms').checked=true;
+  checkPasswordStrength('Demo@1234!');
+  ['firstNameErr','lastNameErr','regEmailErr','regPasswordErr','regConfirmErr'].forEach(hideErr);
+}
+function autofillStep2() {
+  document.getElementById('companyName').value='Coastal Brew Co. Pty Ltd';
+  document.getElementById('abn').value='51 824 753 556';
+  document.getElementById('leaseCount').value='2–5 leases';
+  document.querySelectorAll('.state-tile').forEach(function(t){t.classList.remove('selected');});
+  ['VIC','NSW'].forEach(function(code){var t=document.querySelector('.state-tile[data-state="'+code+'"]');if(t&&!t.classList.contains('no-legislation'))t.classList.add('selected');});
+  selectRadio('referral','rc3');
+  ['companyNameErr','stateErr','leaseCountErr'].forEach(hideErr);
+  state.leaseCount='2–5 leases'; state.statesLabel='VIC, NSW';
+}
+function autofillStep3() { applyRecommendation(); autofillCard(); }
+
+function selectRadio(name, cardId) {
+  document.querySelectorAll('input[name="'+name+'"]').forEach(function(r,i){
+    var card=document.getElementById('rc'+(i+1)); if(card) card.classList.remove('selected');
+  });
+  document.getElementById(cardId).classList.add('selected');
+  document.querySelector('#'+cardId+' input[type=radio]').checked=true;
+}
+function formatABN(inp) {
+  var v=inp.value.replace(/\D/g,'').slice(0,11);
+  if(v.length>2)  v=v.slice(0,2)+' '+v.slice(2);
+  if(v.length>6)  v=v.slice(0,6)+' '+v.slice(6);
+  if(v.length>10) v=v.slice(0,10)+' '+v.slice(10);
+  inp.value=v;
+}
+function ssoNote() { alert('Google SSO is not yet enabled for pilot accounts. Please sign up with email.'); }
+
+// OTP keyboard navigation
+document.addEventListener('DOMContentLoaded', function() {
+  for(var i=0;i<6;i++){
+    (function(idx){
+      var inp=document.getElementById('otp'+idx);
+      if(!inp) return;
+      inp.addEventListener('input',function(e){
+        var v=e.target.value.replace(/\D/g,''); e.target.value=v;
+        if(v&&idx<5) document.getElementById('otp'+(idx+1)).focus();
+        inp.classList.toggle('filled',!!v);
+        document.getElementById('otpError').textContent='';
+        document.querySelectorAll('.otp-input').forEach(function(x){x.classList.remove('error');});
+      });
+      inp.addEventListener('keydown',function(e){if(e.key==='Backspace'&&!e.target.value&&idx>0)document.getElementById('otp'+(idx-1)).focus();});
+      inp.addEventListener('paste',function(e){
+        e.preventDefault();
+        var text=((e.clipboardData||window.clipboardData).getData('text')).replace(/\D/g,'');
+        text.slice(0,6).split('').forEach(function(ch,j){var t=document.getElementById('otp'+j);if(t){t.value=ch;t.classList.add('filled');}});
+        var last=Math.min(text.length,5); document.getElementById('otp'+last).focus();
+      });
+    })(i);
+  }
+});
+</script>
+<script>
+/* ═══════════════════════════════════════
+   THEME TOGGLE
+═══════════════════════════════════════ */
+function tsApplyThemeIcons() {
+  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  var moon = document.getElementById('ts-icon-moon');
+  var sun  = document.getElementById('ts-icon-sun');
+  if (!moon || !sun) return;
+  moon.style.display = isLight ? 'none'  : 'block';
+  sun.style.display  = isLight ? 'block' : 'none';
+  // Update btn border/bg for light mode visibility
+  var btn = document.getElementById('ts-theme-btn');
+  if (btn) {
+    btn.style.borderColor = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.07)';
+    btn.style.background  = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.035)';
+  }
+}
+function tsToggleTheme() {
+  var current = document.documentElement.getAttribute('data-theme') || 'dark';
+  var next    = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('ts-theme', next);
+  tsApplyThemeIcons();
+}
+// Run on load
+document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
+// Also run immediately in case DOM is already ready
+tsApplyThemeIcons();
+</script>
+
+
+</body>
+</html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             

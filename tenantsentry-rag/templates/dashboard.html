@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+/* Theme: apply before paint to avoid flash */
+(function(){
+  var t = localStorage.getItem('ts-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TenantSentry.ai — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+/* ═══════════════════════════════════════
+   THEME CUSTOM PROPERTIES
+═══════════════════════════════════════ */
+:root {
+  --ts-bg0:       #080f1c;
+  --ts-bg1:       #0f1e36;
+  --ts-bg1i:      #111c30;
+  --ts-bg2:       #162844;
+  --ts-bginput:   #0d1a2e;
+  --ts-border-s:  #1e2a3a;
+  --ts-text0:     #e0e6f0;
+  --ts-text1:     #cbd5e8;
+  --ts-text2:     #4a6a8a;
+  --ts-text3:     #8fa3bf;
+  --ts-text4:     #2a4a68;
+  /* rgba border helpers */
+  --ts-border-rgba:   rgba(255,255,255,0.07);
+  --ts-border-subtle: rgba(255,255,255,0.04);
+  --ts-border-def:    rgba(255,255,255,0.10);
+  --ts-border-strong: rgba(255,255,255,0.18);
+  --ts-raised:        rgba(255,255,255,0.035);
+  --ts-scrollbar:     #1e2a3a;
+  --ts-scrollbar-bg:  #080f1c;
+}
+
+/* ── LIGHT THEME OVERRIDES ── */
+html[data-theme="light"] {
+  --ts-bg0:       #f0f4f8;
+  --ts-bg1:       #ffffff;
+  --ts-bg1i:      #f4f7fa;
+  --ts-bg2:       #eef2f7;
+  --ts-bginput:   #f4f7fa;
+  --ts-border-s:  #d1dae6;
+  --ts-text0:     #0f172a;
+  --ts-text1:     #1e293b;
+  --ts-text2:     #5a7394;
+  --ts-text3:     #64748b;
+  --ts-text4:     #94a3b8;
+  --ts-border-rgba:   rgba(0,0,0,0.08);
+  --ts-border-subtle: rgba(0,0,0,0.04);
+  --ts-border-def:    rgba(0,0,0,0.09);
+  --ts-border-strong: rgba(0,0,0,0.14);
+  --ts-raised:        rgba(0,0,0,0.02);
+  --ts-scrollbar:     #c2cdd9;
+  --ts-scrollbar-bg:  #f0f4f8;
+}
+
+/* ── LIGHT: High-specificity overrides for components ── */
+html[data-theme="light"] body { background: var(--ts-bg0) !important; color: var(--ts-text0) !important; }
+html[data-theme="light"] nav,
+html[data-theme="light"] .topbar { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card-inner { background: #f4f7fa !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .stat-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .dk-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .clause-card { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+html[data-theme="light"] .clause-card.confirmed { border-color: rgba(34,197,94,0.35) !important; }
+html[data-theme="light"] .clause-card.flagged-card { border-color: rgba(245,158,11,0.4) !important; }
+html[data-theme="light"] .clause-card.rejected { border-color: rgba(239,68,68,0.4) !important; background: rgba(239,68,68,0.03) !important; }
+html[data-theme="light"] .clause-card.active-doc { border-color: #0d9488 !important; }
+html[data-theme="light"] .clause-card-body { border-color: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .clause-card-header:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .clause-action-bar { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .clause-note-input { background: #f8fafc !important; border-color: rgba(0,194,168,0.3) !important; color: #0f172a !important; }
+html[data-theme="light"] .doc-row { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .nav-link { color: #5a7394 !important; }
+html[data-theme="light"] .nav-link:hover { color: #00b89f !important; background: rgba(0,194,168,0.08) !important; }
+html[data-theme="light"] .nav-link.active { color: #009e88 !important; background: rgba(0,194,168,0.10) !important; }
+html[data-theme="light"] .audit-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .audit-row:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .report-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .report-row:hover { background: rgba(0,0,0,0.025) !important; }
+html[data-theme="light"] .notif-item { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .upload-cta { background: linear-gradient(135deg, rgba(0,194,168,0.07) 0%, rgba(59,130,246,0.04) 100%) !important; border-color: rgba(0,194,168,0.2) !important; }
+html[data-theme="light"] .drop-zone { border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .drop-zone:hover,
+html[data-theme="light"] .drop-zone.dragging { border-color: #00c2a8 !important; background: rgba(0,194,168,0.04) !important; }
+html[data-theme="light"] .dk-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .dk-input:focus { border-color: rgba(0,194,168,0.5) !important; }
+html[data-theme="light"] .dk-input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .input::placeholder { color: #94a3b8 !important; }
+html[data-theme="light"] .input:focus { border-color: #00c2a8 !important; }
+html[data-theme="light"] select.input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .brand-panel { background: #1a2744 !important; }
+html[data-theme="light"] .form-panel { background: #f8fafc !important; }
+html[data-theme="light"] .sso-btn { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .sso-btn:hover { background: #eef2f7 !important; }
+html[data-theme="light"] .checkbox-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.2) !important; }
+html[data-theme="light"] .checkbox-label { color: #1e293b !important; }
+html[data-theme="light"] .divider::before,
+html[data-theme="light"] .divider::after { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .divider span { color: #94a3b8 !important; }
+html[data-theme="light"] .form-title { color: #0f172a !important; }
+html[data-theme="light"] .form-subtitle { color: #64748b !important; }
+html[data-theme="light"] .field-label { color: #334155 !important; }
+html[data-theme="light"] .bp-logo-tag,
+html[data-theme="light"] .bp-sub,
+html[data-theme="light"] .bp-stat-label { color: rgba(255,255,255,0.55) !important; }
+html[data-theme="light"] .bp-stat-value { color: #5ef0d8 !important; }
+html[data-theme="light"] .bp-stat { background: rgba(255,255,255,0.06) !important; }
+html[data-theme="light"] .bp-stats { background: rgba(255,255,255,0.04) !important; }
+html[data-theme="light"] .bp-badge { color: #e0e6f0 !important; }
+html[data-theme="light"] .bp-badge-icon { background: rgba(0,194,168,0.15) !important; border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .bp-footer { color: rgba(255,255,255,0.4) !important; border-color: rgba(255,255,255,0.1) !important; }
+html[data-theme="light"] .signup-row { color: #64748b !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .form-footer { color: #94a3b8 !important; }
+html[data-theme="light"] .form-footer a { color: #64748b !important; }
+html[data-theme="light"] .back-link { color: #64748b !important; }
+html[data-theme="light"] .tab-inactive { color: #64748b !important; }
+html[data-theme="light"] .tab-active { color: #0d9488 !important; }
+html[data-theme="light"] .sidebar-tab.active { background: #eef2f7 !important; color: #0f172a !important; border-color: rgba(0,0,0,0.1) !important; }
+html[data-theme="light"] .sidebar-tab.inactive { color: #64748b !important; }
+html[data-theme="light"] .quota-bar-track { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .notif-dot { border-color: #f0f4f8 !important; }
+html[data-theme="light"] .plan-badge-bundle,
+html[data-theme="light"] .plan-badge-pay,
+html[data-theme="light"] .plan-badge-monitor { /* keep as-is — colored badges */ }
+html[data-theme="light"] .btn-ghost { color: #009e88 !important; border-color: rgba(0,158,136,0.3) !important; }
+html[data-theme="light"] .btn-ghost:hover { background: rgba(0,194,168,0.07) !important; }
+html[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+/* Stepper (audit page) */
+html[data-theme="light"] .step-circle { border-color: rgba(0,0,0,0.1) !important; color: #64748b !important; }
+html[data-theme="light"] .step-label { color: #64748b !important; }
+html[data-theme="light"] .step-line { background: rgba(0,0,0,0.1) !important; }
+/* Step pills (signup) */
+html[data-theme="light"] .step-pill { color: #94a3b8 !important; }
+html[data-theme="light"] .step-pill-num { background: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .step-pill.active { color: #009e88 !important; background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.25) !important; }
+html[data-theme="light"] .step-pill.active .step-pill-num { background: #00c2a8 !important; color: #fff !important; }
+html[data-theme="light"] .step-pill.done .step-pill-num { background: rgba(0,194,168,0.12) !important; color: #009e88 !important; }
+html[data-theme="light"] .progress-track { background: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .progress-label,
+html[data-theme="light"] .progress-fraction { color: #64748b !important; }
+html[data-theme="light"] .topbar-right { color: #64748b !important; }
+/* Alert banners */
+html[data-theme="light"] .alert-error { background: rgba(239,68,68,0.06) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .alert-success { background: rgba(34,197,94,0.06) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Severity badges — keep accent colors */
+html[data-theme="light"] .sev-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .sev-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .sev-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .badge-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .badge-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .badge-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Status badges */
+html[data-theme="light"] .status-pending  { background: rgba(245,158,11,0.08) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .status-review   { background: rgba(59,130,246,0.08) !important; border-color: rgba(59,130,246,0.2) !important; }
+html[data-theme="light"] .status-released { background: rgba(34,197,94,0.08) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.2) !important; }
+
+    [x-cloak] { display: none !important; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--ts-bg0); color: var(--ts-text0); margin: 0; }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--ts-bg0); }
+    ::-webkit-scrollbar-thumb { background: var(--ts-border-s); border-radius: 4px; }
+
+    /* ── NAV ── */
+    .nav-link { color: var(--ts-text2); font-size: 13px; font-weight: 500; padding: 6px 10px; border-radius: 6px; transition: all 0.15s; display: flex; align-items: center; gap: 6px; cursor: pointer; text-decoration: none; }
+    .nav-link:hover { color: #5ef0d8; background: rgba(0,194,168,0.08); }
+    .nav-link.active { color: #5ef0d8; background: rgba(0,194,168,0.10); }
+
+    /* ── CARDS ── */
+    .card { background: var(--ts-bg1); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; }
+    .card-inner { background: var(--ts-bg1i); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }
+
+    /* ── STAT CARDS ── */
+    .stat-card { background: var(--ts-bg1); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 20px 22px; position: relative; overflow: hidden; transition: border-color 0.2s; }
+    .stat-card:hover { border-color: rgba(0,194,168,0.25); }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 14px 14px 0 0; }
+    .stat-card.teal::before  { background: linear-gradient(90deg, #00c2a8, #00d9bc); }
+    .stat-card.amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .stat-card.blue::before  { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    .stat-card.green::before { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    .stat-card.red::before   { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+    /* ── BUTTONS ── */
+    .btn-primary { background: linear-gradient(135deg, #00c2a8, #009e88); color: #fff; font-weight: 600; font-size: 13px; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.15s; box-shadow: 0 2px 12px rgba(0,194,168,0.25); }
+    .btn-primary:hover { background: linear-gradient(135deg, #00d9bc, #00c2a8); box-shadow: 0 4px 20px rgba(0,194,168,0.35); transform: translateY(-1px); }
+    .btn-ghost { background: transparent; color: #5ef0d8; border: 1px solid rgba(0,194,168,0.3); font-size: 12px; font-weight: 500; padding: 7px 14px; border-radius: 7px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
+    .btn-ghost:hover { background: rgba(0,194,168,0.08); border-color: rgba(0,194,168,0.5); }
+    .btn-sm { font-size: 11px; padding: 5px 11px; border-radius: 6px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; border: none; transition: all 0.15s; }
+
+    /* ── SEVERITY ── */
+    .sev-high   { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.2); padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+    .sev-medium { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+    .sev-low    { background: rgba(34,197,94,0.10); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+
+    /* ── STATUS BADGES ── */
+    .status-pending   { background: rgba(245,158,11,0.10); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+    .status-review    { background: rgba(59,130,246,0.10); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+    .status-released  { background: rgba(34,197,94,0.10); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+    .status-processing { background: rgba(0,194,168,0.10); color: #5ef0d8; border: 1px solid rgba(0,194,168,0.2); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+
+    /* ── QUOTA BAR ── */
+    .quota-bar-track { background: rgba(255,255,255,0.06); border-radius: 99px; height: 6px; overflow: hidden; }
+    .quota-bar-fill  { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+
+    /* ── NOTIFICATION BADGE ── */
+    .notif-dot { position: absolute; top: 0; right: 0; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; border: 2px solid var(--ts-bg0); }
+
+    /* ── TABLE ── */
+    .audit-row { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.12s; }
+    .audit-row:hover { background: rgba(255,255,255,0.025); }
+    .audit-row:last-child { border-bottom: none; }
+
+    /* ── PLAN BADGE ── */
+    .plan-badge-bundle    { background: rgba(0,194,168,0.12); color: #5ef0d8; border: 1px solid rgba(0,194,168,0.25); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .plan-badge-pay       { background: rgba(59,130,246,0.12); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .plan-badge-monitor   { background: rgba(34,197,94,0.10); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* ── NOTIF ITEM ── */
+    .notif-item { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; gap: 12px; align-items: flex-start; }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+
+    /* ── UPLOAD CTA PANEL ── */
+    .upload-cta { background: linear-gradient(135deg, rgba(0,194,168,0.10) 0%, rgba(59,130,246,0.06) 100%); border: 1px solid rgba(0,194,168,0.2); border-radius: 14px; padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+
+    /* ── SPINNER ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; }
+
+    /* ── FADE IN ── */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-up { animation: fadeUp 0.3s ease both; }
+  </style>
+</head>
+<body x-data="dashboard()" x-init="init()">
+
+<!-- ══════════════════════════════════════════════════════════
+     TOP NAV  — persistent on every page via shared template
+     (For now self-contained; extract to base.html when ready)
+══════════════════════════════════════════════════════════ -->
+<nav class="sticky top-0 z-50 border-b border-white/[0.06]" style="background:var(--ts-bg0);">
+  <div class="w-full px-6 h-14 flex items-center justify-between">
+
+    <!-- Logo + wordmark -->
+    <div class="flex items-center gap-5">
+      <a href="/dashboard" class="flex items-center gap-2 group" title="Home">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style="background:linear-gradient(135deg,#00c2a8,#009e88);">TS</div>
+        <span class="font-semibold text-sm tracking-tight" style="color:var(--ts-text0);">TenantSentry<span style="color:#00c2a8;">.ai</span></span>
+      </a>
+
+      <!-- Nav links -->
+      <div class="hidden md:flex items-center gap-1 ml-4">
+        <a href="/dashboard" class="nav-link active">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Home
+        </a>
+        <a href="/audit" class="nav-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          New Audit
+        </a>
+        <a href="#" @click.prevent="tab='audits'" class="nav-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          My Audits
+        </a>
+        <a href="/reports" class="nav-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Reports
+        </a>
+      </div>
+    </div>
+
+    <!-- Right side -->
+    <div class="flex items-center gap-3">
+      <!-- Notifications bell -->
+      <button class="relative w-9 h-9 rounded-lg flex items-center justify-center transition-colors" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);" @click="notifOpen=!notifOpen" title="Notifications">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8fa3bf" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-dot" x-show="unreadCount > 0"></span>
+      </button>
+
+      <!-- Plan pill -->
+      <span x-text="planBadgeLabel" :class="planBadgeClass" class="hidden sm:inline-flex"></span>
+
+      <!-- User avatar -->
+      <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
+  style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid var(--ts-border-rgba,rgba(255,255,255,0.07));background:var(--ts-raised,rgba(255,255,255,0.035));">
+  <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+      <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style="background:rgba(0,194,168,0.15);border:1px solid rgba(0,194,168,0.25);color:#5ef0d8;" x-text="userInitials"></div>
+
+      <!-- Logout -->
+      <button @click="logout()" class="nav-link text-xs hidden sm:flex">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════
+     NOTIFICATION DRAWER (dropdown)
+══════════════════════════════════════════════════════════ -->
+<div x-show="notifOpen" x-cloak @click.outside="notifOpen=false"
+     class="fixed top-16 right-4 z-50 w-80 card shadow-2xl fade-up"
+     style="border-color:rgba(255,255,255,0.1);">
+  <div class="px-4 pt-4 pb-2 flex items-center justify-between">
+    <span class="text-sm font-semibold" style="color:var(--ts-text0);">Notifications</span>
+    <button class="text-xs" style="color:var(--ts-text2);" @click="markAllRead()">Mark all read</button>
+  </div>
+  <div class="px-4 pb-3 max-h-80 overflow-y-auto">
+    <template x-for="n in notifications" :key="n.id">
+      <div class="notif-item" :class="n.read ? 'opacity-50' : ''">
+        <div class="notif-icon" :style="`background:${n.iconBg}`" x-text="n.icon"></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-medium leading-snug" style="color:var(--ts-text0);" x-text="n.title"></p>
+          <p class="text-xs mt-0.5" style="color:var(--ts-text2);" x-text="n.body"></p>
+          <p class="text-xs mt-1" style="color:var(--ts-text4);" x-text="n.time"></p>
+        </div>
+        <div x-show="!n.read" class="w-2 h-2 rounded-full mt-1 flex-shrink-0" style="background:#00c2a8;"></div>
+      </div>
+    </template>
+    <p x-show="notifications.length === 0" class="text-xs text-center py-6" style="color:var(--ts-text2);">No notifications</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════════════════════════════ -->
+<main class="max-w-7xl mx-auto px-5 py-8">
+
+  <!-- ── WELCOME + CTA ── -->
+  <div class="upload-cta mb-8 fade-up">
+    <div>
+      <p class="text-xs font-medium mb-1" style="color:#00c2a8;">
+        <span x-text="greeting"></span> 👋
+      </p>
+      <h1 class="text-xl font-bold mb-1" style="color:var(--ts-text0);">
+        Welcome back, <span x-text="user.firstName"></span>
+      </h1>
+      <p class="text-sm" style="color:var(--ts-text2);">
+        <span x-text="user.company"></span> · <span x-text="user.jurisdiction"></span>
+      </p>
+    </div>
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <div class="text-right hidden sm:block">
+        <p class="text-xs" style="color:var(--ts-text2);">Quota remaining</p>
+        <p class="text-lg font-bold" style="color:#5ef0d8;" x-text="plan.quotaRemaining + ' / ' + plan.quotaTotal"></p>
+      </div>
+      <a href="/audit" class="btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Start New Audit
+      </a>
+    </div>
+  </div>
+
+  <!-- ── STAT CARDS ── -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+
+    <!-- Total Audits -->
+    <div class="stat-card teal fade-up">
+      <div class="flex items-start justify-between mb-3">
+        <p class="text-xs font-medium" style="color:var(--ts-text2);">Total Audits</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(0,194,168,0.12);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00c2a8" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+      </div>
+      <p class="text-3xl font-bold mb-1" style="color:var(--ts-text0);" x-text="stats.totalAudits"></p>
+      <p class="text-xs" style="color:var(--ts-text2);">
+        <span style="color:#4ade80;">↑ <span x-text="stats.auditsThisMonth"></span></span> this month
+      </p>
+    </div>
+
+    <!-- Quota Remaining -->
+    <div class="stat-card" :class="plan.quotaRemaining <= 1 ? 'red' : 'green'" class="fade-up">
+      <div class="flex items-start justify-between mb-3">
+        <p class="text-xs font-medium" style="color:var(--ts-text2);">Audit Quota</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(34,197,94,0.10);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        </div>
+      </div>
+      <p class="text-3xl font-bold mb-2" style="color:var(--ts-text0);" x-text="plan.quotaRemaining"></p>
+      <div class="quota-bar-track">
+        <div class="quota-bar-fill" :style="`width:${(plan.quotaRemaining/plan.quotaTotal)*100}%; background:${plan.quotaRemaining<=1?'#ef4444':'#22c55e'}`"></div>
+      </div>
+      <p class="text-xs mt-1.5" style="color:var(--ts-text2);" x-text="'of ' + plan.quotaTotal + ' audits included'"></p>
+    </div>
+
+    <!-- Reports Ready -->
+    <div class="stat-card blue fade-up">
+      <div class="flex items-start justify-between mb-3">
+        <p class="text-xs font-medium" style="color:var(--ts-text2);">Reports Ready</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(59,130,246,0.12);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+      </div>
+      <p class="text-3xl font-bold mb-1" style="color:var(--ts-text0);" x-text="stats.reportsReady"></p>
+      <p class="text-xs" style="color:var(--ts-text2);">
+        <span x-text="stats.pendingReview"></span> pending expert review
+      </p>
+    </div>
+
+    <!-- Potential Savings -->
+    <div class="stat-card amber fade-up">
+      <div class="flex items-start justify-between mb-3">
+        <p class="text-xs font-medium" style="color:var(--ts-text2);">Savings Identified</p>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(245,158,11,0.10);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        </div>
+      </div>
+      <p class="text-3xl font-bold mb-1" style="color:var(--ts-text0);" x-text="'$' + stats.savingsIdentified.toLocaleString()"></p>
+      <p class="text-xs" style="color:var(--ts-text2);">across all audits</p>
+    </div>
+
+  </div>
+
+  <!-- ── MAIN GRID: Audits table + right sidebar ── -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- LEFT: Recent Audits table (2/3 width) -->
+    <div class="lg:col-span-2">
+      <div class="card p-0 overflow-hidden fade-up">
+        <!-- Table header -->
+        <div class="px-5 py-4 flex items-center justify-between border-b" style="border-color:rgba(255,255,255,0.06);">
+          <div class="flex items-center gap-3">
+            <h2 class="text-sm font-semibold" style="color:var(--ts-text0);">My Audits</h2>
+            <div class="flex rounded-lg overflow-hidden" style="border:1px solid rgba(255,255,255,0.07);">
+              <button class="text-xs px-3 py-1.5 transition-colors" :class="auditFilter==='all' ? 'text-teal-300' : ''" :style="auditFilter==='all' ? 'background:rgba(0,194,168,0.12);color:#5ef0d8;' : 'color:var(--ts-text2);'" @click="auditFilter='all'">All</button>
+              <button class="text-xs px-3 py-1.5 transition-colors" :style="auditFilter==='ready' ? 'background:rgba(0,194,168,0.12);color:#5ef0d8;' : 'color:var(--ts-text2);'" @click="auditFilter='ready'">Ready</button>
+              <button class="text-xs px-3 py-1.5 transition-colors" :style="auditFilter==='pending' ? 'background:rgba(0,194,168,0.12);color:#5ef0d8;' : 'color:var(--ts-text2);'" @click="auditFilter='pending'">Pending</button>
+            </div>
+          </div>
+          <a href="/audit" class="btn-ghost text-xs">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Audit
+          </a>
+        </div>
+
+        <!-- Table body -->
+        <div>
+          <template x-for="audit in filteredAudits" :key="audit.id">
+            <div class="audit-row px-5 py-3.5 flex items-center gap-4">
+              <!-- Risk score ring -->
+              <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
+                   :style="`background:${riskBg(audit.risk_score)};border:2px solid ${riskColor(audit.risk_score)};color:${riskColor(audit.risk_score)}`"
+                   x-text="audit.risk_score"></div>
+
+              <!-- Lease info -->
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium truncate" style="color:var(--ts-text0);" x-text="audit.name"></p>
+                <p class="text-xs mt-0.5 truncate" style="color:var(--ts-text2);">
+                  <span x-text="audit.address"></span> · <span x-text="audit.jurisdiction"></span>
+                </p>
+              </div>
+
+              <!-- Flags summary -->
+              <div class="hidden sm:flex items-center gap-1.5 flex-shrink-0">
+                <template x-if="audit.high_flags > 0">
+                  <span class="sev-high" x-text="audit.high_flags + ' H'"></span>
+                </template>
+                <template x-if="audit.medium_flags > 0">
+                  <span class="sev-medium" x-text="audit.medium_flags + ' M'"></span>
+                </template>
+              </div>
+
+              <!-- Status -->
+              <div class="flex-shrink-0">
+                <span :class="statusClass(audit.status)" x-text="statusLabel(audit.status)"></span>
+              </div>
+
+              <!-- Date -->
+              <p class="text-xs flex-shrink-0 hidden md:block" style="color:var(--ts-text4);" x-text="audit.date"></p>
+
+              <!-- Action -->
+              <button class="btn-ghost text-xs flex-shrink-0" @click="openAudit(audit)"
+                      :disabled="audit.status === 'processing' || audit.status === 'pending_review'">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span x-text="audit.status === 'released' ? 'View' : 'View'"></span>
+              </button>
+            </div>
+          </template>
+
+          <!-- Empty state -->
+          <div x-show="filteredAudits.length === 0" class="py-12 text-center">
+            <div class="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:rgba(0,194,168,0.08);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00c2a8" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <p class="text-sm font-medium mb-1" style="color:var(--ts-text2);">No audits yet</p>
+            <p class="text-xs mb-4" style="color:var(--ts-text4);">Upload your first lease to get started</p>
+            <a href="/audit" class="btn-primary text-sm">Start New Audit</a>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div x-show="audits.length > 5" class="px-5 py-3 border-t text-center" style="border-color:rgba(255,255,255,0.06);">
+          <button class="text-xs" style="color:#00c2a8;">View all audits →</button>
+        </div>
+      </div>
+
+      <!-- ── MONITORING STATUS ── -->
+      <div class="card mt-5 p-5 fade-up" x-show="plan.monitoring">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full" style="background:#22c55e; box-shadow:0 0 6px #22c55e;"></div>
+            <h2 class="text-sm font-semibold" style="color:var(--ts-text0);">Active Monitoring</h2>
+          </div>
+          <span class="plan-badge-monitor">12-month plan</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <template x-for="m in monitoredLeases" :key="m.id">
+            <div class="card-inner p-3">
+              <p class="text-xs font-medium truncate" style="color:var(--ts-text0);" x-text="m.name"></p>
+              <p class="text-xs mt-1" style="color:var(--ts-text2);">Next invoice: <span style="color:#fbbf24;" x-text="m.nextInvoice"></span></p>
+              <p class="text-xs mt-0.5" style="color:var(--ts-text2);">Alerts: <span style="color:#5ef0d8;" x-text="m.alerts"></span></p>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="flex flex-col gap-5">
+
+      <!-- ── SUBSCRIPTION PLAN CARD ── -->
+      <div class="card p-5 fade-up">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold" style="color:var(--ts-text0);">Your Plan</h2>
+          <span :class="planBadgeClass" x-text="planBadgeLabel"></span>
+        </div>
+
+        <!-- Plan details -->
+        <div class="space-y-3 mb-4">
+          <div class="flex justify-between items-center">
+            <span class="text-xs" style="color:var(--ts-text2);">Plan</span>
+            <span class="text-xs font-medium" style="color:var(--ts-text0);" x-text="plan.name"></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs" style="color:var(--ts-text2);">Audits included</span>
+            <span class="text-xs font-medium" style="color:var(--ts-text0);" x-text="plan.quotaTotal + ' audits'"></span>
+          </div>
+          <div class="flex justify-between items-center" x-show="plan.monitoring">
+            <span class="text-xs" style="color:var(--ts-text2);">Monitoring</span>
+            <span class="text-xs font-medium" style="color:#4ade80;">Active ✓</span>
+          </div>
+          <div class="flex justify-between items-center" x-show="plan.renewalDate">
+            <span class="text-xs" style="color:var(--ts-text2);">Renews</span>
+            <span class="text-xs font-medium" style="color:var(--ts-text0);" x-text="plan.renewalDate"></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs" style="color:var(--ts-text2);">Jurisdiction</span>
+            <span class="text-xs font-medium" style="color:var(--ts-text0);" x-text="user.jurisdiction"></span>
+          </div>
+        </div>
+
+        <!-- Quota bar -->
+        <div class="mb-4">
+          <div class="flex justify-between mb-1.5">
+            <span class="text-xs" style="color:var(--ts-text2);">Quota used</span>
+            <span class="text-xs font-medium" style="color:var(--ts-text0);" x-text="plan.quotaUsed + ' / ' + plan.quotaTotal"></span>
+          </div>
+          <div class="quota-bar-track">
+            <div class="quota-bar-fill" :style="`width:${(plan.quotaUsed/plan.quotaTotal)*100}%;background:linear-gradient(90deg,#00c2a8,#009e88)`"></div>
+          </div>
+          <p class="text-xs mt-1.5" style="color:var(--ts-text2);" x-text="plan.quotaRemaining + ' audits remaining'"></p>
+        </div>
+
+        <button class="w-full btn-ghost text-xs justify-center" @click="showUpgradeModal=true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Upgrade Plan
+        </button>
+      </div>
+
+      <!-- ── NOTIFICATIONS PANEL ── -->
+      <div class="card p-5 fade-up">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold" style="color:var(--ts-text0);">Notifications</h2>
+          <span x-show="unreadCount > 0" class="text-xs px-2 py-0.5 rounded-full font-semibold" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.2);" x-text="unreadCount + ' new'"></span>
+        </div>
+
+        <div>
+          <template x-for="n in notifications.slice(0,4)" :key="n.id">
+            <div class="notif-item" :class="n.read ? 'opacity-50' : ''">
+              <div class="notif-icon" :style="`background:${n.iconBg}`" x-text="n.icon"></div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-medium leading-snug" style="color:var(--ts-text0);" x-text="n.title"></p>
+                <p class="text-xs mt-0.5 leading-relaxed" style="color:var(--ts-text2);" x-text="n.body"></p>
+                <p class="text-xs mt-1" style="color:var(--ts-text4);" x-text="n.time"></p>
+              </div>
+              <div x-show="!n.read" class="w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0" style="background:#00c2a8;"></div>
+            </div>
+          </template>
+          <p x-show="notifications.length === 0" class="text-xs py-4 text-center" style="color:var(--ts-text2);">No notifications</p>
+        </div>
+
+        <button x-show="notifications.length > 4" class="w-full text-xs mt-2 py-1.5" style="color:#00c2a8;">
+          View all notifications →
+        </button>
+      </div>
+
+      <!-- ── CRITICAL DATES ── -->
+      <div class="card p-5 fade-up">
+        <h2 class="text-sm font-semibold mb-3" style="color:var(--ts-text0);">Critical Dates</h2>
+        <div class="space-y-3">
+          <template x-for="d in criticalDates" :key="d.id">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" :style="`background:${d.urgentBg}`">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" :stroke="d.urgentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-medium leading-snug" style="color:var(--ts-text0);" x-text="d.title"></p>
+                <p class="text-xs mt-0.5" :style="`color:${d.urgentColor}`" x-text="d.date"></p>
+                <p class="text-xs" style="color:var(--ts-text2);" x-text="d.lease"></p>
+              </div>
+            </div>
+          </template>
+          <p x-show="criticalDates.length === 0" class="text-xs text-center py-3" style="color:var(--ts-text2);">No upcoming dates</p>
+        </div>
+      </div>
+
+    </div><!-- /right sidebar -->
+  </div><!-- /main grid -->
+</main>
+
+<!-- ══════════════════════════════════════════════════════════
+     UPGRADE MODAL
+══════════════════════════════════════════════════════════ -->
+<div x-show="showUpgradeModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7);" @click.self="showUpgradeModal=false">
+  <div class="card w-full max-w-md p-6 fade-up" style="border-color:rgba(0,194,168,0.2);">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-base font-semibold" style="color:var(--ts-text0);">Upgrade Your Plan</h2>
+      <button @click="showUpgradeModal=false" style="color:var(--ts-text2);">✕</button>
+    </div>
+    <div class="space-y-3">
+      <div class="card-inner p-4 cursor-pointer" style="border-color:rgba(0,194,168,0.25);" @click="selectUpgrade('bundle-5')">
+        <div class="flex justify-between items-start mb-1">
+          <p class="text-sm font-semibold" style="color:var(--ts-text0);">Bundle — 5 Audits</p>
+          <p class="text-sm font-bold" style="color:#5ef0d8;">$399</p>
+        </div>
+        <p class="text-xs" style="color:var(--ts-text2);">5 full audits + 12 months invoice monitoring per lease</p>
+      </div>
+      <div class="card-inner p-4 cursor-pointer" @click="selectUpgrade('bundle-10')">
+        <div class="flex justify-between items-start mb-1">
+          <p class="text-sm font-semibold" style="color:var(--ts-text0);">Bundle — 10 Audits</p>
+          <p class="text-sm font-bold" style="color:#5ef0d8;">$699</p>
+        </div>
+        <p class="text-xs" style="color:var(--ts-text2);">10 audits + monitoring · Best value for multi-site tenants</p>
+      </div>
+      <div class="card-inner p-4 cursor-pointer" @click="selectUpgrade('pay-per-audit')">
+        <div class="flex justify-between items-start mb-1">
+          <p class="text-sm font-semibold" style="color:var(--ts-text0);">Pay-per-Audit</p>
+          <p class="text-sm font-bold" style="color:#60a5fa;">$149</p>
+        </div>
+        <p class="text-xs" style="color:var(--ts-text2);">Single audit · No monitoring included</p>
+      </div>
+    </div>
+    <p class="text-xs text-center mt-4" style="color:var(--ts-text4);">Secure checkout · Instant access after payment</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ALPINE.JS APP
+══════════════════════════════════════════════════════════ -->
+<script>
+function dashboard() {
+  return {
+    /* ── State ── */
+    notifOpen: false,
+    showUpgradeModal: false,
+    auditFilter: 'all',
+
+    /* ── User ── */
+    user: {
+      firstName: 'Garry',
+      lastName:  'McLean',
+      company:   'McLean Retail Pty Ltd',
+      jurisdiction: 'NSW',
+      email: 'garry@mcleansretail.com.au',
+    },
+
+    /* ── Plan (would come from auth/subscription API) ── */
+    plan: {
+      type:           'bundle',    // 'bundle' | 'pay-per-audit' | 'monitoring'
+      name:           'Bundle — 5 Audits + Monitoring',
+      quotaTotal:     5,
+      quotaUsed:      2,
+      quotaRemaining: 3,
+      monitoring:     true,
+      renewalDate:    '1 Jun 2027',
+    },
+
+    /* ── Stats ── */
+    stats: {
+      totalAudits:       2,
+      auditsThisMonth:   1,
+      reportsReady:      1,
+      pendingReview:     1,
+      savingsIdentified: 18400,
+    },
+
+    /* ── Audit list ── */
+    audits: [
+      {
+        id: 1,
+        name: 'McLean Café — George St Lease',
+        address: '123 George St, Sydney',
+        jurisdiction: 'NSW',
+        risk_score: 74,
+        high_flags: 3,
+        medium_flags: 2,
+        status: 'released',
+        date: '28 May 2026',
+      },
+      {
+        id: 2,
+        name: 'McLean Retail — Pitt St Store',
+        address: '45 Pitt St, Sydney',
+        jurisdiction: 'NSW',
+        risk_score: 51,
+        high_flags: 1,
+        medium_flags: 3,
+        status: 'pending_review',
+        date: '31 May 2026',
+      },
+      {
+        id: 3,
+        name: 'Fitzroy Pop-up',
+        address: '88 Brunswick St, Melbourne',
+        jurisdiction: 'VIC',
+        risk_score: 0,
+        high_flags: 0,
+        medium_flags: 0,
+        status: 'processing',
+        date: '1 Jun 2026',
+      },
+    ],
+
+    /* ── Notifications ── */
+    notifications: [
+      { id:1, icon:'📋', iconBg:'rgba(0,194,168,0.12)',   title:'Audit report ready',             body:'George St Lease — expert review complete. Download your report.',       time:'2 hours ago',  read:false },
+      { id:2, icon:'⚠️', iconBg:'rgba(245,158,11,0.10)', title:'Option deadline approaching',     body:'McLean Café — lease option must be exercised by Oct 2026.',              time:'Yesterday',    read:false },
+      { id:3, icon:'💰', iconBg:'rgba(34,197,94,0.10)',   title:'Overcharge detected',             body:'Monthly invoice July — $340 above estimated outgoings.',               time:'3 days ago',   read:true  },
+      { id:4, icon:'🔒', iconBg:'rgba(59,130,246,0.10)',  title:'Monitoring active',               body:'Pitt St lease now under 12-month invoice monitoring.',                 time:'4 days ago',   read:true  },
+    ],
+
+    /* ── Monitored leases ── */
+    monitoredLeases: [
+      { id:1, name:'George St Lease',  nextInvoice:'1 Jul 2026', alerts:'0 anomalies' },
+      { id:2, name:'Pitt St Store',    nextInvoice:'1 Jul 2026', alerts:'1 flag' },
+    ],
+
+    /* ── Critical dates ── */
+    criticalDates: [
+      { id:1, title:'Option exercise deadline',        date:'1 Oct 2026',  lease:'McLean Café — George St', urgentColor:'#f59e0b', urgentBg:'rgba(245,158,11,0.10)' },
+      { id:2, title:'Lease expiry',                    date:'30 Jun 2027', lease:'McLean Café — George St', urgentColor:'#4a6a8a', urgentBg:'rgba(74,106,138,0.10)' },
+      { id:3, title:'EOFY outgoings reconciliation',   date:'31 Jul 2026', lease:'Pitt St Store',           urgentColor:'#ef4444', urgentBg:'rgba(239,68,68,0.10)' },
+    ],
+
+    /* ── Computed ── */
+    get greeting() {
+      const h = new Date().getHours();
+      if (h < 12) return 'Good morning';
+      if (h < 17) return 'Good afternoon';
+      return 'Good evening';
+    },
+
+    get userInitials() {
+      return (this.user.firstName[0] + this.user.lastName[0]).toUpperCase();
+    },
+
+    get unreadCount() {
+      return this.notifications.filter(n => !n.read).length;
+    },
+
+    get planBadgeClass() {
+      if (this.plan.type === 'bundle')        return 'plan-badge-bundle';
+      if (this.plan.type === 'pay-per-audit') return 'plan-badge-pay';
+      return 'plan-badge-monitor';
+    },
+
+    get planBadgeLabel() {
+      if (this.plan.type === 'bundle')        return 'Bundle';
+      if (this.plan.type === 'pay-per-audit') return 'Pay-per-audit';
+      return 'Monitoring';
+    },
+
+    get filteredAudits() {
+      if (this.auditFilter === 'ready')   return this.audits.filter(a => a.status === 'released');
+      if (this.auditFilter === 'pending') return this.audits.filter(a => a.status === 'pending_review' || a.status === 'processing');
+      return this.audits;
+    },
+
+    /* ── Methods ── */
+    init() {
+      // In production: fetch('/api/dashboard/summary') then populate this.*
+      // For now using mock data above
+    },
+
+    riskColor(score) {
+      if (score >= 70) return '#f87171';
+      if (score >= 40) return '#fbbf24';
+      if (score > 0)   return '#4ade80';
+      return '#4a6a8a';
+    },
+
+    riskBg(score) {
+      if (score >= 70) return 'rgba(239,68,68,0.10)';
+      if (score >= 40) return 'rgba(245,158,11,0.10)';
+      if (score > 0)   return 'rgba(34,197,94,0.10)';
+      return 'rgba(74,106,138,0.08)';
+    },
+
+    statusClass(status) {
+      const map = {
+        released:       'status-released',
+        pending_review: 'status-review',
+        processing:     'status-processing',
+        failed:         'sev-high',
+        queued:         'status-pending',
+      };
+      return map[status] || 'status-pending';
+    },
+
+    statusLabel(status) {
+      const map = {
+        released:       'Report Ready',
+        pending_review: 'In Review',
+        processing:     'Processing…',
+        failed:         'Failed',
+        queued:         'Queued',
+      };
+      return map[status] || status;
+    },
+
+    openAudit(audit) {
+      if (audit.status === 'released') {
+        window.location.href = `/upload?job_id=${audit.id}`;
+      }
+    },
+
+    markAllRead() {
+      this.notifications.forEach(n => n.read = true);
+    },
+
+    selectUpgrade(plan) {
+      // Wire to Stripe checkout in production
+      alert(`Redirecting to checkout for: ${plan}`);
+      this.showUpgradeModal = false;
+    },
+
+    logout() {
+      fetch('/api/admin/logout', { method: 'POST' })
+        .finally(() => window.location.href = '/login');
+    },
+  };
+}
+</script>
+
+<script>
+/* ═══════════════════════════════════════
+   THEME TOGGLE
+═══════════════════════════════════════ */
+function tsApplyThemeIcons() {
+  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  var moon = document.getElementById('ts-icon-moon');
+  var sun  = document.getElementById('ts-icon-sun');
+  if (!moon || !sun) return;
+  moon.style.display = isLight ? 'none'  : 'block';
+  sun.style.display  = isLight ? 'block' : 'none';
+  // Update btn border/bg for light mode visibility
+  var btn = document.getElementById('ts-theme-btn');
+  if (btn) {
+    btn.style.borderColor = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.07)';
+    btn.style.background  = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.035)';
+  }
+}
+function tsToggleTheme() {
+  var current = document.documentElement.getAttribute('data-theme') || 'dark';
+  var next    = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('ts-theme', next);
+  tsApplyThemeIcons();
+}
+// Run on load
+document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
+// Also run immediately in case DOM is already ready
+tsApplyThemeIcons();
+</script>
+
+
+</body>
+</html>
