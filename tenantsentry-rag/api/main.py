@@ -1038,29 +1038,4 @@ async def admin_get_result(job_id: str, _: None = Depends(require_admin)):
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status != JobStatus.COMPLETE:
         raise HTTPException(status_code=409, detail="Job not complete")
-    return JSONResponse(get_job_result(job_id) or {})eviewRequest(BaseModel):
-    notes: str = ""
-
-
-@app.post("/api/admin/review/{job_id}")
-async def admin_review(job_id: str, body: ReviewRequest, _: None = Depends(require_admin)):
-    """
-    Auditor approves findings. Sets reviewed_by_human = True.
-    Does NOT release to tenant — use /release for that.
-    """
-    job = review_job(job_id, notes=body.notes)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found or not yet complete")
-    return JSONResponse({"ok": True, "job_id": job_id})
-
-
-@app.post("/api/admin/release/{job_id}")
-async def admin_release(job_id: str, _: None = Depends(require_admin)):
-    """
-    Release a reviewed report to the tenant.
-    Requires reviewed_by_human = True. Sets released = True.
-    """
-    job = release_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found or not yet reviewed")
-    return JSONResponse({"ok": True, "job_id": job_id})
+    return JSONResponse(get_job_result(job_id) or {})
