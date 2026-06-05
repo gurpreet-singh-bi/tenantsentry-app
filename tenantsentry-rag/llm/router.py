@@ -17,9 +17,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Model identifiers — override via .env: OPUS_MODEL, SONNET_MODEL
+# Model identifiers — override via .env: OPUS_MODEL, SONNET_MODEL, HAIKU_MODEL
 OPUS_MODEL   = os.environ.get("OPUS_MODEL",   "claude-opus-4-6")
 SONNET_MODEL = os.environ.get("SONNET_MODEL", "claude-sonnet-4-6")
+HAIKU_MODEL  = os.environ.get("HAIKU_MODEL",  "claude-haiku-4-5-20251001")
 
 # Startup guard
 _api_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -195,3 +196,67 @@ def analyse_clause(
     except json.JSONDecodeError:
         logger.error(f"LLM returned non-JSON: {raw[:200]}")
         return {"error": "Failed to parse LLM response", "raw": raw}
+
+
+def triage_clauses(
+    chunks: list,
+    batch_offset: int,
+    jurisdiction: str,
+) -> list[int]:
+    """
+    Pass 1: Haiku triage — identify clause indices that need full Sonnet/Opus analysis.
+
+    Takes a batch of chunks (slice of the full chunk list) and returns a list of
+    *absolute* indices (i.e. batch_offset + local_idx) that need deep analysis.
+
+    Falls back to flagging all clauses in the batch if the model returns non-JSON,
+    so a triage failure degrades gracefully to the original sequential behaviour.
+
+    Args:
+        chunks:        Slice of DocumentChunk objects for this batch.
+        batch_offset:  Index of chunks[0] in the full clause list.
+        jurisdiction:  State code — used for model context.
+
+    Returns:
+        List of absolute clause indices to flag for deep analysis.
+    """
+    client = get_client()
+
+    clause_list = "\n".join(
+        f"{batch_offset + i}. [{c.metadata.get('clause_heading', f'Clause {batch_offset + i}')}] "
+        f"{c.content[:200].replace(chr(10), ' ')}"
+        for i, c in enumerate(chunks)
+    )
+
+    prompt = (
+        f"You are screening {jurisdiction} commercial lease clauses. "
+        "Identify which clauses need DEEP ANALYSIS because they contain: "
+        "financial risk, tenant liability, rent review, outgoings, make-good, "
+        "personal guarantee, termination rights, options, land tax, assignment, "
+        "demolition, fitout, holdover, indemnity, or any non-standard term.\n\n"
+        "Return ONLY a JSON array of the clause numbers (integers) that need deep analysis. "
+        "Example: [0, 3, 7]\n\n"
+        f"CLAUSES:\n{clause_list}\n\n"
+        "JSON array of clause numbers only:"
+    )
+
+    try:
+        response = client.messages.create(
+            model=HAIKU_MODEL,
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=30.0,
+        )
+        raw = response.content[0].text.strip()
+        indices = json.loads(raw)
+        valid = [int(i) for i in indices if isinstance(i, (int, float))]
+        logger.info(
+            f"Haiku triage batch offset={batch_offset} size={len(chunks)}: "
+            f"{len(valid)} flagged → {valid}"
+        )
+        return valid
+    except Exception as e:
+        logger.warning(
+            f"Haiku triage failed (batch_offset={batch_offset}): {e} — flagging all {len(chunks)} clauses"
+        )
+        return list(range(batch_offset, batch_offset + len(chunks)))

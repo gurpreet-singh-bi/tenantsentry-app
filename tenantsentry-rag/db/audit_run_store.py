@@ -23,9 +23,11 @@ def _get_client():
     global _client
     if _client is None:
         from supabase import create_client
+        from supabase.lib.client_options import ClientOptions
         _client = create_client(
             os.environ["SUPABASE_URL"],
             os.environ["SUPABASE_SERVICE_KEY"],
+            options=ClientOptions(postgrest_client_timeout=30),
         )
     return _client
 
@@ -61,15 +63,18 @@ def update_progress(job_id: str, progress: int, stage: str) -> None:
     }).eq("job_id", job_id).execute()
 
 
-def mark_complete(job_id: str, findings: dict) -> None:
-    """UPDATE job to complete with findings JSON."""
-    _get_client().table("audit_run").update({
+def mark_complete(job_id: str, findings: dict, stage_timings: Optional[dict] = None) -> None:
+    """UPDATE job to complete with findings JSON and optional timing data."""
+    payload = {
         "status": "complete",
         "progress": 100,
         "stage": "Complete",
         "findings": findings,
         "completed_at": _now(),
-    }).eq("job_id", job_id).execute()
+    }
+    if stage_timings:
+        payload["stage_timings"] = stage_timings
+    _get_client().table("audit_run").update(payload).eq("job_id", job_id).execute()
     logger.info(f"[{job_id}] audit_run marked complete")
 
 
@@ -161,12 +166,4 @@ def fetch_failed() -> list[dict]:
 
 def fetch_all_recent(limit: int = 20) -> list[dict]:
     """SELECT most recent jobs regardless of status — for debugging."""
-    result = (
-        _get_client()
-        .table("audit_run")
-        .select("job_id, status, stage, error, filename, jurisdiction, tenant_name, created_at, completed_at")
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    return result.data or []
+    result

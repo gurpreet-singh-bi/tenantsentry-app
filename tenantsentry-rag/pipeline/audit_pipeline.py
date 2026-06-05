@@ -20,13 +20,14 @@ Progress stages:
 """
 
 import os
+import time
 import yaml
 from pathlib import Path
 from typing import Callable, Optional
 from loguru import logger
 from ingestion.pdf_parser import parse_pdf
 from ingestion.chunker import chunk_document
-from llm.router import analyse_clause
+from llm.router import analyse_clause, triage_clauses
 from output.json_formatter import AuditResult, ClauseAnalysis, LeaseDate
 
 ProgressCallback = Optional[Callable[[int, str], None]]
@@ -172,12 +173,18 @@ def run_audit(
     logger.info(f"Starting audit: {pdf_path} | {jurisdiction} | vector_store={USE_VECTOR_STORE}")
     cb = progress_callback
     jur = jurisdiction.upper()
+    _t0 = time.perf_counter()
+    _timings: dict = {}
+
+    def _ms(start: float) -> int:
+        return int((time.perf_counter() - start) * 1000)
 
     # 1. Parse PDF
     _progress(cb, 5, "Parsing PDF...")
     parsed = parse_pdf(pdf_path)
 
     # 2. OCR if scanned
+    _t_ocr = time.perf_counter()
     if parsed.is_scanned:
         _progress(cb, 10, "Scanned PDF detected - running OCR...")
         try:
@@ -196,8 +203,10 @@ def run_audit(
             raise RuntimeError(str(e))
     else:
         _progress(cb, 20, "Chunking document...")
+    _timings["ocr_ms"] = _ms(_t_ocr)
 
     # 3. Chunk into clauses
+    _t_chunk = time.perf_counter()
     _progress(cb, 25, "Identifying lease clauses...")
     doc_metadata = {
         "jurisdiction": jur,
@@ -213,8 +222,10 @@ def run_audit(
         )
 
     logger.info(f"Found {len(chunks)} clauses")
+    _timings["chunking_ms"] = _ms(_t_chunk)
 
     # 4. Optional: embed + store (production only)
+    _t_embed = time.perf_counter()
     if USE_VECTOR_STORE:
         from vector_store.supabase_store import document_exists, upsert_chunks
 
@@ -246,6 +257,7 @@ def run_audit(
             ]
             upsert_chunks(rows)
             _progress(cb, 45, "Stored in knowledge base.")
+    _timings["embedding_ms"] = _ms(_t_embed)
 
     # 5. Build jurisdiction-filtered rules context
     rules_context = _build_rules_context(jur)
@@ -295,60 +307,69 @@ def run_audit(
         from services.cpi_calculator import format_for_prompt
         return format_for_prompt(_cpi_snapshot)
 
-    # 6. Analyse each clause with LLM
-    clause_analyses = []
+    # 6. Two-pass clause analysis
+    #    Pass 1: Haiku triage — batch 25 clauses per prompt to identify the ~20-40
+    #            that carry real risk and need full Sonnet/Opus analysis.
+    #    Pass 2: Parallel Sonnet/Opus — ThreadPoolExecutor(max_workers=12) over
+    #            flagged clauses only; unflagged get a lightweight stub.
+    _t_analysis = time.perf_counter()
     n = len(chunks)
+    TRIAGE_BATCH_SIZE = 25
+    TRIAGE_WORKERS    = 12   # max parallel Sonnet/Opus calls
 
-    for idx, chunk in enumerate(chunks):
-        pct = 50 + int((idx / max(n, 1)) * 40)
-        _progress(cb, pct, f"Analysing clause {idx + 1} of {n}...")
+    # ── Pass 1: Haiku triage ─────────────────────────────────────────────────
+    _progress(cb, 48, f"Triaging {n} clauses...")
+    _t_triage = time.perf_counter()
 
+    flagged: set[int] = set()
+    for batch_start in range(0, n, TRIAGE_BATCH_SIZE):
+        batch = chunks[batch_start: batch_start + TRIAGE_BATCH_SIZE]
+        flagged.update(triage_clauses(batch, batch_start, jur))
+
+    _timings["triage_ms"] = int((time.perf_counter() - _t_triage) * 1000)
+    logger.info(
+        f"Triage: {len(flagged)}/{n} clauses flagged for deep analysis "
+        f"({_timings['triage_ms']}ms)"
+    )
+
+    # ── Pass 2: Parallel deep analysis ───────────────────────────────────────
+    import threading
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    clause_analyses: list = [None] * n
+    _completed_count = 0
+    _lock = threading.Lock()
+
+    def _analyse_one(idx: int, chunk) -> tuple:
         clause_text = chunk.content
-
-        # In production: retrieve jurisdiction-filtered legislation via RAG
-        # In local mode: pass empty string (LLM uses training knowledge + rules)
         if USE_VECTOR_STORE:
             from embedding.embedder import embed_query
             from vector_store.supabase_store import similarity_search
             query_vec = embed_query(clause_text)
-            # Retrieve legislation for this jurisdiction AND all-jurisdiction best-practice chunks
             leg_chunks = similarity_search(
                 query_embedding=query_vec, top_k=3,
                 chunk_type="legislation", jurisdiction=jur,
             )
-            all_chunks = similarity_search(
+            all_leg = similarity_search(
                 query_embedding=query_vec, top_k=2,
                 chunk_type="legislation", jurisdiction=None,
             )
-            legislation_context = "\n\n".join(
-                c["content"] for c in leg_chunks + all_chunks
-            )
+            legislation_context = "\n\n".join(c["content"] for c in leg_chunks + all_leg)
         else:
             legislation_context = ""
 
-        # G7: Inject pre-computed CPI data for rent review / CPI clauses.
-        # G9: Use series from a prior clause analysis if available.
-        cpi_context = _get_cpi_context(chunk, series_override=_cpi_series_used)
-
-        # F5: Inject jurisdiction-specific land tax statutory position.
-        land_tax_context = _land_tax_context if _is_land_tax_clause(chunk) else ""
+        cpi_ctx = _get_cpi_context(chunk, series_override=_cpi_series_used)
+        lt_ctx  = _land_tax_context if _is_land_tax_clause(chunk) else ""
 
         analysis = analyse_clause(
             clause_text=clause_text,
             legislation_context=legislation_context,
             rules_context=rules_context,
             jurisdiction=jur,
-            cpi_context=cpi_context,
-            land_tax_context=land_tax_context,
+            cpi_context=cpi_ctx,
+            land_tax_context=lt_ctx,
         )
-
-        # G9: If Claude extracted a cpi_index_series, update for subsequent clauses.
-        extracted_series = analysis.get("cpi_index_series")
-        if extracted_series and extracted_series != _cpi_series_used:
-            logger.info(f"[G9] cpi_index_series extracted: '{extracted_series}' — will use for remaining CPI clauses")
-            _cpi_series_used = extracted_series
-
-        clause_analyses.append(ClauseAnalysis(
+        return idx, ClauseAnalysis(
             clause_heading=chunk.metadata.get("clause_heading", f"Clause {idx + 1}"),
             clause_text=clause_text,
             clause_type=analysis.get("clause_type"),
@@ -356,11 +377,47 @@ def run_audit(
             risk_flags=analysis.get("risk_flags", []),
             plain_english_summary=analysis.get("plain_english_summary"),
             recommended_action=analysis.get("recommended_action"),
-            cpi_index_series=extracted_series,
+            cpi_index_series=analysis.get("cpi_index_series"),
             error=analysis.get("error"),
-        ))
+        )
+
+    # Stubs for unflagged clauses (no LLM cost)
+    for idx, chunk in enumerate(chunks):
+        if idx not in flagged:
+            clause_analyses[idx] = ClauseAnalysis(
+                clause_heading=chunk.metadata.get("clause_heading", f"Clause {idx + 1}"),
+                clause_text=chunk.content,
+                clause_type="other",
+                plain_english_summary="Standard clause — screened by triage, no material risk identified.",
+            )
+
+    _progress(cb, 50, f"Analysing {len(flagged)} flagged clauses in parallel...")
+
+    with ThreadPoolExecutor(max_workers=TRIAGE_WORKERS, thread_name_prefix="ts-clause") as pool:
+        future_to_idx = {pool.submit(_analyse_one, idx, chunks[idx]): idx for idx in sorted(flagged)}
+        for future in as_completed(future_to_idx):
+            try:
+                idx, ca = future.result()
+            except Exception as e:
+                idx = future_to_idx[future]
+                ca = ClauseAnalysis(
+                    clause_heading=chunks[idx].metadata.get("clause_heading", f"Clause {idx + 1}"),
+                    clause_text=chunks[idx].content,
+                    error=str(e),
+                )
+            clause_analyses[idx] = ca
+            if ca.cpi_index_series and ca.cpi_index_series != _cpi_series_used:
+                _cpi_series_used = ca.cpi_index_series
+            with _lock:
+                _completed_count += 1
+                done = _completed_count
+            pct = 50 + int((done / max(len(flagged), 1)) * 40)
+            _progress(cb, pct, f"Analysed {done} of {len(flagged)} flagged clauses...")
+
+    _timings["analysis_ms"] = _ms(_t_analysis)
 
     # 7. Extract critical dates
+    _t_dates = time.perf_counter()
     _progress(cb, 92, "Extracting critical dates and deadlines...")
     lease_dates: list[LeaseDate] = []
     try:
@@ -376,6 +433,8 @@ def run_audit(
         logger.info(f"Extracted {len(lease_dates)} critical dates")
     except Exception as e:
         logger.error(f"Date extraction failed (non-fatal): {e}")
+
+    _timings["dates_ms"] = _ms(_t_dates)
 
     # 8. Assemble result
     _progress(cb, 95, "Assembling audit report...")
@@ -397,6 +456,8 @@ def run_audit(
     if _cpi_series_used and "cpi_index_series" not in extracted_rules:
         extracted_rules["cpi_index_series"] = _cpi_series_used
 
+    _timings["total_ms"] = _ms(_t0)
+
     result = AuditResult(
         tenant_name=tenant_name or "Unknown",
         jurisdiction=jur,
@@ -407,12 +468,15 @@ def run_audit(
         all_risk_flags=all_flags,
         lease_dates=lease_dates,
         extracted_rules=extracted_rules,
+        stage_timings=_timings,
     )
 
     logger.info(
-        f"Audit complete - {len(clause_analyses)} clauses, "
+        f"Audit complete — {len(clause_analyses)} clauses, "
         f"{len(all_flags)} flags ({len(high_flags)} high), "
-        f"risk score: {risk_score}/100, "
-        f"{len(lease_dates)} dates extracted"
+        f"risk={risk_score}/100, dates={len(lease_dates)} | "
+        f"triage={_timings.get('triage_ms')}ms "
+        f"analysis={_timings.get('analysis_ms')}ms "
+        f"total={_timings.get('total_ms')}ms"
     )
     return result

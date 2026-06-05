@@ -619,7 +619,13 @@ async def _schedule_audit_job(
                 document_hash=document_hash,
                 progress_callback=lambda pct, stage: update_job_progress(job_id, pct, stage),
             )
-            complete_job(job_id, result if isinstance(result, dict) else result.__dict__)
+            # model_dump() gives a fully-serialisable nested dict (safe for Supabase JSONB).
+            # Falls back gracefully if result is already a dict (e.g. dev pipeline mock).
+            result_dict = (
+                result.model_dump() if hasattr(result, "model_dump")
+                else (result if isinstance(result, dict) else result.__dict__)
+            )
+            complete_job(job_id, result_dict)
         except Exception as e:
             logger.exception(f"[{job_id}] Audit pipeline failed: {e}")
             fail_job(job_id, str(e))
@@ -630,7 +636,15 @@ async def _schedule_audit_job(
                 pass
 
     try:
-        await loop.run_in_executor(_audit_executor, _run)
+        # Hard 1-hour ceiling: if _run() stalls (e.g. Supabase write hangs despite the
+        # 30s postgrest timeout), this cancels the future and surfaces a visible failure.
+        await asyncio.wait_for(
+            loop.run_in_executor(_audit_executor, _run),
+            timeout=3600,
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"[{job_id}] Audit timed out after 3600s — marking failed")
+        fail_job(job_id, "Audit timed out after 1 hour")
     except Exception as e:
         logger.exception(f"[{job_id}] Executor dispatch failed: {e}")
         fail_job(job_id, str(e))

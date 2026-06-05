@@ -57,6 +57,9 @@ class AuditResult(BaseModel):
     # G9: Aggregated extracted_rules — written to lease.extracted_rules in Supabase.
     # Populated by audit_pipeline from clause-level extractions.
     extracted_rules: dict = Field(default_factory=dict)
+    # Pipeline performance instrumentation — per-stage durations in ms.
+    # Stored in audit_run.stage_timings (separate column); excluded from reports.
+    stage_timings: dict = Field(default_factory=dict)
 
     @property
     def high_risk_flags(self) -> list[dict]:

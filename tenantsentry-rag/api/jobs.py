@@ -201,17 +201,36 @@ def update_job_progress(job_id: str, progress: int, stage: str) -> None:
             logger.error(f"[{job_id}] Supabase progress update failed: {e}")
 
 
+def _strip_clause_text(result: dict) -> dict:
+    """
+    Return a copy of result with:
+      - clause_text removed from each ClauseAnalysis (raw text is in the PDF; no need to double-store)
+      - stage_timings removed (stored in its own column, not in findings JSONB)
+    Reduces JSONB payload from ~2-5MB to ~200-400KB for a 168-clause lease.
+    """
+    stripped = {k: v for k, v in result.items() if k != "stage_timings"}
+    if "clause_analyses" in stripped and isinstance(stripped["clause_analyses"], list):
+        stripped["clause_analyses"] = [
+            {k: v for k, v in ca.items() if k != "clause_text"}
+            if isinstance(ca, dict) else ca
+            for ca in stripped["clause_analyses"]
+        ]
+    return stripped
+
+
 def complete_job(job_id: str, result: dict) -> None:
     job = _jobs_fallback.get(job_id)
     if job:
         job.status = JobStatus.COMPLETE
         job.progress = 100
         job.stage = "Complete"
-        job.result = result
+        job.result = result  # keep full result in-memory (same process, no storage cost)
         job.completed_at = datetime.now(timezone.utc).isoformat()
     if _supabase_ok():
         try:
-            _store.mark_complete(job_id, result)
+            stage_timings = result.get("stage_timings") if isinstance(result, dict) else None
+            findings = _strip_clause_text(result) if isinstance(result, dict) else result
+            _store.mark_complete(job_id, findings, stage_timings=stage_timings)
         except Exception as e:
             logger.error(f"[{job_id}] Supabase complete failed: {e}")
 
