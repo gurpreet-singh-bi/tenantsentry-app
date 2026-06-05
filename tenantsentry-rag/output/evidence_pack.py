@@ -320,8 +320,19 @@ def _build_clause_excerpt_pdf(flag: dict, clause: dict, result: dict) -> bytes:
 
 # ── Component 2: Legislative Basis ────────────────────────────────────────────
 
+def _lookup_sections_stub(legislation_ref: str, jurisdiction: str) -> list[dict]:
+    """
+    Placeholder until data/legislation_text.py is populated with bundled Act text.
+    Returns [] so the PDF falls back to the "no sections found" branch gracefully.
+    Remove this stub and uncomment the real import once the legislation data module exists.
+    """
+    return []
+
+
 def _build_legislation_pdf(flag: dict, result: dict) -> bytes:
-    from data.legislation_text import lookup_sections
+    # TODO: replace stub with real import when data/legislation_text.py is ready:
+    #   from data.legislation_text import lookup_sections
+    lookup_sections = _lookup_sections_stub
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -652,7 +663,8 @@ def _generate_letter_text(flag: dict, clause: dict, result: dict) -> str:
         msg = client.messages.create(
             model=model,
             max_tokens=800,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
+            timeout=60.0,
         )
         return msg.content[0].text.strip()
 
@@ -669,7 +681,7 @@ def _letter_template(flag: dict, clause: dict, result: dict) -> str:
     flag_desc    = flag.get("description", "[Issue description]")
     flag_leg     = flag.get("legislation_ref") or "the applicable Retail Leases Act"
     recommended  = clause.get("recommended_action", "[Required amendment]")
-    today        = datetime.now().strftime("%-d %B %Y")
+    today        = datetime.now().strftime("%d %B %Y").lstrip("0")  # cross-platform, no leading zero
 
     return textwrap.dedent(f"""\
         {today}

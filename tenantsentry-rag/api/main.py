@@ -43,6 +43,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── Logging setup ─────────────────────────────────────────────────────────────
+# Writes to logs/tenantsentry.log (rotated at 10MB, 7-day retention).
+# Triage + per-clause lines land here so you can grep after a run.
+_LOG_DIR = Path(__file__).parent.parent / "logs"
+_LOG_DIR.mkdir(exist_ok=True)
+logger.add(
+    _LOG_DIR / "tenantsentry.log",
+    rotation="10 MB",
+    retention="7 days",
+    level="DEBUG",
+    format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level:<8} | {name}:{line} | {message}",
+    enqueue=True,   # async-safe: writes happen off the event loop
+)
+
 # ── Path setup ────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent.parent   # tenantsentry-rag/
 sys.path.insert(0, str(BASE_DIR))
@@ -619,10 +633,13 @@ async def _schedule_audit_job(
                 document_hash=document_hash,
                 progress_callback=lambda pct, stage: update_job_progress(job_id, pct, stage),
             )
-            # model_dump() gives a fully-serialisable nested dict (safe for Supabase JSONB).
-            # Falls back gracefully if result is already a dict (e.g. dev pipeline mock).
+            # model_dump(mode="json") ensures all Python types (datetime, Decimal, etc.)
+            # are converted to JSON-safe equivalents before being passed to Supabase.
+            # model_dump() WITHOUT mode="json" returns raw Python objects (e.g. datetime
+            # for audit_date) which httpx's json.dumps() cannot serialize, silently
+            # causing mark_complete to fail and findings to never land in Supabase.
             result_dict = (
-                result.model_dump() if hasattr(result, "model_dump")
+                result.model_dump(mode="json") if hasattr(result, "model_dump")
                 else (result if isinstance(result, dict) else result.__dict__)
             )
             complete_job(job_id, result_dict)
@@ -1021,10 +1038,7 @@ async def admin_get_result(job_id: str, _: None = Depends(require_admin)):
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status != JobStatus.COMPLETE:
         raise HTTPException(status_code=409, detail="Job not complete")
-    return JSONResponse(get_job_result(job_id) or {})
-
-
-class ReviewRequest(BaseModel):
+    return JSONResponse(get_job_result(job_id) or {})eviewRequest(BaseModel):
     notes: str = ""
 
 

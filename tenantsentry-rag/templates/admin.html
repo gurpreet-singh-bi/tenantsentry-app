@@ -592,6 +592,14 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
             <!-- Loading -->
             <div x-show="loadingResult" class="text-xs text-center py-10" style="color:var(--ts-text2)">Loading findings…</div>
 
+            <!-- No findings persisted (mark_complete failed — re-submit the lease) -->
+            <div x-show="!loadingResult && resultData && !resultData.clause_analyses?.length && !resultData.total_clauses"
+                 class="p-4 rounded-xl text-sm text-center"
+                 style="background:#1a1010;border:1px solid #7f1d1d;color:#f87171">
+              <div class="font-semibold mb-1">⚠ Audit findings not saved</div>
+              <div style="color:#c07070;font-size:12px">The findings were lost — likely a serialisation error when writing to the database. Please re-submit this lease to run the audit again.</div>
+            </div>
+
             <!-- Clause cards -->
             <template x-for="clause in filteredClauses" :key="clause.clause_heading">
               <div class="clause-card"
@@ -1098,7 +1106,11 @@ function adminPortal() {
 
     fmtDate(iso) {
       if (!iso) return '—';
-      const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z'));
+      // Only append Z if there's no timezone info at all — timestamps from Sydney
+      // already carry +10:00/+11:00, and appending Z produces an invalid date string.
+      const hasTimezone = iso.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(iso);
+      const d = new Date(hasTimezone ? iso : iso + 'Z');
+      if (isNaN(d.getTime())) return '—';
       return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     },
 

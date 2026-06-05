@@ -314,15 +314,6 @@ body {
 ::-webkit-scrollbar-track { background: var(--ts-bg0); }
 ::-webkit-scrollbar-thumb { background: var(--ts-scrollbar); border-radius: 3px; }
 
-/* Mode badge */
-.mode-badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 10px; border-radius: 999px;
-  font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
-}
-.mode-dev  { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.25); }
-.mode-live { background: rgba(34,197,94,0.10);  color: #22c55e; border: 1px solid rgba(34,197,94,0.25); }
-
 /* Dropdown menu */
 .dropdown {
   position: absolute; right: 0; top: calc(100% + 6px);
@@ -446,8 +437,7 @@ body {
     <div class="topbar">
       <div class="topbar-title" x-text="tabTitle()"></div>
       <div class="topbar-right">
-        <!-- Mode badge -->
-        <span class="mode-badge" :class="mode === 'dev' ? 'mode-dev' : 'mode-live'" x-text="mode === 'dev' ? '⚡ DEV' : '🟢 LIVE'"></span>
+        <!-- Mode badge injected globally by mode-toggle.js -->
 
         <!-- Theme toggle -->
         <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle theme"

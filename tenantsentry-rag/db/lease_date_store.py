@@ -39,10 +39,17 @@ VALID_DATE_TYPES = {
 def _get_client():
     global _client
     if _client is None:
+        import httpx
         from supabase import create_client
+        from supabase.lib.client_options import ClientOptions
         _client = create_client(
             os.environ["SUPABASE_URL"],
             os.environ["SUPABASE_SERVICE_KEY"],
+            options=ClientOptions(
+                postgrest_client_timeout=httpx.Timeout(
+                    connect=5.0, read=30.0, write=30.0, pool=5.0
+                )
+            ),
         )
     return _client
 

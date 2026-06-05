@@ -315,7 +315,7 @@ def run_audit(
     _t_analysis = time.perf_counter()
     n = len(chunks)
     TRIAGE_BATCH_SIZE = 25
-    TRIAGE_WORKERS    = 12   # max parallel Sonnet/Opus calls
+    TRIAGE_WORKERS    = 5    # max parallel Sonnet/Opus calls; 12 hammers rate limits → effectively serial
 
     # ── Pass 1: Haiku triage ─────────────────────────────────────────────────
     _progress(cb, 48, f"Triaging {n} clauses...")
@@ -341,6 +341,9 @@ def run_audit(
     _lock = threading.Lock()
 
     def _analyse_one(idx: int, chunk) -> tuple:
+        _t_clause = time.perf_counter()
+        clause_heading = chunk.metadata.get("clause_heading", f"Clause {idx + 1}")
+        logger.info(f"[clause:{idx}] START '{clause_heading}'")
         clause_text = chunk.content
         if USE_VECTOR_STORE:
             from embedding.embedder import embed_query
@@ -369,8 +372,14 @@ def run_audit(
             cpi_context=cpi_ctx,
             land_tax_context=lt_ctx,
         )
+        _clause_ms = int((time.perf_counter() - _t_clause) * 1000)
+        n_flags = len(analysis.get("risk_flags") or [])
+        logger.info(
+            f"[clause:{idx}] DONE '{clause_heading}' | "
+            f"model={analysis.get('_model','?')} flags={n_flags} {_clause_ms}ms"
+        )
         return idx, ClauseAnalysis(
-            clause_heading=chunk.metadata.get("clause_heading", f"Clause {idx + 1}"),
+            clause_heading=clause_heading,
             clause_text=clause_text,
             clause_type=analysis.get("clause_type"),
             key_terms=analysis.get("key_terms", []),
@@ -392,6 +401,11 @@ def run_audit(
             )
 
     _progress(cb, 50, f"Analysing {len(flagged)} flagged clauses in parallel...")
+
+    # Guard: discard any out-of-range indices Haiku may hallucinate.
+    # chunks[idx] in the dict comprehension raises IndexError if idx >= len(chunks),
+    # which propagates out of the comprehension and crashes the entire audit pipeline.
+    flagged = {idx for idx in flagged if 0 <= idx < n}
 
     with ThreadPoolExecutor(max_workers=TRIAGE_WORKERS, thread_name_prefix="ts-clause") as pool:
         future_to_idx = {pool.submit(_analyse_one, idx, chunks[idx]): idx for idx in sorted(flagged)}

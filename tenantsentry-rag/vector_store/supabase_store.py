@@ -39,9 +39,14 @@ _client = None
 def get_client() -> Client:
     global _client
     if _client is None:
+        import httpx
+        from supabase.lib.client_options import ClientOptions
         _client = create_client(
             os.environ["SUPABASE_URL"],
-            os.environ["SUPABASE_SERVICE_KEY"]
+            os.environ["SUPABASE_SERVICE_KEY"],
+            options=ClientOptions(
+                postgrest_client_timeout=httpx.Timeout(connect=5.0, read=30.0, write=60.0, pool=5.0)
+            ),
         )
     return _client
 
@@ -101,9 +106,15 @@ def upsert_chunks(chunks: list[dict]) -> None:
         for c in chunks
     ]
 
-    result = client.table("lease_chunks").insert(rows).execute()
-    logger.info(f"Inserted {len(rows)} chunks into Supabase (document_id={rows[0].get('document_id','?')[:12]}…)")
-    return result
+    try:
+        result = client.table("lease_chunks").insert(rows).execute()
+        logger.info(f"Inserted {len(rows)} chunks into Supabase (document_id={rows[0].get('document_id','?')[:12]}…)")
+        return result
+    except Exception as e:
+        # Non-fatal for the audit — vector store embedding fails gracefully.
+        # The audit pipeline continues without stored embeddings.
+        logger.error(f"upsert_chunks failed ({len(rows)} rows): {e}")
+        return None
 
 
 def similarity_search(

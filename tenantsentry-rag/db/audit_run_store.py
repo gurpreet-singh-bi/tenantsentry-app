@@ -25,12 +25,20 @@ _client = None
 def _get_client():
     global _client
     if _client is None:
+        import httpx
         from supabase import create_client
         from supabase.lib.client_options import ClientOptions
         _client = create_client(
             os.environ["SUPABASE_URL"],
             os.environ["SUPABASE_SERVICE_KEY"],
-            options=ClientOptions(postgrest_client_timeout=30),
+            options=ClientOptions(
+                # Explicit httpx.Timeout — passing an int has a known bug in supabase-py 2.x
+                # where the write timeout isn't applied when sending large findings payloads.
+                # write=60 gives the 200-400KB findings JSONB room to complete.
+                postgrest_client_timeout=httpx.Timeout(
+                    connect=5.0, read=30.0, write=60.0, pool=5.0
+                )
+            ),
         )
     return _client
 
@@ -79,6 +87,21 @@ def mark_complete(job_id: str, findings: dict, stage_timings: Optional[dict] = N
         payload["stage_timings"] = stage_timings
     _get_client().table("audit_run").update(payload).eq("job_id", job_id).execute()
     logger.info(f"[{job_id}] audit_run marked complete")
+
+
+def mark_complete_minimal(job_id: str) -> None:
+    """
+    Fallback: mark job complete without findings (findings already saved in-memory).
+    Called when mark_complete times out writing the large findings payload.
+    The in-memory fallback in jobs.py still holds the result for same-process reads.
+    """
+    _get_client().table("audit_run").update({
+        "status": "complete",
+        "progress": 100,
+        "stage": "Complete",
+        "completed_at": _now(),
+    }).eq("job_id", job_id).execute()
+    logger.warning(f"[{job_id}] audit_run marked complete (minimal — findings not persisted to DB)")
 
 
 def mark_failed(job_id: str, error: str) -> None:
@@ -169,4 +192,12 @@ def fetch_failed() -> list[dict]:
 
 def fetch_all_recent(limit: int = 20) -> list[dict]:
     """SELECT most recent jobs regardless of status — for debugging."""
-    result
+    result = (
+        _get_client()
+        .table("audit_run")
+        .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, error, created_at, completed_at")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []

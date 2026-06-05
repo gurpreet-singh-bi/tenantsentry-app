@@ -46,11 +46,24 @@ def chunk_document(pages: list[dict], document_metadata: dict) -> list[Chunk]:
     full_text = "\n".join(p["text"] for p in pages)
     raw_chunks = _split_on_clause_headings(full_text)
 
+    # Claude's context window is large but we cap clause chunks at 6000 chars
+    # (~1500 tokens) to keep prompts predictable and avoid token-limit failures.
+    # Longer clauses are almost always bloated boilerplate; the key terms appear
+    # in the first few hundred chars.
+    MAX_CHUNK_CHARS = 6000
+
     chunks = []
     for i, (heading, body) in enumerate(raw_chunks):
         content = f"{heading}\n{body}".strip()
         if len(content) < 50:   # skip boilerplate/blank chunks
             continue
+
+        if len(content) > MAX_CHUNK_CHARS:
+            logger.debug(
+                f"Chunk {i} truncated {len(content)} → {MAX_CHUNK_CHARS} chars "
+                f"(heading: {heading[:60]})"
+            )
+            content = content[:MAX_CHUNK_CHARS] + "\n[...truncated — clause continues in document...]"
 
         chunks.append(Chunk(
             content=content,

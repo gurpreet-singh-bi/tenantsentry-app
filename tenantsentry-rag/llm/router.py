@@ -11,9 +11,14 @@ Routing logic:
 
 import os
 import json
+import time
 import anthropic
 from loguru import logger
 from dotenv import load_dotenv
+
+# Retry config for Claude API rate limits / overload errors
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY = 5.0  # seconds; doubles each attempt (5, 10, 20)
 
 load_dotenv()
 
@@ -181,21 +186,40 @@ def analyse_clause(
 
     logger.info(f"Analysing clause with {model}")
 
-    response = client.messages.create(
-        model=model,
-        max_tokens=2048,
-        messages=[{"role": "user", "content": user_prompt}],
-        system=system_prompt,
-        timeout=60.0,
-    )
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=2048,
+                messages=[{"role": "user", "content": user_prompt}],
+                system=system_prompt,
+                timeout=60.0,
+            )
+            raw = response.content[0].text.strip()
+            try:
+                result = json.loads(raw)
+                result["_model"] = model   # carry model name into per-clause log
+                return result
+            except json.JSONDecodeError:
+                logger.error(f"LLM returned non-JSON: {raw[:200]}")
+                return {"error": "Failed to parse LLM response", "raw": raw[:500], "_model": model}
+        except Exception as exc:
+            last_exc = exc
+            err_str = str(exc)
+            is_retryable = any(s in err_str for s in ("429", "529", "overloaded", "rate limit", "rate_limit"))
+            if is_retryable and attempt < _MAX_RETRIES - 1:
+                delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                logger.warning(
+                    f"Claude API retryable error (attempt {attempt + 1}/{_MAX_RETRIES}): "
+                    f"{err_str[:120]} — retrying in {delay:.0f}s"
+                )
+                time.sleep(delay)
+            else:
+                break
 
-    raw = response.content[0].text.strip()
-
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        logger.error(f"LLM returned non-JSON: {raw[:200]}")
-        return {"error": "Failed to parse LLM response", "raw": raw}
+    logger.error(f"analyse_clause failed after {_MAX_RETRIES} attempts: {last_exc}")
+    return {"error": f"API error after retries: {last_exc}"}
 
 
 def triage_clauses(
@@ -229,11 +253,27 @@ def triage_clauses(
     )
 
     prompt = (
-        f"You are screening {jurisdiction} commercial lease clauses. "
-        "Identify which clauses need DEEP ANALYSIS because they contain: "
-        "financial risk, tenant liability, rent review, outgoings, make-good, "
-        "personal guarantee, termination rights, options, land tax, assignment, "
-        "demolition, fitout, holdover, indemnity, or any non-standard term.\n\n"
+        f"You are screening {jurisdiction} commercial lease clauses for deep legal analysis.\n\n"
+        "FLAG a clause (include its number) ONLY if it contains ONE OR MORE of these HIGH-VALUE topics:\n"
+        "- Rent amount, rent review, CPI escalation, market review, rent ratchet\n"
+        "- Outgoings, land tax, rates, levies, capital expenditure\n"
+        "- Make-good, reinstatement, fitout obligations\n"
+        "- Personal guarantee, indemnity, liability cap\n"
+        "- Option to renew, option to purchase, holdover/overholding\n"
+        "- Assignment, subletting, change of control\n"
+        "- Termination, default, re-entry rights\n"
+        "- Demolition, redevelopment, relocation\n"
+        "- Exclusivity, permitted use restrictions\n\n"
+        "DO NOT FLAG (these are standard boilerplate, skip them):\n"
+        "- Definitions, interpretation, headings\n"
+        "- Notices and service of documents\n"
+        "- Entire agreement, waiver, severability\n"
+        "- Governing law, jurisdiction\n"
+        "- Counterparts, execution\n"
+        "- General repair and maintenance (standard obligations only)\n"
+        "- Insurance obligations (standard only, no unusual liability)\n"
+        "- Confidentiality (standard)\n\n"
+        "TARGET: Flag roughly 20-35% of clauses. Be selective — most leases have 60-70% boilerplate.\n\n"
         "Return ONLY a JSON array of the clause numbers (integers) that need deep analysis. "
         "Example: [0, 3, 7]\n\n"
         f"CLAUSES:\n{clause_list}\n\n"

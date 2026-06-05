@@ -71,12 +71,14 @@ def _extract_with_pdfplumber(file_path: str) -> list[dict]:
 def _extract_with_pymupdf(file_path: str) -> list[dict]:
     pages = []
     doc = fitz.open(file_path)
-    for i, page in enumerate(doc):
-        text = page.get_text()
-        pages.append({
-            "page_num": i + 1,
-            "text": text,
-            "is_scanned": len(text.strip()) < 50
-        })
-    doc.close()
+    try:
+        for i, page in enumerate(doc):
+            text = page.get_text()
+            pages.append({
+                "page_num": i + 1,
+                "text": text,
+                "is_scanned": len(text.strip()) < 50
+            })
+    finally:
+        doc.close()
     return pages

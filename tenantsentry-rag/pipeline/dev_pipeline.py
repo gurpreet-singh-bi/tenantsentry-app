@@ -321,10 +321,6 @@ def run_dev_audit(
     medium_flags = [f for f in all_flags if f.get("severity") == "medium"]
     risk_score = min(100, len(high_flags) * 20 + len(medium_flags) * 8 + len(all_flags) * 2)
 
-    import os
-    from pathlib import Path
-    filename = Path(pdf_path).name if pdf_path else "sample_lease.pdf"
-    import os
     from pathlib import Path
     filename = Path(pdf_path).name if pdf_path else "sample_lease.pdf"
 

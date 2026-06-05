@@ -180,14 +180,29 @@ def create_job(filename: str, jurisdiction: str, tenant_name: str) -> Job:
 
 
 def get_job(job_id: str) -> Optional[Job]:
+    in_mem = _jobs_fallback.get(job_id)
     if _supabase_ok():
         try:
             row = _store.fetch_job(job_id)
             if row:
-                return Job.from_row(row)
+                db_job = Job.from_row(row)
+                # Trust in-memory over DB when memory shows a more advanced state.
+                # This covers the case where mark_complete timed out writing findings
+                # but the in-memory fallback was already updated to 'complete'.
+                if (
+                    in_mem
+                    and in_mem.status == JobStatus.COMPLETE
+                    and db_job.status == JobStatus.PROCESSING
+                ):
+                    logger.warning(
+                        f"[{job_id}] DB shows 'processing' but memory shows 'complete' "
+                        "— returning in-memory state (mark_complete may have timed out)"
+                    )
+                    return in_mem
+                return db_job
         except Exception as e:
             logger.error(f"[{job_id}] Supabase fetch failed, checking fallback: {e}")
-    return _jobs_fallback.get(job_id)
+    return in_mem
 
 
 def update_job_progress(job_id: str, progress: int, stage: str) -> None:
@@ -236,6 +251,12 @@ def complete_job(job_id: str, result: dict) -> None:
             _store.mark_complete(job_id, findings, stage_timings=stage_timings)
         except Exception as e:
             logger.error(f"[{job_id}] Supabase complete failed: {e}")
+            # Fallback: write status+progress without findings so the DB row
+            # exits 'processing' state and status polls don't show a stale stage.
+            try:
+                _store.mark_complete_minimal(job_id)
+            except Exception as e2:
+                logger.error(f"[{job_id}] Supabase minimal complete also failed: {e2}")
 
 
 def fail_job(job_id: str, error: str) -> None:
