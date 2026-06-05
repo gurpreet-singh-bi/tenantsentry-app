@@ -9,6 +9,9 @@ and into the report generator.
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+_SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 
 
 class RiskFlag(BaseModel):
@@ -48,7 +51,7 @@ class AuditResult(BaseModel):
     tenant_name: str
     jurisdiction: str
     filename: str
-    audit_date: datetime = Field(default_factory=datetime.utcnow)
+    audit_date: datetime = Field(default_factory=lambda: datetime.now(_SYDNEY_TZ))
     total_clauses: int
     risk_score: int             # 0-100
     clause_analyses: list[ClauseAnalysis]

@@ -23,6 +23,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 from enum import Enum
+from zoneinfo import ZoneInfo
+
+_SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 
 from loguru import logger
 
@@ -97,7 +100,7 @@ class Job:
         self.progress = progress
         self.stage = stage
         self.error = error
-        self.created_at = created_at or datetime.now(timezone.utc).isoformat()
+        self.created_at = created_at or datetime.now(_SYDNEY_TZ).isoformat()
         self.completed_at = completed_at
         self.reviewed_by_human = reviewed_by_human
         self.reviewer_notes = reviewer_notes
@@ -225,7 +228,7 @@ def complete_job(job_id: str, result: dict) -> None:
         job.progress = 100
         job.stage = "Complete"
         job.result = result  # keep full result in-memory (same process, no storage cost)
-        job.completed_at = datetime.now(timezone.utc).isoformat()
+        job.completed_at = datetime.now(_SYDNEY_TZ).isoformat()
     if _supabase_ok():
         try:
             stage_timings = result.get("stage_timings") if isinstance(result, dict) else None
@@ -241,7 +244,7 @@ def fail_job(job_id: str, error: str) -> None:
         job.status = JobStatus.FAILED
         job.stage = "Failed"
         job.error = error
-        job.completed_at = datetime.now(timezone.utc).isoformat()
+        job.completed_at = datetime.now(_SYDNEY_TZ).isoformat()
     if _supabase_ok():
         try:
             _store.mark_failed(job_id, error)
@@ -268,7 +271,7 @@ def review_job(job_id: str, notes: Optional[str] = None) -> Optional[Job]:
     if job and job.status == JobStatus.COMPLETE:
         job.reviewed_by_human = True
         job.reviewer_notes = notes or ""
-        job.reviewed_at = datetime.now(timezone.utc).isoformat()
+        job.reviewed_at = datetime.now(_SYDNEY_TZ).isoformat()
     return job
 
 
@@ -288,7 +291,7 @@ def release_job(job_id: str) -> Optional[Job]:
     job = _jobs_fallback.get(job_id)
     if job and job.reviewed_by_human:
         job.released = True
-        job.released_at = datetime.now(timezone.utc).isoformat()
+        job.released_at = datetime.now(_SYDNEY_TZ).isoformat()
     return job
 
 

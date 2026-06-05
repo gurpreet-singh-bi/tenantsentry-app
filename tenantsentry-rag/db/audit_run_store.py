@@ -10,6 +10,9 @@ Called exclusively from api/jobs.py; nothing in main.py touches this directly.
 import os
 from datetime import datetime, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
+
+_SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 
 from loguru import logger
 from dotenv import load_dotenv
@@ -33,7 +36,7 @@ def _get_client():
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(_SYDNEY_TZ).isoformat()
 
 
 # ── Write operations ──────────────────────────────────────────────────────────
