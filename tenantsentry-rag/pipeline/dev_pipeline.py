@@ -344,9 +344,12 @@ def run_dev_audit(
     pdf_path: str,
     jurisdiction: str,
     tenant_name: str = None,
-    job_id: str = None,          # accepted but ignored in mock mode
-    document_hash: str = None,   # accepted but ignored in mock mode
+    job_id: str = None,           # accepted but ignored in mock mode
+    document_hash: str = None,    # accepted but ignored in mock mode
     progress_callback: ProgressCallback = None,
+    additional_docs: list = None, # accepted but ignored in mock mode
+    max_pages: int = None,        # accepted but ignored — mock always uses MOCK_CLAUSES
+    skip_vector_store: bool = False,  # accepted but ignored — mock never calls vector store
 ) -> AuditResult:
     """
     DEV MODE: Returns deterministic audit result for testing.
@@ -383,13 +386,4 @@ def run_dev_audit(
     return AuditResult(
         tenant_name=tenant_name or DEV_FIXTURE_TENANT,
         jurisdiction=jurisdiction or DEV_FIXTURE_JURISDICTION,
-        filename=filename,
-        total_clauses=len(MOCK_CLAUSES),
-        risk_score=risk_score,
-        clause_analyses=MOCK_CLAUSES,
-        all_risk_flags=all_flags,
-    )
-
-
-# Backward-compatibility alias — use run_dev_audit in new code
-run_mock_audit = run_dev_audit
+        filename=

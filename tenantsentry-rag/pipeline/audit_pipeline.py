@@ -29,6 +29,7 @@ from ingestion.pdf_parser import parse_pdf
 from ingestion.chunker import chunk_document
 from llm.router import analyse_clause, triage_clauses
 from output.json_formatter import AuditResult, ClauseAnalysis, LeaseDate
+from utils.cost_tracker import CostAccumulator
 
 ProgressCallback = Optional[Callable[[int, str], None]]
 
@@ -153,6 +154,8 @@ def run_audit(
     document_hash: str = None,
     progress_callback: ProgressCallback = None,
     additional_docs: list[dict] = None,
+    max_pages: int = None,
+    skip_vector_store: bool = False,
 ) -> AuditResult:
     """
     Full audit pipeline for a commercial lease PDF, with optional additional docs.
@@ -172,6 +175,12 @@ def run_audit(
                            Supported doc_types: "outgoings", "invoice", "amendment"
                            Outgoings/invoices run through outgoings_engine after lease analysis.
                            Amendments are noted in warnings (not yet analysed).
+        max_pages:         If set, truncate parsed.pages to the first N pages before
+                           chunking. Used by the free-check flow (max_pages=5) to limit
+                           cost without changing the engine. None = no truncation (full audit).
+        skip_vector_store: If True, skip vector store embedding/upsert even when
+                           USE_VECTOR_STORE=true. Used for anonymous free checks to avoid
+                           polluting the knowledge base with truncated documents.
 
     Returns:
         AuditResult with clause analyses, risk flags, extracted lease dates,
@@ -182,6 +191,7 @@ def run_audit(
     jur = jurisdiction.upper()
     _t0 = time.perf_counter()
     _timings: dict = {}
+    _costs = CostAccumulator()
 
     def _ms(start: float) -> int:
         return int((time.perf_counter() - start) * 1000)
@@ -212,6 +222,15 @@ def run_audit(
         _progress(cb, 20, "Chunking document...")
     _timings["ocr_ms"] = _ms(_t_ocr)
 
+    # 2b. Free-check truncation: limit to first N pages before chunking.
+    # This keeps the real engine intact — only the input is shortened.
+    if max_pages is not None and len(parsed.pages) > max_pages:
+        logger.info(
+            f"[FREE-CHECK] Truncating {len(parsed.pages)} pages → {max_pages} "
+            f"(max_pages={max_pages})"
+        )
+        parsed.pages = parsed.pages[:max_pages]
+
     # 3. Chunk into clauses
     _t_chunk = time.perf_counter()
     _progress(cb, 25, "Identifying lease clauses...")
@@ -232,8 +251,10 @@ def run_audit(
     _timings["chunking_ms"] = _ms(_t_chunk)
 
     # 4. Optional: embed + store (production only)
+    # skip_vector_store=True bypasses this for anonymous free checks — we don't want
+    # truncated, unauthenticated documents polluting the knowledge base.
     _t_embed = time.perf_counter()
-    if USE_VECTOR_STORE:
+    if USE_VECTOR_STORE and not skip_vector_store:
         from vector_store.supabase_store import document_exists, upsert_chunks
 
         # G2: Skip embedding if this exact PDF was already indexed
@@ -331,7 +352,9 @@ def run_audit(
     flagged: set[int] = set()
     for batch_start in range(0, n, TRIAGE_BATCH_SIZE):
         batch = chunks[batch_start: batch_start + TRIAGE_BATCH_SIZE]
-        flagged.update(triage_clauses(batch, batch_start, jur))
+        batch_indices, batch_usage = triage_clauses(batch, batch_start, jur)
+        flagged.update(batch_indices)
+        _costs.add_haiku(batch_usage["input_tokens"], batch_usage["output_tokens"])
 
     _timings["triage_ms"] = int((time.perf_counter() - _t_triage) * 1000)
     logger.info(
@@ -345,6 +368,8 @@ def run_audit(
 
     clause_analyses: list = [None] * n
     _completed_count = 0
+    _sonnet_count = 0
+    _opus_count = 0
     _lock = threading.Lock()
 
     def _analyse_one(idx: int, chunk) -> tuple:
@@ -381,9 +406,13 @@ def run_audit(
         )
         _clause_ms = int((time.perf_counter() - _t_clause) * 1000)
         n_flags = len(analysis.get("risk_flags") or [])
+        _model_used    = analysis.get("_model", "")
+        _input_tokens  = analysis.get("_input_tokens",  0)
+        _output_tokens = analysis.get("_output_tokens", 0)
         logger.info(
             f"[clause:{idx}] DONE '{clause_heading}' | "
-            f"model={analysis.get('_model','?')} flags={n_flags} {_clause_ms}ms"
+            f"model={_model_used} flags={n_flags} {_clause_ms}ms "
+            f"[in={_input_tokens} out={_output_tokens}]"
         )
         return idx, ClauseAnalysis(
             clause_heading=clause_heading,
@@ -395,7 +424,7 @@ def run_audit(
             recommended_action=analysis.get("recommended_action"),
             cpi_index_series=analysis.get("cpi_index_series"),
             error=analysis.get("error"),
-        )
+        ), _model_used, _input_tokens, _output_tokens
 
     # Stubs for unflagged clauses (no LLM cost)
     for idx, chunk in enumerate(chunks):
@@ -417,8 +446,9 @@ def run_audit(
     with ThreadPoolExecutor(max_workers=TRIAGE_WORKERS, thread_name_prefix="ts-clause") as pool:
         future_to_idx = {pool.submit(_analyse_one, idx, chunks[idx]): idx for idx in sorted(flagged)}
         for future in as_completed(future_to_idx):
+            _model_used, _in, _out = "", 0, 0
             try:
-                idx, ca = future.result()
+                idx, ca, _model_used, _in, _out = future.result()
             except Exception as e:
                 idx = future_to_idx[future]
                 ca = ClauseAnalysis(
@@ -432,6 +462,12 @@ def run_audit(
             with _lock:
                 _completed_count += 1
                 done = _completed_count
+                if "opus" in _model_used.lower():
+                    _opus_count += 1
+                    _costs.add_opus(_in, _out)
+                else:
+                    _sonnet_count += 1
+                    _costs.add_sonnet(_in, _out)
             pct = 50 + int((done / max(len(flagged), 1)) * 40)
             _progress(cb, pct, f"Analysed {done} of {len(flagged)} flagged clauses...")
 
@@ -520,53 +556,4 @@ def run_audit(
                 parsed_out = parse_outgoings_pdf(doc_path)
 
                 def _recon_cb(stage: str):
-                    _progress(cb, base_pct + 1, stage)
-
-                recon = run_outgoings_reconciliation(
-                    parsed_outgoings=parsed_out,
-                    doc_filename=doc_filename,
-                    clause_analyses=clause_analyses_dicts,
-                    jurisdiction=jur,
-                    progress_callback=_recon_cb,
-                )
-                reconciliation_results.append(reconciliation_result_to_dict(recon))
-
-            except Exception as e:
-                logger.error(f"Outgoings engine failed for {doc_filename}: {e}")
-                reconciliation_results.append({
-                    "doc_filename": doc_filename,
-                    "doc_type": doc_type,
-                    "engine_status": "failed",
-                    "warnings": [f"Processing failed: {e}. This document was not reconciled."],
-                    "findings": [],
-                    "total_claimed_cents": 0,
-                    "total_disputed_cents": 0,
-                })
-
-    _timings["total_ms"] = _ms(_t0)
-
-    result = AuditResult(
-        tenant_name=tenant_name or "Unknown",
-        jurisdiction=jur,
-        filename=parsed.metadata["filename"],
-        total_clauses=len(clause_analyses),
-        risk_score=risk_score,
-        clause_analyses=clause_analyses,
-        all_risk_flags=all_flags,
-        lease_dates=lease_dates,
-        extracted_rules=extracted_rules,
-        stage_timings=_timings,
-        reconciliation_results=reconciliation_results,
-        pipeline_warnings=pipeline_warnings,
-    )
-
-    logger.info(
-        f"Audit complete — {len(clause_analyses)} clauses, "
-        f"{len(all_flags)} flags ({len(high_flags)} high), "
-        f"risk={risk_score}/100, dates={len(lease_dates)} | "
-        f"recon_docs={len(reconciliation_results)} | "
-        f"triage={_timings.get('triage_ms')}ms "
-        f"analysis={_timings.get('analysis_ms')}ms "
-        f"total={_timings.get('total_ms')}ms"
-    )
-    return result
+      

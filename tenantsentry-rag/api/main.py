@@ -1321,3 +1321,506 @@ async def admin_active_jobs(_: None = Depends(require_admin)):
         "active":        active,
         "recent_failed": recent_failed,
     })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Free Lease Risk Check — public, no auth, no payment
+# Website CTA: tenantsentry-site/free-lease-check.html
+# App route:   /free-check (served as Jinja2 template below)
+#
+# Pipeline strategy: reuses the real audit pipeline (run_dev_audit / run_live_audit)
+# with page truncation (max_pages=5) and skip_vector_store=True.
+# One high-quality engine for all surfaces — no separate lightweight pipeline.
+# Results logged to free_check_run Supabase table (separate from audit_run).
+# ══════════════════════════════════════════════════════════════════════════════
+
+# In-memory store for free-check teaser payloads (keyed by job_id).
+# Full AuditResult is logged to Supabase via free_check_store.
+_free_check_results: dict = {}
+
+FREE_CHECK_MAX_PAGES = 5   # pages fed into the real pipeline per free teaser
+
+
+def _slice_for_teaser(result: dict, doc_type: str, pages_analysed: int = FREE_CHECK_MAX_PAGES) -> dict:
+    """
+    Extract the public teaser payload from a full AuditResult dict.
+    Exposes: risk_score, top 3 flags (sorted by severity), headline stats.
+    Strips clause_analyses and other large fields — never exposed to anonymous users.
+    """
+    all_flags  = result.get("all_risk_flags") or []
+    high_flags = [f for f in all_flags if f.get("severity") == "high"]
+
+    _sev_order = {"high": 0, "medium": 1, "low": 2}
+    top_flags  = sorted(all_flags, key=lambda f: _sev_order.get(f.get("severity", "low"), 2))[:3]
+
+    def _normalise(f: dict) -> dict:
+        """Normalise flag shape — LLM flags may omit title/category vs mock flags."""
+        return {
+            "severity":    f.get("severity", "medium"),
+            "category":    f.get("category") or f.get("clause_type") or "Lease Risk",
+            "title":       f.get("title") or (f.get("description", "")[:80] + "…"
+                           if len(f.get("description", "")) > 80 else f.get("description", "")),
+            "description": f.get("description", ""),
+            "benchmark":   f.get("benchmark"),
+        }
+
+    risk_score = result.get("risk_score", 0)
+    risk_level = "high" if risk_score >= 60 else ("medium" if risk_score >= 35 else "low")
+
+    return {
+        "risk_score":      risk_score,
+        "risk_level":      risk_level,
+        "pages_analysed":  pages_analysed,
+        "clauses_scanned": result.get("raw_clause_count") or result.get("total_clauses"),
+        "total_flags":     len(all_flags),
+        "high_flags":      len(high_flags),
+        "doc_type":        doc_type,
+        "jurisdiction":    result.get("jurisdiction", ""),
+        "top_flags":       [_normalise(f) for f in top_flags],
+        "source":          result.get("source", "live"),
+    }
+
+
+def _score_manual_entry(data: dict) -> dict:
+    """
+    Rule-based risk scoring from manual form fields (no PDF required).
+    Returns the same teaser payload shape as _slice_for_teaser.
+    Runs synchronously — fast, zero I/O.
+
+    data keys (lease): doc_type, jurisdiction, rent, sqm, term, review_type,
+      fixed_pct, outgoings, options, makegood, landtax
+    data keys (hoa):   doc_type, jurisdiction, face_rent, net_rent, sqm, term,
+      rentfree, fitout, review_type, outgoings, options, makegood, guarantee, bond
+    """
+    doc_type     = data.get("doc_type", "lease")
+    is_hoa       = doc_type == "hoa"
+    jurisdiction = data.get("jurisdiction", "").upper()
+    flags: list[dict] = []
+    score = 20  # base — most leases start at moderate risk
+
+    if is_hoa:
+        face    = float(data.get("face_rent") or 0)
+        net     = float(data.get("net_rent")  or 0)
+        review  = data.get("review_type", "")
+        makegood  = data.get("makegood", "")
+        guarantee = data.get("guarantee", "")
+
+        if face and net and face > 0:
+            gap_pct = (face - net) / face * 100
+            if gap_pct > 25:
+                score += 30
+                flags.append({
+                    "severity": "high", "category": "Effective Rent",
+                    "title": f"Face-to-effective rent gap is {gap_pct:.0f}%",
+                    "description": (
+                        f"Face rent ${face:,.0f}/sqm vs net effective ${net:,.0f}/sqm — "
+                        f"a {gap_pct:.0f}% gap. This gap compounds at every review if reviews "
+                        "are applied to face rent."
+                    ),
+                    "benchmark": "📊 A 20%+ gap typically means 8–12% above-market rent by Year 3",
+                })
+            elif gap_pct > 15:
+                score += 15
+                flags.append({
+                    "severity": "medium", "category": "Effective Rent",
+                    "title": f"Moderate face-to-effective rent gap ({gap_pct:.0f}%)",
+                    "description": (
+                        f"A {gap_pct:.0f}% gap between face and net effective rent. Monitor at "
+                        "each review to ensure incentive value isn't eroded."
+                    ),
+                    "benchmark": None,
+                })
+
+        if review in ("ratchet", "market"):
+            score += 25
+            flags.append({
+                "severity": "high", "category": "Rent Review",
+                "title": ("Market review — potential ratchet risk" if review == "market"
+                          else "Ratchet review — rent can only increase"),
+                "description": (
+                    "A market review without an explicit 'no ratchet' clause means rent could be "
+                    "locked to current levels even if market falls. Seek a downward adjustment clause."
+                    if review == "market" else
+                    "Ratchet mechanism means rent can never fall at review, regardless of market."
+                ),
+                "benchmark": "📊 Market review + ratchet adds avg. $18,000–$45,000 over a 5yr term",
+            })
+
+        if makegood == "original":
+            score += 10
+            flags.append({
+                "severity": "medium", "category": "Make-Good",
+                "title": "Make-good to 'original condition' without condition schedule",
+                "description": (
+                    "Without a photographic schedule at commencement, 'original condition' is "
+                    "subjective. This exposes you to costly claims at lease end."
+                ),
+                "benchmark": None,
+            })
+
+        if guarantee == "yes-unlimited":
+            score += 15
+            flags.append({
+                "severity": "high", "category": "Personal Guarantee",
+                "title": "Unlimited personal guarantee — full personal liability",
+                "description": (
+                    "An unlimited personal guarantee means the director is personally liable for "
+                    "all rent and obligations for the full lease term. Cap or remove if possible."
+                ),
+                "benchmark": "📊 Seek to cap at 3–6 months rent or remove entirely for short terms",
+            })
+
+    else:
+        rent      = float(data.get("rent") or 0)
+        sqm       = float(data.get("sqm")  or 0)
+        term      = float(data.get("term") or 0)
+        review    = data.get("review_type", "")
+        outgoings = data.get("outgoings", "")
+        makegood  = data.get("makegood", "")
+        landtax   = data.get("landtax", "")
+        fixed_pct = float(data.get("fixed_pct") or 0)
+
+        if review == "fixed" and fixed_pct and fixed_pct > 4:
+            score += 25
+            flags.append({
+                "severity": "high", "category": "Rent Review",
+                "title": f"Fixed rent review of {fixed_pct:.1f}% — well above CPI",
+                "description": (
+                    f"A fixed {fixed_pct:.1f}% annual rent increase will outpace CPI most years. "
+                    f"Over {int(term)} years this compounds to a significant above-market premium."
+                ),
+                "benchmark": f"📊 At {fixed_pct:.1f}% fixed, rent doubles in ~{72/fixed_pct:.0f} years",
+            })
+        elif review in ("ratchet", "market"):
+            score += 20
+            flags.append({
+                "severity": "high" if review == "ratchet" else "medium",
+                "category": "Rent Review",
+                "title": ("Ratchet review — rent can only increase" if review == "ratchet"
+                          else "Market review — seek explicit no-ratchet protection"),
+                "description": (
+                    "Ratchet mechanism locks rent at the higher of each review — you can never "
+                    "benefit from falling market rents." if review == "ratchet" else
+                    "Market reviews without a 'no ratchet' clause are common traps. "
+                    "Always negotiate a downward adjustment mechanism."
+                ),
+                "benchmark": "📊 Ratchet clauses produce 15–25% above-market rent by Year 3",
+            })
+
+        if outgoings == "net":
+            score += 20
+            flags.append({
+                "severity": "medium", "category": "Outgoings",
+                "title": "Net lease — tenant pays all outgoings",
+                "description": (
+                    "A net lease means you're responsible for all outgoings including rates, land "
+                    "tax, insurance, and repairs. Misclassification of capital items as outgoings "
+                    "is very common and worth auditing carefully."
+                ),
+                "benchmark": "📊 Avg. outgoings overcharge = $6,000–$18,000/year in net leases",
+            })
+
+        if landtax == "full":
+            score += 12
+            flags.append({
+                "severity": "medium", "category": "Land Tax",
+                "title": "Full land tax pass-through without multi-holding cap",
+                "description": (
+                    "Full land tax recovery without a multi-holding discount means you could be "
+                    "paying a proportional share of the landlord's entire portfolio land tax. "
+                    "This is prohibited or capped in most Australian jurisdictions."
+                ),
+                "benchmark": None,
+            })
+
+        if makegood == "original":
+            score += 10
+            flags.append({
+                "severity": "medium", "category": "Make-Good",
+                "title": "Make-good to 'original condition' — no condition schedule",
+                "description": (
+                    "Without an attached schedule of condition at commencement, 'original condition' "
+                    "is open to dispute. This is a common source of costly end-of-lease claims."
+                ),
+                "benchmark": None,
+            })
+
+        if term >= 10 and not data.get("options"):
+            score += 8
+            flags.append({
+                "severity": "low", "category": "Term & Options",
+                "title": f"{int(term)}-year term with no renewal options specified",
+                "description": (
+                    f"A {int(term)}-year lease with no option means no ability to renew on agreed "
+                    "terms — you'd need to renegotiate from scratch. Consider seeking at least one "
+                    "renewal option."
+                ),
+                "benchmark": None,
+            })
+
+    score      = min(score, 98)
+    risk_level = "high" if score >= 60 else ("medium" if score >= 35 else "low")
+    high_count = sum(1 for f in flags if f["severity"] == "high")
+
+    return {
+        "risk_score":      score,
+        "risk_level":      risk_level,
+        "pages_analysed":  None,    # no pages for manual entry
+        "clauses_scanned": None,
+        "total_flags":     len(flags),
+        "high_flags":      high_count,
+        "doc_type":        doc_type,
+        "jurisdiction":    jurisdiction,
+        "top_flags":       flags[:3],
+        "source":          "manual",
+    }
+
+
+@app.get("/free-check", response_class=HTMLResponse)
+async def free_check_page(request: Request):
+    """
+    Free Lease Risk Check page — served from the backend app at /free-check.
+    Uses the same UI as the website version but calls relative API URLs (same-origin).
+    """
+    return templates.TemplateResponse("free_lease_check.html", {"request": request})
+
+
+@app.post("/api/free-check/submit")
+async def free_check_submit(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    jurisdiction: str = Form(...),
+    doc_type: str = Form("lease"),
+):
+    """
+    Submit a PDF for the free risk check.
+    Returns job_id immediately; poll /api/audit/status/{job_id} for progress.
+    On complete, fetch /api/free-check/result/{job_id} for the teaser payload.
+
+    No auth required. No payment required. Max 50 MB.
+    Runs the real audit pipeline truncated to the first 5 pages.
+    """
+    jur = jurisdiction.upper().strip()
+    if jur not in VALID_JURISDICTIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid jurisdiction '{jur}'.")
+
+    doc_type = doc_type.lower().strip()
+    if doc_type not in ("lease", "hoa"):
+        doc_type = "lease"
+
+    if not file.filename.lower().endswith((".pdf", ".docx")):
+        raise HTTPException(status_code=400, detail="Only PDF or DOCX files are accepted.")
+
+    content = await file.read()
+    size_mb = len(content) / (1024 * 1024)
+    if size_mb > MAX_FILE_SIZE_MB:
+        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE_MB} MB limit.")
+
+    job = create_job(
+        filename=file.filename,
+        jurisdiction=jur,
+        tenant_name="Free Check",
+    )
+
+    logger.info(f"[FREE-CHECK] Job {job.job_id} created: {file.filename} | {jur} | {doc_type}")
+
+    background_tasks.add_task(
+        _run_free_check_job,
+        job_id=job.job_id,
+        pdf_bytes=content,
+        filename=file.filename,
+        jurisdiction=jur,
+        doc_type=doc_type,
+    )
+
+    return JSONResponse({"job_id": job.job_id, "status": "queued"})
+
+
+async def _run_free_check_job(
+    job_id: str,
+    pdf_bytes: bytes,
+    filename: str,
+    jurisdiction: str,
+    doc_type: str,
+) -> None:
+    """
+    Async wrapper — runs the real audit pipeline in the bounded thread pool,
+    truncated to FREE_CHECK_MAX_PAGES pages. Logs to free_check_run Supabase table.
+
+    DEV mode: run_dev_audit (deterministic mock, fast).
+    LIVE mode: run_live_audit with max_pages=5, skip_vector_store=True.
+    """
+    loop = asyncio.get_event_loop()
+
+    def _run():
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(pdf_bytes)
+            tmp_path = tmp.name
+        try:
+            cb = lambda pct, stage: update_job_progress(job_id, pct, stage)
+
+            if is_dev():
+                # DEV: deterministic mock — ignores max_pages (always uses MOCK_CLAUSES)
+                result_obj = run_dev_audit(
+                    pdf_path=tmp_path,
+                    jurisdiction=jurisdiction,
+                    tenant_name="Free Check",
+                    job_id=job_id,
+                    progress_callback=cb,
+                )
+            else:
+                # LIVE: real pipeline, first 5 pages only, skip vector store
+                result_obj = run_live_audit(
+                    pdf_path=tmp_path,
+                    jurisdiction=jurisdiction,
+                    tenant_name="Free Check",
+                    job_id=job_id,
+                    max_pages=FREE_CHECK_MAX_PAGES,
+                    skip_vector_store=True,
+                    progress_callback=cb,
+                )
+
+            # Serialise AuditResult → dict for storage and slicing
+            full_result = (
+                result_obj.model_dump(mode="json")
+                if hasattr(result_obj, "model_dump")
+                else (result_obj if isinstance(result_obj, dict) else result_obj.__dict__)
+            )
+            # Stamp source so _slice_for_teaser can report it
+            full_result["source"] = "dev" if is_dev() else "live"
+
+            # Build the teaser payload (what the anonymous user sees)
+            pages_analysed = min(FREE_CHECK_MAX_PAGES, len(pdf_bytes) // 3000 + 1)
+            teaser = _slice_for_teaser(full_result, doc_type, pages_analysed)
+
+            # Cache teaser for the result endpoint
+            _free_check_results[job_id] = teaser
+
+            # Log full run to Supabase (non-fatal)
+            try:
+                from db.free_check_store import log_free_check
+                log_free_check(
+                    job_id=job_id,
+                    filename=filename,
+                    jurisdiction=jurisdiction,
+                    doc_type=doc_type,
+                    teaser=teaser,
+                    full_result=full_result,
+                    pages_analysed=pages_analysed,
+                )
+            except Exception as _store_err:
+                logger.warning(f"[FREE-CHECK][{job_id}] Store logging failed (non-fatal): {_store_err}")
+
+            complete_job(job_id, teaser)
+
+        except Exception as e:
+            logger.exception(f"[FREE-CHECK][{job_id}] Pipeline failed: {e}")
+            fail_job(job_id, str(e))
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    try:
+        await asyncio.wait_for(
+            loop.run_in_executor(_audit_executor, _run),
+            timeout=300,
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"[FREE-CHECK][{job_id}] Timed out after 300s")
+        fail_job(job_id, "Free check timed out")
+    except Exception as e:
+        logger.exception(f"[FREE-CHECK][{job_id}] Executor dispatch failed: {e}")
+        fail_job(job_id, str(e))
+
+
+@app.post("/api/free-check/manual")
+async def free_check_manual(request: Request):
+    """
+    Score a free check from manual form field entry — no PDF required.
+    Synchronous (fast rule-based scoring). Returns the teaser payload directly.
+
+    Body JSON: doc_type, jurisdiction, + lease or HoA fields.
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body.")
+
+    doc_type     = (data.get("doc_type") or "lease").lower().strip()
+    jurisdiction = (data.get("jurisdiction") or "").upper().strip()
+
+    if jurisdiction not in VALID_JURISDICTIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid jurisdiction '{jurisdiction}'.")
+
+    try:
+        result = _score_manual_entry({**data, "doc_type": doc_type, "jurisdiction": jurisdiction})
+    except Exception as e:
+        logger.warning(f"[FREE-CHECK-MANUAL] Scoring failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to score manual entry.")
+
+    # Log manual entry to Supabase (non-fatal — no PDF so full_result is minimal)
+    try:
+        from db.free_check_store import log_free_check
+        log_free_check(
+            job_id=f"manual-{id(result)}",
+            filename="manual-entry",
+            jurisdiction=jurisdiction,
+            doc_type=doc_type,
+            teaser=result,
+            full_result={},
+            pages_analysed=None,
+        )
+    except Exception as _store_err:
+        logger.debug(f"[FREE-CHECK-MANUAL] Store logging failed (non-fatal): {_store_err}")
+
+    return JSONResponse(result)
+
+
+@app.get("/api/free-check/result/{job_id}")
+def free_check_result(job_id: str):
+    """
+    Return the free-check teaser payload for a completed job.
+    Shaped for the scanner→teaser UI: risk_score, top_flags, headline stats.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail=f"Job not complete. Status: {job.status}")
+
+    result = _free_check_results.get(job_id) or get_job_result(job_id) or {}
+    return JSONResponse(result)
+
+
+@app.post("/api/free-check/email")
+async def free_check_email(request: Request):
+    """
+    Capture a lead email after the free check teaser.
+    Updates the free_check_run row in Supabase with the email + lead_captured_at.
+    Returns { ok: true } — never fails visibly to the user.
+    """
+    try:
+        data = await request.json()
+        email  = (data.get("email") or "").strip().lower()
+        job_id = (data.get("job_id") or "").strip()
+        jur    = (data.get("jurisdiction") or "").upper().strip()
+
+        if not email or "@" not in email:
+            raise HTTPException(status_code=400, detail="Valid email required.")
+
+        logger.info(f"[FREE-CHECK-LEAD] email={email} job_id={job_id} jur={jur}")
+
+        try:
+            from db.free_check_store import update_lead
+            update_lead(job_id, email)
+        except Exception as e:
+            logger.warning(f"[FREE-CHECK-LEAD] update_lead failed (non-fatal): {e}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"[FREE-CHECK-EMAIL] Non-fatal error: {e}")
+
+    return JSONResponse({"ok": True})
