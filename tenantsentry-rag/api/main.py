@@ -63,7 +63,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 from api.jobs import (
     create_job, get_job, get_job_result, update_job_progress, complete_job, fail_job, JobStatus,
-    review_job, release_job, list_pending_review, list_reviewed,
+    review_job, release_job, list_pending_review, list_reviewed, list_active, cancel_job,
     store_document, get_document,
     _USE_SUPABASE, _jobs_fallback,
 )
@@ -1039,3 +1039,93 @@ async def admin_get_result(job_id: str, _: None = Depends(require_admin)):
     if job.status != JobStatus.COMPLETE:
         raise HTTPException(status_code=409, detail="Job not complete")
     return JSONResponse(get_job_result(job_id) or {})
+
+
+# ── Kill switch ───────────────────────────────────────────────────────────────
+
+@app.get("/api/admin/active")
+async def admin_active_jobs(_: None = Depends(require_admin)):
+    """
+    List jobs currently queued or processing — polled every 5s by the kill switch panel.
+    Also returns recently failed/cancelled jobs so the auditor can inspect errors.
+    elapsed_seconds is computed server-side to avoid client/server clock skew.
+    """
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+
+    def _with_elapsed(job_dict: dict) -> dict:
+        try:
+            created = datetime.fromisoformat(job_dict["created_at"]).astimezone(timezone.utc) if job_dict.get("created_at") else None
+            job_dict["elapsed_seconds"] = int((now - created).total_seconds()) if created else None
+        except Exception:
+            job_dict["elapsed_seconds"] = None
+        return job_dict
+
+    # Active (queued / processing)
+    active = [_with_elapsed(j.to_dict()) for j in list_active()]
+
+    # Recent failures — last 8 failed/cancelled jobs, for error inspection
+    if _USE_SUPABASE:
+        try:
+            from db.audit_run_store import fetch_recent_failed_brief
+            recent_failed = [_with_elapsed(r) for r in fetch_recent_failed_brief(limit=8)]
+        except Exception as e:
+            logger.error(f"fetch_recent_failed_brief failed: {e}")
+            recent_failed = []
+    else:
+        recent_failed = sorted(
+            [_with_elapsed(j.to_dict()) for j in _jobs_fallback.values()
+             if j.status.value in ("failed", "cancelled")],
+            key=lambda x: x.get("completed_at") or "",
+            reverse=True,
+        )[:8]
+
+    return JSONResponse({"jobs": active, "recent_failed": recent_failed})
+
+
+class CancelJobRequest(BaseModel):
+    action: str = "fail"   # "fail" | "retry" | "delete"
+
+
+@app.post("/api/admin/cancel/{job_id}")
+async def admin_cancel_job(
+    job_id: str,
+    body: CancelJobRequest,
+    _: None = Depends(require_admin),
+):
+    """
+    Kill switch endpoint.
+
+    action="fail"   → Cancel and mark failed. In-flight thread results are discarded.
+    action="retry"  → Cancel current run, reset to queued, re-dispatch if PDF available.
+    action="delete" → Hard delete — removes from DB and memory entirely.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    result = cancel_job(job_id, body.action)
+
+    # For "retry": attempt to re-dispatch the pipeline if we still have the PDF.
+    if body.action == "retry":
+        doc = get_document(job_id)
+        if doc:
+            # Re-dispatch onto the running event loop — same path as the original upload handler.
+            asyncio.ensure_future(
+                _schedule_audit_job(
+                    job_id=job_id,
+                    pdf_bytes=doc["data"],
+                    filename=job.filename,
+                    jurisdiction=job.jurisdiction,
+                    tenant_name=job.tenant_name,
+                    document_hash="",
+                )
+            )
+            result["resubmitted"] = True
+            logger.info(f"[{job_id}] Re-dispatched audit pipeline after retry cancel")
+        else:
+            result["resubmitted"] = False
+            result["message"] = "PDF no longer in memory — please re-upload the lease to retry."
+            logger.warning(f"[{job_id}] Retry requested but PDF not available for re-dispatch")
+
+    return JSONResponse(result)

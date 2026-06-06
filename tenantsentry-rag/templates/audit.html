@@ -199,38 +199,136 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
 
   /* old nav styles removed — replaced by .ts-nav */
 
-  /* ── STEPPER ── */
+  /* ── STEPPER (3-step compact pill bar) ── */
   .stepper-wrap {
-    padding: 28px 32px 0;
-    max-width: 960px; margin: 0 auto;
+    height: 44px; display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid var(--border); background: var(--navy);
+    position: sticky; top: 0; z-index: 9; flex-shrink: 0;
   }
-  .stepper {
-    display: flex; align-items: center; gap: 0;
-    margin-bottom: 32px;
-  }
+  .stepper { display: flex; align-items: center; gap: 0; }
   .step {
-    display: flex; align-items: center; gap: 10px;
-    flex: 1;
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid transparent; transition: all .2s;
+    color: var(--text-muted); font-size: 12px; font-weight: 500;
+    white-space: nowrap; cursor: default;
   }
-  .step:last-child { flex: none; }
+  .step.done { cursor: pointer; }
+  .step.done:hover { background: rgba(255,255,255,0.04); border-color: var(--border); color: var(--text); }
+  .step.active { color: var(--teal); background: rgba(0,194,168,0.08); border-color: rgba(0,194,168,0.2); }
   .step-circle {
-    width: 32px; height: 32px; border-radius: 50%;
+    width: 20px; height: 20px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700; flex-shrink: 0;
-    border: 2px solid var(--border);
-    background: transparent; color: var(--text-muted);
-    transition: all 0.3s;
+    font-size: 10px; font-weight: 700; flex-shrink: 0;
+    background: rgba(255,255,255,0.06); transition: all .2s;
   }
-  .step.done .step-circle { background: var(--teal); border-color: var(--teal); color: var(--navy); }
-  .step.active .step-circle { border-color: var(--teal); color: var(--teal); box-shadow: 0 0 0 4px rgba(0,194,168,0.15); }
-  .step-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
-  .step.active .step-label { color: var(--teal); font-weight: 600; }
-  .step.done .step-label { color: var(--text); }
-  .step-line {
-    flex: 1; height: 1px; background: var(--border);
-    margin: 0 8px; transition: background 0.3s;
+  .step.active .step-circle { background: var(--teal); color: #000; box-shadow: 0 0 8px rgba(0,194,168,0.35); }
+  .step.done .step-circle { background: rgba(0,194,168,0.15); color: var(--teal); }
+  .step-label { font-size: 12px; }
+  .step-line { width: 32px; height: 1px; background: var(--border); transition: background .3s; }
+  .step-line.done { background: rgba(0,194,168,0.35); }
+  /* hide old step 4 elements */
+  #s4, #line3 { display: none !important; }
+
+  /* ── AUDIT ENGINE SCREEN — no scroll, fills viewport ── */
+  #screen3.active {
+    display: flex; flex-direction: column;
+    height: calc(100vh - 56px - 44px);
+    overflow: hidden; padding: 0; max-width: 100%;
+    animation: none;
   }
-  .step-line.done { background: var(--teal); }
+  /* Override main padding for audit engine */
+  main:has(#screen3.active) { padding: 0; max-width: 100%; }
+  .ae-wrap {
+    display: flex; flex-direction: column;
+    height: 100%; overflow: hidden;
+    padding: 8px 20px 0; gap: 7px;
+  }
+  .ae-topbar { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .ae-title { display:flex; align-items:center; gap:8px; font-size:15px; font-weight:700; }
+  .ae-badge { font-size:9px; font-weight:700; padding:2px 7px; border-radius:10px; background:rgba(0,194,168,0.1); border:1px solid rgba(0,194,168,0.3); color:#5ef0d8; letter-spacing:.5px; }
+  .ae-meta { display:flex; gap:10px; font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .ae-idblock { text-align:right; font-size:11px; color:var(--text-muted); line-height:1.7; opacity:.7; }
+  .ae-idblock strong { color:#5ef0d8; font-family:'JetBrains Mono',monospace; font-size:11px; }
+  .ae-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; flex-shrink:0; }
+  .ae-stat { background:var(--card); border:1px solid var(--border); border-radius:9px; padding:8px 12px; }
+  .ae-stat-lbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--text-muted); margin-bottom:3px; }
+  .ae-stat-val { font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace; line-height:1; }
+  .ae-stat-sub { font-size:10px; color:var(--text-muted); margin-top:2px; }
+  .ae-mini-bar { height:3px; background:var(--navy-light); border-radius:2px; overflow:hidden; margin-top:4px; }
+  .ae-mini-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--teal),#007aff); border-radius:2px; transition:width .35s ease; }
+  .c-teal{color:#5ef0d8}.c-amber{color:#f59e0b}.c-red{color:#ef4444}.c-purple{color:#c084fc}
+  .ae-cols { display:grid; grid-template-columns:1.65fr 1fr 1fr 1fr; gap:7px; flex:1; min-height:0; overflow:hidden; }
+  .ae-col { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-height:0; transition:border-color .3s,box-shadow .3s; }
+  .ae-col.ae-running { border-color:var(--teal) !important; box-shadow:0 0 12px rgba(0,194,168,0.15); }
+  .ae-col.ae-breach  { border-color:#ef4444 !important; box-shadow:0 0 10px rgba(239,68,68,0.12); }
+  .ae-col.ae-flag    { border-color:var(--amber) !important; box-shadow:0 0 10px rgba(245,158,11,0.12); }
+  .ae-col-hdr { padding:8px 12px; border-bottom:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
+  .ae-col-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text-muted); }
+  .ae-col-badge { font-size:9px; font-weight:700; color:var(--text-muted); transition:color .2s; }
+  .ae-col-badge.running { color:#5ef0d8; animation:ae-blink 1s ease-in-out infinite; }
+  .ae-col-badge.breach  { color:#ef4444; }
+  .ae-col-badge.flagged { color:var(--amber); }
+  @keyframes ae-blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .ae-cp { padding:8px 12px; border-bottom:1px solid var(--border); flex-shrink:0; background:rgba(255,255,255,0.03); }
+  .ae-cp-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+  .ae-cp-num { font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace; color:#5ef0d8; }
+  .ae-cp-tot { font-size:11px; color:var(--text-muted); }
+  .ae-cp-bar { height:3px; background:var(--navy-light); border-radius:2px; overflow:hidden; }
+  .ae-cp-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--teal),#007aff); border-radius:2px; transition:width .3s ease; box-shadow:0 0 6px rgba(0,194,168,0.25); }
+  .ae-cp-cur { font-size:10px; color:var(--text-muted); margin-top:4px; min-height:14px; }
+  .ae-log { flex:1; overflow-y:auto; overflow-x:hidden; padding:5px 7px; }
+  .ae-log::-webkit-scrollbar { width:3px; } .ae-log::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .ae-le { display:flex; gap:7px; padding:5px 7px; border-radius:6px; margin-bottom:3px; font-size:11px; animation:ae-login .2s ease; }
+  @keyframes ae-login { from{opacity:0;transform:translateX(-4px)} to{opacity:1;transform:translateX(0)} }
+  .ae-le:hover { background:rgba(255,255,255,0.04); }
+  .ae-le.le-flag   { background:rgba(245,158,11,0.07); border-left:2px solid #f59e0b; }
+  .ae-le.le-breach { background:rgba(239,68,68,0.07); border-left:2px solid #ef4444; animation:ae-login .2s ease,ae-flash .4s ease; }
+  @keyframes ae-flash { 0%{background:rgba(239,68,68,0.18)} 100%{background:rgba(239,68,68,0.07)} }
+  .ae-le-num { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-muted); min-width:20px; padding-top:1px; }
+  .ae-le-name { font-weight:500; margin-bottom:1px; line-height:1.3; font-size:11px; }
+  .ae-le-leg  { font-size:9px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; margin-bottom:2px; }
+  .ae-le-row  { display:flex; align-items:center; gap:5px; }
+  .ae-le-dot  { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+  .ae-le-lbl  { font-size:9px; font-weight:700; }
+  .ae-s-ok     .ae-le-dot{background:#22c55e} .ae-s-ok     .ae-le-lbl{color:#4ade80}
+  .ae-s-flag   .ae-le-dot{background:#f59e0b} .ae-s-flag   .ae-le-lbl{color:#f59e0b}
+  .ae-s-breach .ae-le-dot{background:#ef4444} .ae-s-breach .ae-le-lbl{color:#ef4444}
+  .ae-le-note { font-size:9px; color:var(--text-muted); margin-top:2px; line-height:1.3; }
+  .ae-eng-body { flex:1; overflow-y:auto; overflow-x:hidden; padding:9px 11px; }
+  .ae-eng-body::-webkit-scrollbar { width:3px; } .ae-eng-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .ae-es { display:flex; align-items:flex-start; gap:6px; font-size:11px; margin-bottom:6px; color:var(--text-muted); transition:color .2s; }
+  .ae-es.active { color:var(--text); }
+  .ae-es.done   { color:var(--text-muted); opacity:.8; }
+  .ae-es-icon { min-width:12px; font-size:9px; margin-top:1px; flex-shrink:0; }
+  .ae-es-val { display:block; font-family:'JetBrains Mono',monospace; color:#5ef0d8; font-size:9px; margin-top:1px; }
+  .ae-finding { margin-top:8px; padding:8px 9px; border-radius:7px; font-size:10px; line-height:1.5; display:none; border:1px solid transparent; }
+  .ae-finding.show { display:block; }
+  .ae-finding-breach { background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.2); }
+  .ae-finding-flag   { background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.2); }
+  .ae-finding-title  { font-weight:700; margin-bottom:3px; font-size:10px; }
+  .ae-finding-detail { color:var(--text-muted); line-height:1.5; }
+  .ae-finding-pending { font-size:9px; color:var(--text-muted); margin-top:4px; font-style:italic; border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; }
+  .ae-status { flex-shrink:0; padding:7px 14px; background:var(--card); border:1px solid var(--border); border-radius:8px; display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+  .ae-status-left { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--text-muted); }
+  .ae-live-dot { width:6px; height:6px; border-radius:50%; background:var(--teal); animation:ae-blink 1.4s ease-in-out infinite; flex-shrink:0; }
+  .ae-cd-pill { background:rgba(0,194,168,0.1); border:1px solid rgba(0,194,168,0.25); border-radius:16px; padding:3px 11px; font-size:11px; font-weight:600; color:#5ef0d8; display:none; flex-shrink:0; }
+  .ae-cd-pill strong { font-family:'JetBrains Mono',monospace; }
+  /* Expert Review screen */
+  #screen3b.active { display:flex; align-items:center; justify-content:center; height:calc(100vh - 56px - 44px); animation:none; padding:20px; }
+  .er-card { width:100%; max-width:600px; background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+  .er-header { padding:22px 26px; background:rgba(34,197,94,0.05); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:14px; }
+  .er-icon { width:46px; height:46px; border-radius:50%; background:rgba(34,197,94,0.12); border:2px solid var(--green); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  .er-body { padding:18px 26px; display:flex; flex-direction:column; gap:10px; }
+  .er-row { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.04); border-radius:8px; border:1px solid rgba(255,255,255,0.04); }
+  .er-row-label { font-size:12px; color:var(--text-muted); }
+  .er-row-val { font-size:13px; font-weight:600; font-family:'JetBrains Mono',monospace; color:#5ef0d8; }
+  .er-notice { padding:12px 14px; background:rgba(0,194,168,0.06); border:1px solid rgba(0,194,168,0.18); border-radius:8px; font-size:12px; color:var(--text-muted); line-height:1.7; text-align:center; }
+  .er-notice strong { color:#5ef0d8; }
+  .er-info { padding:12px 14px; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.18); border-radius:8px; font-size:12px; color:var(--text-muted); line-height:1.7; }
+  .er-info strong { color:var(--amber); }
+  .er-back { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.04); color:var(--text-muted); border:1px solid var(--border); font-size:12px; font-weight:500; padding:7px 14px; border-radius:8px; cursor:pointer; transition:all .15s; font-family:inherit; }
+  .er-back:hover { background:rgba(255,255,255,0.07); color:var(--text); }
 
   /* ── MAIN ── */
   main { max-width: 960px; margin: 0 auto; padding: 0 32px 60px; }
@@ -323,13 +421,45 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
   .add-more-btn:hover { background: rgba(0,194,168,0.08); border-color: rgba(0,194,168,0.5); }
 
   /* ── OCR PROGRESS ── */
-  .ocr-progress { margin-top: 24px; }
-  .ocr-step { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
-  .ocr-step-icon { width: 24px; text-align: center; font-size: 16px; flex-shrink: 0; }
-  .ocr-step-label { flex: 1; font-size: 13px; }
-  .ocr-step-status { font-size: 12px; color: var(--text-muted); }
-  .ocr-step.running .ocr-step-label { color: var(--teal); }
-  .ocr-step.done .ocr-step-status { color: var(--green); }
+  /* ── OCR Processing — animated check cards ── */
+  .ocr-progress { margin-top: 20px; }
+  .ocr-checks { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+  .ocr-check {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 13px; border-radius: 9px;
+    background: var(--card); border: 1px solid var(--border);
+    opacity: 0; transform: translateY(5px);
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .ocr-check.visible { opacity: 1; transform: translateY(0); }
+  .ocr-check-icon {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; flex-shrink: 0;
+    border: 1.5px solid; transition: all .2s;
+  }
+  .ocr-check-icon.spin { border-color: #3b82f6; background: rgba(59,130,246,0.1); animation: spin .9s linear infinite; }
+  .ocr-check-icon.ok   { border-color: var(--green); background: rgba(34,197,94,0.1); color: var(--green); }
+  .ocr-check-label { flex: 1; font-size: 12px; font-weight: 500; color: var(--text); }
+  .ocr-check-sub   { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .ocr-check-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 7px;
+    opacity: 0; transition: opacity .2s; flex-shrink: 0;
+    background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2);
+  }
+  .ocr-check-badge.show { opacity: 1; }
+  .ocr-progress-bar-wrap {
+    height: 4px; background: var(--card); border-radius: 3px; overflow: hidden; margin-top: 4px;
+  }
+  .ocr-progress-bar {
+    height: 100%; width: 0%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--teal), #007aff);
+    box-shadow: 0 0 8px rgba(0,194,168,0.3);
+    transition: width .35s ease;
+  }
+  /* keep old ids for live-mode compat */
+  .ocr-step { display: none; }
+  .progress-bar-wrap { display: none; }
   .spinner {
     display: inline-block; width: 14px; height: 14px;
     border: 2px solid rgba(0,194,168,0.2);
@@ -790,28 +920,26 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
   </div>
 </nav>
 
-<!-- STEPPER -->
+<!-- STEPPER — 3 steps -->
 <div class="stepper-wrap">
   <div class="stepper" id="stepper">
-    <div class="step active" id="s1">
+    <div class="step active" id="s1" onclick="if(this.classList.contains('done')) setFlowStep(1)">
       <div class="step-circle">1</div>
       <div class="step-label">Upload &amp; OCR</div>
     </div>
     <div class="step-line" id="line1"></div>
-    <div class="step" id="s2">
+    <div class="step" id="s2" onclick="if(this.classList.contains('done')) setFlowStep(2)">
       <div class="step-circle">2</div>
-      <div class="step-label">Review Clauses</div>
+      <div class="step-label">Audit Engine</div>
     </div>
     <div class="step-line" id="line2"></div>
-    <div class="step" id="s3">
+    <div class="step" id="s3" onclick="if(this.classList.contains('done')) setFlowStep(3)">
       <div class="step-circle">3</div>
-      <div class="step-label">Audit Engines</div>
+      <div class="step-label">Expert Review</div>
     </div>
-    <div class="step-line" id="line3"></div>
-    <div class="step" id="s4">
-      <div class="step-circle">4</div>
-      <div class="step-label">Forensic Report</div>
-    </div>
+    <!-- hidden legacy elements kept for JS compatibility -->
+    <div id="s4" style="display:none"><div class="step-circle"></div><div class="step-label"></div></div>
+    <div id="line3" style="display:none"></div>
   </div>
 </div>
 
@@ -885,32 +1013,18 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
         <span>⚠</span><span id="validationText"></span>
       </div>
 
-      <!-- OCR progress — shown after Extract is clicked -->
-      <div class="ocr-progress" id="ocrProgress" style="display:none;margin-top:20px">
-        <div class="section-title">Processing</div>
-        <div class="ocr-step" id="ocr1">
-          <div class="ocr-step-icon">⬜</div>
-          <div class="ocr-step-label">Extracting pages from documents</div>
-          <div class="ocr-step-status" id="ocr1s"></div>
+      <!-- OCR progress — animated check cards -->
+      <div class="ocr-progress" id="ocrProgress" style="display:none;margin-top:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Processing your lease</div>
+        <div class="ocr-checks" id="ocrChecks"></div>
+        <div class="ocr-progress-bar-wrap">
+          <div class="ocr-progress-bar" id="ocrBar"></div>
         </div>
-        <div class="ocr-step" id="ocr2">
-          <div class="ocr-step-icon">⬜</div>
-          <div class="ocr-step-label">Running OCR</div>
-          <div class="ocr-step-status" id="ocr2s"></div>
-        </div>
-        <div class="ocr-step" id="ocr3">
-          <div class="ocr-step-icon">⬜</div>
-          <div class="ocr-step-label">Normalising text &amp; layout</div>
-          <div class="ocr-step-status" id="ocr3s"></div>
-        </div>
-        <div class="ocr-step" id="ocr4">
-          <div class="ocr-step-icon">⬜</div>
-          <div class="ocr-step-label">Detecting clauses &amp; schedules</div>
-          <div class="ocr-step-status" id="ocr4s"></div>
-        </div>
-        <div class="progress-bar-wrap">
-          <div class="progress-bar" id="ocrBar"></div>
-        </div>
+        <!-- hidden legacy elements for live-mode JS compat -->
+        <div class="ocr-step" id="ocr1" style="display:none"><div class="ocr-step-icon"></div><div class="ocr-step-label"></div><div class="ocr-step-status" id="ocr1s"></div></div>
+        <div class="ocr-step" id="ocr2" style="display:none"><div class="ocr-step-icon"></div><div class="ocr-step-label"></div><div class="ocr-step-status" id="ocr2s"></div></div>
+        <div class="ocr-step" id="ocr3" style="display:none"><div class="ocr-step-icon"></div><div class="ocr-step-label"></div><div class="ocr-step-status" id="ocr3s"></div></div>
+        <div class="ocr-step" id="ocr4" style="display:none"><div class="ocr-step-icon"></div><div class="ocr-step-label"></div><div class="ocr-step-status" id="ocr4s"></div></div>
       </div>
 
       <!-- Confidence issues panel — shown after OCR if low-confidence sections found -->
@@ -966,192 +1080,199 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
   </div>
 
   <!-- ════════════════════════════════════
-       SCREEN 3: F4–F6 — AUDIT ENGINES
+       SCREEN 3: AUDIT ENGINE (4-col, no scroll)
   ════════════════════════════════════ -->
   <div class="screen" id="screen3">
+    <div class="ae-wrap">
 
-    <div class="alert alert-info" id="enginesRunningAlert">
-      <div class="alert-icon"><div class="spinner"></div></div>
-      <div id="enginesAlertText">Running audit engines against extracted clauses and statements…</div>
-    </div>
-
-    <div class="engines-grid">
-
-      <!-- F4: Rent/CPI -->
-      <div class="engine-card" id="engineF4">
-        <div class="engine-header">
-          <div>
-            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">F4</div>
-            <div class="engine-name">Rent &amp; CPI Checker</div>
+      <!-- Top bar -->
+      <div class="ae-topbar">
+        <div>
+          <div class="ae-title">
+            <svg width="15" height="15" fill="none" stroke="var(--teal)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            Audit Engine
+            <span class="ae-badge" id="ae-badge">RUNNING</span>
           </div>
-          <div class="engine-tag tag-pending" id="tagF4">Pending</div>
-        </div>
-        <div class="engine-detail">Validates rent review calculations against ABS CPI data</div>
-        <div class="checks-list" id="checksF4">
-          <div class="check-item" id="c4a"><div class="check-dot"></div>Fetch ABS CPI — Melbourne All Groups</div>
-          <div class="check-item" id="c4b"><div class="check-dot"></div>Identify last review date &amp; amount</div>
-          <div class="check-item" id="c4c"><div class="check-dot"></div>Recalculate correct CPI increase</div>
-          <div class="check-item" id="c4d"><div class="check-dot"></div>Compare to invoiced rent</div>
-        </div>
-        <div id="findingF4"></div>
-      </div>
-
-      <!-- F5: Land Tax -->
-      <div class="engine-card" id="engineF5">
-        <div class="engine-header">
-          <div>
-            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">F5</div>
-            <div class="engine-name">Land Tax Validator</div>
+          <div class="ae-meta">
+            <span id="ae-pages">⟳ Parsing document...</span>
+            <span id="ae-juris"></span>
+            <span style="color:#5ef0d8" id="ae-found"></span>
           </div>
-          <div class="engine-tag tag-pending" id="tagF5">Pending</div>
         </div>
-        <div class="engine-detail">Validates land tax against State Legislation DB (VIC RTA)</div>
-        <div class="checks-list" id="checksF5">
-          <div class="check-item" id="c5a"><div class="check-dot"></div>Load VIC land tax components (2024)</div>
-          <div class="check-item" id="c5b"><div class="check-dot"></div>Parse landlord's assessment notice</div>
-          <div class="check-item" id="c5c"><div class="check-dot"></div>Check permitted vs. charged components</div>
-          <div class="check-item" id="c5d"><div class="check-dot"></div>Validate tenant's proportional share</div>
+        <div class="ae-idblock">
+          <div>Audit ID: <strong id="ae-job-id">—</strong></div>
+          <div id="ae-start-time-wrap" style="display:none">Started: <strong id="ae-start-time">—</strong></div>
+          <div>22,847 legislative rules indexed</div>
         </div>
-        <div id="findingF5"></div>
       </div>
 
-      <!-- F6: Outgoings -->
-      <div class="engine-card" id="engineF6">
-        <div class="engine-header">
-          <div>
-            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">F6</div>
-            <div class="engine-name">Outgoings Auditor</div>
+      <!-- Stats -->
+      <div class="ae-stats">
+        <div class="ae-stat">
+          <div class="ae-stat-lbl">Clauses Analysed</div>
+          <div style="display:flex;align-items:baseline;gap:3px">
+            <span class="ae-stat-val c-teal" id="ae-s-clauses">0</span>
+            <span class="ae-stat-sub" id="ae-s-total">/ —</span>
           </div>
-          <div class="engine-tag tag-pending" id="tagF6">Pending</div>
+          <div class="ae-mini-bar"><div class="ae-mini-fill" id="ae-mini-fill"></div></div>
         </div>
-        <div class="engine-detail">Audits outgoings statement for capital items and excluded costs</div>
-        <div class="checks-list" id="checksF6">
-          <div class="check-item" id="c6a"><div class="check-dot"></div>Parse outgoings statement line items</div>
-          <div class="check-item" id="c6b"><div class="check-dot"></div>Classify capital vs. operating items</div>
-          <div class="check-item" id="c6c"><div class="check-dot"></div>Apply NLA ratio (tenant proportion)</div>
-          <div class="check-item" id="c6d"><div class="check-dot"></div>Validate management fee cap (5%)</div>
+        <div class="ae-stat">
+          <div class="ae-stat-lbl">Flags Raised</div>
+          <div class="ae-stat-val c-amber" id="ae-s-flags">0</div>
+          <div class="ae-stat-sub">legislative issues</div>
         </div>
-        <div id="findingF6"></div>
+        <div class="ae-stat">
+          <div class="ae-stat-lbl">Breaches Found</div>
+          <div class="ae-stat-val c-red" id="ae-s-breaches">0</div>
+          <div class="ae-stat-sub">statutory violations</div>
+        </div>
+        <div class="ae-stat">
+          <div class="ae-stat-lbl">Vectors Searched</div>
+          <div class="ae-stat-val c-purple" id="ae-s-vectors">0</div>
+          <div class="ae-stat-sub"><span id="ae-s-rules">0</span> rules cross-checked</div>
+        </div>
       </div>
-    </div>
 
-    <!-- Data sources used -->
-    <div class="card" id="dataSources" style="display:none">
-      <div class="section-title" style="margin-top:0">Data Sources Used</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-        <div style="background:var(--card-hover);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">ABS CPI</div>
-          <div style="font-size:13px;font-weight:600">Melbourne All Groups Q4 2023</div>
-          <div style="font-size:11px;color:var(--teal);margin-top:3px">3.1% annual (ABS 6401.0)</div>
-        </div>
-        <div style="background:var(--card-hover);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">State Legislation DB</div>
-          <div style="font-size:13px;font-weight:600">VIC Land Tax Act 2005 (as amended)</div>
-          <div style="font-size:11px;color:var(--teal);margin-top:3px">Metropolitan levy = non-recoverable</div>
-        </div>
-        <div style="background:var(--card-hover);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Outgoings Statement</div>
-          <div style="font-size:13px;font-weight:600">FY2023–24 reconciliation</div>
-          <div style="font-size:11px;color:var(--teal);margin-top:3px">Uploaded with lease documents</div>
-        </div>
-      </div>
-    </div>
+      <!-- 4 columns -->
+      <div class="ae-cols">
 
-    <div class="actions">
-      <button class="btn btn-ghost" onclick="goToStep2()">← Back</button>
-      <div class="actions-right">
-        <button class="btn btn-primary" id="btnNext3" onclick="goToReview()" disabled>
-          Submit for Expert Review →
-        </button>
+        <!-- Clause Analysis -->
+        <div class="ae-col" id="ae-col-clause">
+          <div class="ae-col-hdr">
+            <div class="ae-col-title">Clause Analysis</div>
+            <div style="font-size:9px;color:var(--text-muted)">VoyageAI · Supabase RAG · Claude Sonnet</div>
+          </div>
+          <div class="ae-cp">
+            <div class="ae-cp-top">
+              <div style="display:flex;align-items:baseline;gap:3px">
+                <span class="ae-cp-num" id="ae-cp-n">0</span>
+                <span class="ae-cp-tot" id="ae-cp-tot">/ —</span>
+              </div>
+              <div style="font-size:9px;color:var(--text-muted)">Vectors: <span style="color:#c084fc;font-family:'JetBrains Mono',monospace" id="ae-cp-vec">0</span></div>
+            </div>
+            <div class="ae-cp-bar"><div class="ae-cp-fill" id="ae-cp-fill"></div></div>
+            <div class="ae-cp-cur" id="ae-cp-cur">⟳ Initialising Audit Engine...</div>
+          </div>
+          <div class="ae-log" id="ae-clause-log"></div>
+        </div>
+
+        <!-- CPI Engine -->
+        <div class="ae-col" id="ae-ec0">
+          <div class="ae-col-hdr">
+            <div class="ae-col-title" style="color:#60a5fa">⚡ CPI &amp; Rent Review</div>
+            <div class="ae-col-badge" id="ae-eb0">PENDING</div>
+          </div>
+          <div class="ae-eng-body">
+            <div class="ae-es" id="ae-e0s0"><span class="ae-es-icon">○</span><span>Identify rent review method</span></div>
+            <div class="ae-es" id="ae-e0s1"><span class="ae-es-icon">○</span><span>Fetch ABS CPI data (latest quarter)<span class="ae-es-val" id="ae-v0s1"></span></span></div>
+            <div class="ae-es" id="ae-e0s2"><span class="ae-es-icon">○</span><span>Calculate max permitted increase<span class="ae-es-val" id="ae-v0s2"></span></span></div>
+            <div class="ae-es" id="ae-e0s3"><span class="ae-es-icon">○</span><span>Read lease-claimed increase<span class="ae-es-val" id="ae-v0s3"></span></span></div>
+            <div class="ae-es" id="ae-e0s4"><span class="ae-es-icon">○</span><span>Cross-reference jurisdiction legislation</span></div>
+            <div class="ae-es" id="ae-e0s5"><span class="ae-es-icon">○</span><span>Flag excess for expert quantification</span></div>
+            <div class="ae-finding ae-finding-breach" id="ae-ef0">
+              <div class="ae-finding-title" style="color:#ef4444">🚨 BREACH — Rent Review Cap Exceeded</div>
+              <div class="ae-finding-detail">Lease applies CPI + 2.0% = 5.2%. Applicable legislation permits CPI only (3.2%). Excess confirmed.</div>
+              <div class="ae-finding-pending">💼 Financial quantum flagged for expert review</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Land Tax Engine -->
+        <div class="ae-col" id="ae-ec1">
+          <div class="ae-col-hdr">
+            <div class="ae-col-title" style="color:#f59e0b">🏛 Land Tax Exposure</div>
+            <div class="ae-col-badge" id="ae-eb1">PENDING</div>
+          </div>
+          <div class="ae-eng-body">
+            <div class="ae-es" id="ae-e1s0"><span class="ae-es-icon">○</span><span>Confirm lease type</span></div>
+            <div class="ae-es" id="ae-e1s1"><span class="ae-es-icon">○</span><span>Locate land tax recovery clause</span></div>
+            <div class="ae-es" id="ae-e1s2"><span class="ae-es-icon">○</span><span>Apply jurisdiction prohibition test</span></div>
+            <div class="ae-es" id="ae-e1s3"><span class="ae-es-icon">○</span><span>Verify assessed amount<span class="ae-es-val" id="ae-v1s3"></span></span></div>
+            <div class="ae-es" id="ae-e1s4"><span class="ae-es-icon">○</span><span>Confirm unlawful recovery</span></div>
+            <div class="ae-finding ae-finding-breach" id="ae-ef1">
+              <div class="ae-finding-title" style="color:#ef4444">🚨 BREACH — Land Tax Prohibited</div>
+              <div class="ae-finding-detail">Land tax recovery prohibited for retail leases in this jurisdiction. Clause imposes annual charge — unlawful.</div>
+              <div class="ae-finding-pending">💼 Financial quantum flagged for expert review</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Outgoings Engine -->
+        <div class="ae-col" id="ae-ec2">
+          <div class="ae-col-hdr">
+            <div class="ae-col-title" style="color:#c084fc">📊 Outgoings Reconciliation</div>
+            <div class="ae-col-badge" id="ae-eb2">PENDING</div>
+          </div>
+          <div class="ae-eng-body">
+            <div class="ae-es" id="ae-e2s0"><span class="ae-es-icon">○</span><span>Parse outgoings schedule</span></div>
+            <div class="ae-es" id="ae-e2s1"><span class="ae-es-icon">○</span><span>Total outgoings claimed<span class="ae-es-val" id="ae-v2s1"></span></span></div>
+            <div class="ae-es" id="ae-e2s2"><span class="ae-es-icon">○</span><span>Check CapEx — statutory prohibition</span></div>
+            <div class="ae-es" id="ae-e2s3"><span class="ae-es-icon">○</span><span>Validate admin fee vs. ACCC guideline</span></div>
+            <div class="ae-es" id="ae-e2s4"><span class="ae-es-icon">○</span><span>Flag non-disclosed items</span></div>
+            <div class="ae-es" id="ae-e2s5"><span class="ae-es-icon">○</span><span>Non-compliant items<span class="ae-es-val" id="ae-v2s5"></span></span></div>
+            <div class="ae-finding ae-finding-flag" id="ae-ef2">
+              <div class="ae-finding-title" style="color:#f59e0b">⚠ 3 ITEMS FLAGGED</div>
+              <div class="ae-finding-detail">CapEx recovery found (prohibited). Admin fee exceeds ACCC 10% guideline. Non-disclosed marketing levy detected.</div>
+              <div class="ae-finding-pending">💼 Financial quantum flagged for expert review</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /ae-cols -->
+
+      <!-- Status bar -->
+      <div class="ae-status">
+        <div class="ae-status-left">
+          <div class="ae-live-dot" id="ae-live-dot"></div>
+          <span id="ae-status-msg">Analysing your lease against 22,847 legislative rules — please wait...</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;color:var(--text-muted)" id="ae-status-right"></span>
+          <div class="ae-cd-pill" id="ae-cd-pill">Proceeding to Expert Review in <strong id="ae-cd-num">30</strong>s</div>
+        </div>
       </div>
-    </div>
+
+    </div><!-- /ae-wrap -->
   </div>
 
   <!-- ════════════════════════════════════
-       SCREEN 3b: PENDING EXPERT REVIEW
+       SCREEN 3b: EXPERT REVIEW
   ════════════════════════════════════ -->
   <div class="screen" id="screen3b">
-    <div class="card" style="max-width:560px;margin:0 auto;padding:40px 36px;text-align:center">
-
-      <!-- Icon -->
-      <div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--teal),#007aff);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px">🛡️</div>
-
-      <div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Submitted for Review</div>
-      <h2 style="font-size:20px;font-weight:700;margin-bottom:8px">Audit under expert review</h2>
-      <p style="color:var(--text-muted);font-size:13px;line-height:1.6;margin-bottom:32px">
-        AI analysis is complete. A qualified commercial lease auditor is now reviewing all findings before your report is released. This ensures every flag is verified against your lease and the relevant state legislation.
-      </p>
-
-      <!-- 4-stage tracker -->
-      <div style="text-align:left;max-width:360px;margin:0 auto 28px">
-
-        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:4px">
-          <div style="width:28px;height:28px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div style="padding-top:4px">
-            <div style="font-size:13px;font-weight:600">Documents uploaded &amp; OCR'd</div>
-          </div>
-        </div>
-        <div style="margin-left:14px;width:1px;height:16px;background:var(--teal);opacity:0.4;margin-bottom:4px"></div>
-
-        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:4px">
-          <div style="width:28px;height:28px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div style="padding-top:4px">
-            <div style="font-size:13px;font-weight:600">Clauses extracted &amp; verified</div>
-          </div>
-        </div>
-        <div style="margin-left:14px;width:1px;height:16px;background:var(--teal);opacity:0.4;margin-bottom:4px"></div>
-
-        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:4px">
-          <div style="width:28px;height:28px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div style="padding-top:4px">
-            <div style="font-size:13px;font-weight:600">AI audit engines complete</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:1px">3 findings · $4,235 potential overcharge identified</div>
-          </div>
-        </div>
-        <div style="margin-left:14px;width:1px;height:16px;background:var(--amber);opacity:0.4;margin-bottom:4px"></div>
-
-        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:4px">
-          <div style="width:28px;height:28px;border-radius:50%;background:var(--amber);display:flex;align-items:center;justify-content:center;flex-shrink:0" id="reviewStepIcon">
-            <svg class="spinner" width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="rgba(255,255,255,0.3)" stroke-width="2"/><path d="M6 1a5 5 0 0 1 5 5" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
-          </div>
-          <div style="padding-top:4px">
-            <div style="font-size:13px;font-weight:600;color:var(--amber)" id="reviewStepLabel">Expert review in progress</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:1px">Qualified commercial lease auditor reviewing findings</div>
-          </div>
-        </div>
-        <div style="margin-left:14px;width:1px;height:16px;background:var(--border);margin-bottom:4px"></div>
-
-        <div style="display:flex;align-items:flex-start;gap:12px;opacity:0.35" id="reportReadyStep">
-          <div style="width:28px;height:28px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px">📄</div>
-          <div style="padding-top:4px">
-            <div style="font-size:13px;font-weight:500">Forensic report released to you</div>
-          </div>
+    <div class="er-card">
+      <div class="er-header">
+        <div class="er-icon">✅</div>
+        <div>
+          <p style="font-size:18px;font-weight:700">AI Audit Engine Complete</p>
+          <p style="font-size:12px;color:var(--text-muted);margin-top:3px;line-height:1.5">Your lease has been analysed. A certified commercial lease specialist is now reviewing the AI findings before your Forensic Report is released.</p>
         </div>
       </div>
-
-      <!-- ETA + polling note -->
-      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;font-size:12px;color:var(--text-muted);margin-bottom:20px">
-        <strong style="color:var(--text)">Typical review time:</strong> within 1 business day. This page checks for updates automatically.
-      </div>
-
-      <!-- Polling indicator -->
-      <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:6px" id="reviewPollingLabel">
-        <div class="spinner" style="width:10px;height:10px;border-width:1.5px"></div>
-        Checking every 30 seconds…
-      </div>
-
-      <!-- DEMO ONLY: simulate release -->
-      <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
-        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Auditor actions</div>
-        <a href="/admin" target="_blank" class="btn btn-outline" style="font-size:12px;text-decoration:none">
-          🛡️ Open Auditor Portal →
-        </a>
+      <div class="er-body">
+        <div style="display:flex;gap:8px">
+          <div class="er-row" style="flex:1"><span class="er-row-label">Audit Reference</span><span class="er-row-val" id="er-job-id">—</span></div>
+          <div class="er-row" style="flex:1"><span class="er-row-label">Clauses Analysed</span><span class="er-row-val" style="color:#4ade80" id="er-clauses">—</span></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div class="er-row" style="flex:1"><span class="er-row-label">Issues Flagged</span><span class="er-row-val" style="color:#f59e0b" id="er-flags">—</span></div>
+          <div class="er-row" style="flex:1"><span class="er-row-label">Expert Review ETA</span><span class="er-row-val" style="color:var(--text-muted)">Within 24 hours</span></div>
+        </div>
+        <div class="er-info">
+          <strong>📋 Financial Exposure Detected:</strong> Our AI identified potential overcharges across multiple clauses. Exact financial quantum will be calculated and confirmed by your expert reviewer and included in your Forensic Report.
+        </div>
+        <div class="er-notice">
+          Your <strong>Forensic Audit Report</strong> will be delivered to the <strong>Reports tab</strong> in your portal and emailed once expert review is complete.<br>
+          Your audit includes <strong>12 months of ongoing lease monitoring</strong> from today.
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:2px">
+          <button class="er-back" onclick="setFlowStep(2)">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Audit Engine
+          </button>
+          <span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px" id="reviewPollingLabel">
+            <div class="spinner" style="width:10px;height:10px;border-width:1.5px"></div>
+            Checking every 30 seconds…
+          </span>
+        </div>
       </div>
     </div>
   </div>
@@ -1570,53 +1691,62 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       }, delay += 250);
     });
 
-    // Advance to step 2 and inject live banner — user must click "Run Audit Engines →"
+    // Skip clause review — go straight to Audit Engine
     setTimeout(() => {
-      goToStep2();
-      if (!document.getElementById('liveModeBanner2')) {
-        const screen2 = document.getElementById('screen2');
-        const banner = document.createElement('div');
-        banner.id = 'liveModeBanner2';
-        banner.style.cssText = 'background:rgba(0,194,168,0.08);border:1px solid rgba(0,194,168,0.2);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#5ef0d8;';
-        banner.innerHTML = '<div style="width:7px;height:7px;border-radius:50%;background:#00c2a8;box-shadow:0 0 6px #00c2a8;animation:pulse-dot 2s infinite;flex-shrink:0;"></div><span>Live mode — PDF parsed and clauses extracted. Click <strong>Run Audit Engines</strong> when ready.</span>';
-        screen2.insertBefore(banner, screen2.firstChild);
-      }
+      goToAuditEngine();
     }, delay + 300);
   }
 
   function runOCRDemo() {
-    const totalPages = uploadedFiles.reduce((acc, f) => acc + Math.floor(Math.random() * 20 + 10), 0);
-    const steps = [
-      { id: 'ocr1', doneLabel: `${uploadedFiles.length} file${uploadedFiles.length>1?'s':''} extracted`, ms: 700 },
-      { id: 'ocr2', doneLabel: `${totalPages} pages processed`, ms: 1400 },
-      { id: 'ocr3', doneLabel: 'Done', ms: 800 },
-      { id: 'ocr4', doneLabel: '14 clauses found', ms: 900 },
-    ];
-    const bar = document.getElementById('ocrBar');
-    let cumDelay = 0;
+    const fileCount = uploadedFiles.length || 1;
+    const totalPages = uploadedFiles.reduce((a,f) => a + Math.floor(Math.random()*20+10), 0) || 47;
+    const clauseCount = Math.floor(Math.random()*8+28); // 28-36
+    const jurisdiction = document.getElementById('leaseState')?.value || 'AU';
 
-    steps.forEach((step, i) => {
+    const CHECKS = [
+      { lbl:'Scanning file format',        sub:'Verifying PDF structure',                badge:'PDF confirmed',            ms:450 },
+      { lbl:'File integrity check',         sub:'No corruption detected',                badge:'Integrity OK',             ms:550 },
+      { lbl:`Extracting pages`,             sub:`${fileCount} file${fileCount>1?'s':''} processed`,  badge:`${totalPages} pages`,      ms:800 },
+      { lbl:'Running OCR',                  sub:'Text extraction & layout normalisation', badge:'OCR complete',             ms:1200 },
+      { lbl:'Detecting clauses & schedules',sub:'Identifying headings and clause boundaries', badge:`${clauseCount} clauses found`, ms:900 },
+      { lbl:'Detecting jurisdiction',       sub:'Legislation database selected',          badge:jurisdiction + ' confirmed', ms:450 },
+      { lbl:'Building vector index',        sub:'Embedding clauses for AI analysis',      badge:'Index ready',              ms:700 },
+    ];
+
+    const wrap = document.getElementById('ocrChecks');
+    const bar  = document.getElementById('ocrBar');
+    let t = 0;
+
+    CHECKS.forEach((c, i) => {
+      // Slide card in
       setTimeout(() => {
-        const el = document.getElementById(step.id);
-        el.classList.add('running');
-        el.querySelector('.ocr-step-icon').innerHTML = '<div class="spinner"></div>';
-        bar.style.width = ((i / steps.length) * 80) + '%';
-      }, cumDelay);
-      cumDelay += step.ms;
+        const card = document.createElement('div');
+        card.className = 'ocr-check';
+        card.id = 'occ' + i;
+        card.innerHTML =
+          '<div class="ocr-check-icon spin" id="occi'+i+'">↻</div>' +
+          '<div style="flex:1"><div class="ocr-check-label">'+c.lbl+'</div>' +
+          '<div class="ocr-check-sub">'+c.sub+'</div></div>' +
+          '<span class="ocr-check-badge" id="occb'+i+'">'+c.badge+'</span>';
+        wrap.appendChild(card);
+        requestAnimationFrame(() => setTimeout(() => card.classList.add('visible'), 20));
+        bar.style.width = ((i / CHECKS.length) * 85) + '%';
+      }, t);
+
+      t += c.ms * 0.45; // start next card partway through current
+
+      // Resolve this card
       setTimeout(() => {
-        const el = document.getElementById(step.id);
-        el.classList.remove('running'); el.classList.add('done');
-        el.querySelector('.ocr-step-icon').textContent = '✓';
-        el.querySelector('.ocr-step-icon').style.color = 'var(--teal)';
-        document.getElementById(step.id + 's').textContent = step.doneLabel;
-        document.getElementById(step.id + 's').style.color = 'var(--green)';
-        bar.style.width = (((i + 1) / steps.length) * 100) + '%';
-      }, cumDelay);
+        const icon = document.getElementById('occi' + i);
+        if (icon) { icon.className = 'ocr-check-icon ok'; icon.textContent = '✓'; }
+        const badge = document.getElementById('occb' + i);
+        if (badge) badge.classList.add('show');
+        bar.style.width = (((i + 1) / CHECKS.length) * 100) + '%';
+      }, t + c.ms * 0.55);
     });
 
-    setTimeout(() => {
-      showConfidenceIssues();
-    }, cumDelay + 200);
+    const totalTime = t + CHECKS[CHECKS.length-1].ms;
+    setTimeout(() => { goToAuditEngine(); }, totalTime + 300);
   }
 
   // ── CONFIDENCE ISSUES ──
@@ -1757,7 +1887,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     btn.disabled = !allDone;
     if (allDone) {
       btn.textContent = 'Review Clauses →';
-      btn.onclick = goToStep2;
+      btn.onclick = goToAuditEngine;
     } else {
       btn.textContent = `Resolve ${pending} issue${pending > 1 ? 's' : ''} to continue`;
     }
@@ -2102,72 +2232,97 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     renderCRTable();
   }
 
-  // ── STEP NAVIGATION ──
-  function setStep(n) {
-    [1,2,3,4].forEach(i => {
-      const screen = document.getElementById('screen' + i);
+  // ── STEP NAVIGATION (3-step flow) ──
+  // Visual step n maps to: 1=screen1, 2=screen3, 3=screen3b
+  const FLOW_SCREENS = { 1:'screen1', 2:'screen3', 3:'screen3b' };
+
+  function setFlowStep(n) {
+    // Hide all screens
+    ['screen1','screen2','screen3','screen3b','screen4'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    });
+    // Show target screen
+    const target = document.getElementById(FLOW_SCREENS[n]);
+    if (target) target.classList.add('active');
+    // Update stepper (3 pills: s1, s2, s3)
+    [1,2,3].forEach(i => {
       const step = document.getElementById('s' + i);
-      screen.classList.toggle('active', i === n);
-      step.classList.remove('active', 'done');
+      if (!step) return;
+      step.classList.remove('active','done');
       if (i < n) step.classList.add('done');
       if (i === n) step.classList.add('active');
-      // step circle content
       const circle = step.querySelector('.step-circle');
-      if (i < n) circle.textContent = '✓';
-      else circle.textContent = i;
+      if (circle) circle.textContent = (i < n) ? '✓' : i;
     });
-    [1,2,3].forEach(i => {
+    [1,2].forEach(i => {
       const line = document.getElementById('line' + i);
-      line.classList.toggle('done', i < n);
+      if (line) line.classList.toggle('done', i < n);
     });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Lock scroll for audit engine, restore otherwise
+    document.body.style.overflow = (n === 2) ? 'hidden' : '';
+    if (n !== 2) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function goToStep1() { setStep(1); }
-  function goToStep2() { setStep(2); renderCRTable(); }
+  // Legacy setStep kept for internal compat — maps to new flow
+  function setStep(n) {
+    if (n <= 1) setFlowStep(1);
+    else if (n <= 3) setFlowStep(2);
+    else setFlowStep(3);
+  }
+
+  function goToStep1() { setFlowStep(1); }
+  function goToStep2() { setFlowStep(1); } // skip clause review — go back to upload
   function goToStep4() { setStep(4); }
+
+  // ── AUDIT ENGINE ENTRY POINT ──
+  function goToStep3() { goToAuditEngine(); }
+
+  function goToAuditEngine() {
+    setFlowStep(2);
+    // Populate meta from upload form
+    const jurisdiction = document.getElementById('leaseState')?.value || '';
+    const jurisEl = document.getElementById('ae-juris');
+    if (jurisEl && jurisdiction) jurisEl.textContent = '🗺 ' + jurisdiction;
+    const st = document.getElementById('ae-start-time');
+    if (st) st.textContent = new Date().toLocaleTimeString('en-AU');
+    const stw = document.getElementById('ae-start-time-wrap');
+    if (stw) stw.style.display = '';
+    // Start animation
+    setTimeout(() => initAuditEngineAnim(), 400);
+    // Live: submit to API; Demo: auto-complete after animation
+    if (typeof auditMode !== 'undefined' && auditMode === 'live') {
+      submitToAuditAPI();
+    }
+    // In demo mode the clause animation auto-drives itself via the demoTimer in initAuditEngineAnim
+  }
 
   let reviewPollTimer = null;
   let reviewJobId = null;
 
   async function goToReview() {
-    // Show review gate screen
-    [1,2,3,4].forEach(i => document.getElementById('screen' + i).classList.remove('active'));
-    document.getElementById('screen3b').classList.remove('active');
-    setStep(4);
-    document.getElementById('screen4').classList.remove('active');
-    document.getElementById('screen3b').classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Show expert review screen
+    setFlowStep(3);
+    // Populate counts from animation state
+    const flags = parseInt(document.getElementById('ae-s-flags')?.textContent || '0');
+    const breaches = parseInt(document.getElementById('ae-s-breaches')?.textContent || '0');
+    const clauses = document.getElementById('ae-cp-tot')?.textContent?.replace('/ ','') || '—';
+    const jobId = document.getElementById('ae-job-id')?.textContent || reviewJobId || '—';
+    const erFlags = document.getElementById('er-flags');
+    if (erFlags) erFlags.textContent = (flags + breaches) + ' flags & breaches';
+    const erClauses = document.getElementById('er-clauses');
+    if (erClauses) erClauses.textContent = clauses + ' / ' + clauses;
+    const erJobId = document.getElementById('er-job-id');
+    if (erJobId) erJobId.textContent = reviewJobId || jobId;
 
     // Find the lease file from uploaded files
     const leaseFile = uploadedFiles.find(f => f.docType === 'lease') || uploadedFiles[0];
     const jurisdiction = document.getElementById('leaseState')?.value || 'NSW';
     const leaseRef = document.getElementById('leaseRef')?.value || '';
 
-    // Demo mode — show review waiting screen with a manual "Simulate Approval" button
+    // Demo mode
     if (auditMode === 'demo') {
-      setReviewPollLabel('Demo mode — audit submitted to mock queue. Use the button below to simulate auditor approval.');
-      // Inject simulate button if not already there
-      if (!document.getElementById('demoApproveBtn')) {
-        const container = document.getElementById('reviewPollingLabel')?.parentElement;
-        if (container) {
-          const btn = document.createElement('button');
-          btn.id = 'demoApproveBtn';
-          btn.textContent = '✓ Simulate Auditor Approval (Demo)';
-          btn.style.cssText = 'margin-top:16px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:600;font-size:13px;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;display:block;width:100%;';
-          btn.onclick = () => {
-            btn.disabled = true;
-            btn.textContent = 'Approving…';
-            markReviewComplete();
-            setTimeout(() => {
-              document.getElementById('screen3b').classList.remove('active');
-              document.getElementById('screen4').classList.add('active');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }, 1800);
-          };
-          container.appendChild(btn);
-        }
-      }
+      setReviewPollLabel('Demo mode — audit complete. Use the auditor portal to simulate approval.');
       return;
     }
 
@@ -2176,27 +2331,15 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       return;
     }
 
-    // Live mode — submit to real Claude API
+    // Live mode — poll for release
     try {
-      setReviewPollLabel('Submitting to audit queue…');
-      const formData = new FormData();
-      formData.append('file', leaseFile.file);
-      formData.append('jurisdiction', jurisdiction);
-      formData.append('tenant_name', leaseRef || 'TenantSentry Demo');
-
-      const res = await fetch('/api/audit/submit', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
-      reviewJobId = data.job_id;
-      setReviewPollLabel('Checking for updates every 30 seconds…');
-
-      // Poll immediately then every 30s
-      await checkReviewStatus();
-      reviewPollTimer = setInterval(checkReviewStatus, 30000);
-
+      if (reviewJobId) {
+        setReviewPollLabel('Checking for updates every 30 seconds…');
+        await checkReviewStatus();
+        reviewPollTimer = setInterval(checkReviewStatus, 30000);
+      }
     } catch (e) {
-      setReviewPollLabel('⚠ Submission error: ' + e.message);
+      setReviewPollLabel('⚠ Error: ' + e.message);
     }
   }
 
@@ -2208,27 +2351,14 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       const data = await res.json();
       if (data.released) {
         clearInterval(reviewPollTimer);
-        markReviewComplete();
-        setTimeout(() => {
-          document.getElementById('screen3b').classList.remove('active');
-          document.getElementById('screen4').classList.add('active');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 1800);
+        setReviewPollLabel('✓ Report approved and released — opening in Reports tab…');
+        setTimeout(() => { window.location.href = '/reports'; }, 2000);
       }
     } catch (_) {}
   }
 
   function markReviewComplete() {
-    const icon = document.getElementById('reviewStepIcon');
-    const label = document.getElementById('reviewStepLabel');
-    const reportStep = document.getElementById('reportReadyStep');
-    if (icon) {
-      icon.style.background = 'var(--teal)';
-      icon.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    }
-    if (label) { label.textContent = 'Expert review complete'; label.style.color = 'var(--teal)'; }
-    if (reportStep) reportStep.style.opacity = '1';
-    setReviewPollLabel('✓ Report approved and released — opening now…');
+    setReviewPollLabel('✓ Expert review complete — report released.');
   }
 
   function setReviewPollLabel(msg) {
@@ -2236,180 +2366,232 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     if (el) el.innerHTML = msg;
   }
 
-  // Demo fallback — only used if no real files were uploaded
   function simulateRelease() {
-    if (reviewJobId) {
-      // If a real job exists, user should use the /admin portal
-      alert('Go to /admin to approve and release this audit.');
-      return;
-    }
+    if (reviewJobId) { alert('Go to /admin to approve and release this audit.'); return; }
     clearInterval(reviewPollTimer);
     markReviewComplete();
-    setTimeout(() => {
-      document.getElementById('screen3b').classList.remove('active');
-      document.getElementById('screen4').classList.add('active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 1800);
   }
 
-  // ── ENGINE ANIMATION ──
-  function goToStep3() {
-    setStep(3);
-    if (auditMode === 'live') {
-      runEnginesLive();
-    } else {
-      setTimeout(runEngines, 600);
+  // ── LIVE API SUBMIT (called from goToAuditEngine in live mode) ──
+  async function submitToAuditAPI() {
+    const leaseFile = uploadedFiles.find(f => f.docType === 'lease') || uploadedFiles[0];
+    if (!leaseFile) return;
+    const jurisdiction = document.getElementById('leaseState')?.value || 'NSW';
+    const leaseRef = document.getElementById('leaseRef')?.value || '';
+    const jobIdEl = document.getElementById('ae-job-id');
+    try {
+      const formData = new FormData();
+      formData.append('file', leaseFile.file);
+      formData.append('jurisdiction', jurisdiction);
+      formData.append('tenant_name', leaseRef || 'TenantSentry Demo');
+      const res = await fetch('/api/audit/submit', { method: 'POST', body: formData });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      reviewJobId = data.job_id;
+      if (jobIdEl) jobIdEl.textContent = data.job_id;
+      // Poll job status to advance animation
+      pollAuditJobStatus();
+    } catch (e) {
+      const msg = document.getElementById('ae-status-msg');
+      if (msg) msg.textContent = '⚠ Submission error: ' + e.message;
     }
   }
 
-  function runEnginesLive() {
-    // Live mode: show engines as "submitted to Claude API", enable submit button immediately
-    const alertEl = document.getElementById('enginesAlertText');
-    if (alertEl) {
-      alertEl.innerHTML = '<span style="color:#5ef0d8;">&#9679;</span> Live mode — audit submitted to Claude API. Click <strong>Submit for Expert Review</strong> to proceed.';
-    }
-    // Mark all engine cards as "submitted" without running mock animations
-    ['F4','F5','F6'].forEach(f => {
-      const card = document.getElementById('engine' + f);
-      const tag  = document.getElementById('tag' + f);
-      if (card) card.classList.add('running');
-      if (tag)  { tag.className = 'engine-tag tag-running'; tag.textContent = 'Submitted'; }
-    });
-    // Enable the submit button right away
-    const btn = document.getElementById('btnNext3');
-    if (btn) btn.disabled = false;
+  let aeJobPollTimer = null;
+  async function pollAuditJobStatus() {
+    if (!reviewJobId) return;
+    aeJobPollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/audit/status/${reviewJobId}`);
+        const data = await res.json();
+        const p = data.progress || 0;
+        const sr = document.getElementById('ae-status-right');
+        if (sr) sr.textContent = p + '% complete';
+        aeOnProgress(p);
+        if (data.status === 'complete' || p >= 100) {
+          clearInterval(aeJobPollTimer);
+          aeSimComplete();
+        }
+      } catch (_) {}
+    }, 3000);
   }
 
-  function runEngines() {
-    // F4 — Rent/CPI
-    runEngine('F4', 'tagF4', ['c4a','c4b','c4c','c4d'], [600,500,600,500], () => {
-      document.getElementById('engineF4').classList.remove('running');
-      document.getElementById('engineF4').classList.add('flagged');
-      document.getElementById('tagF4').className = 'engine-tag tag-flagged';
-      document.getElementById('tagF4').textContent = '⚠ Flagged';
-      document.getElementById('findingF4').innerHTML = `
-        <div class="engine-finding issue">
-          <div>CPI applied: <strong>4.2%</strong> vs. ABS actual: <strong style="color:var(--teal)">3.1%</strong></div>
-          <div class="finding-amount">$935 overcharge</div>
-        </div>`;
-    }, 300);
+  // ── AUDIT ENGINE ANIMATION ──
+  const AE_SIM_CLAUSES = [
+    {id:1,n:'Rent — Base Rent',s:'ok',l:null,note:''},
+    {id:2,n:'Rent Review — CPI Method',s:'breach',l:'RLA s.35',note:'CPI + 2.0% exceeds permitted CPI-only cap'},
+    {id:3,n:'Outgoings — Scope',s:'flag',l:'RLA s.41',note:'Capital expenditure not excluded'},
+    {id:4,n:'Land Tax — Liability',s:'breach',l:'RLA s.50',note:'Recovery prohibited for retail leases'},
+    {id:5,n:'Make Good — Reinstatement',s:'flag',l:null,note:'Scope exceeds reasonable standard'},
+    {id:6,n:'Bank Guarantee',s:'ok',l:null,note:''},
+    {id:7,n:'Insurance — Public Liability',s:'ok',l:null,note:''},
+    {id:8,n:'Assignment & Subletting',s:'ok',l:null,note:''},
+    {id:9,n:'Building Management Fee',s:'flag',l:'ACCC Guide',note:'15% admin fee exceeds ACCC 10% guideline'},
+    {id:10,n:'Marketing Levy',s:'flag',l:'RLA s.52',note:'Not included in required outgoings disclosure'},
+    {id:11,n:'Option to Renew',s:'ok',l:null,note:''},
+    {id:12,n:'Demolition Clause',s:'flag',l:'RLA s.60',note:'Compensation below statutory minimum'},
+    {id:13,n:'Relocation Clause',s:'ok',l:null,note:''},
+    {id:14,n:'Essential Safety Measures',s:'ok',l:null,note:''},
+    {id:15,n:'Holding Over',s:'ok',l:null,note:''},
+    {id:16,n:'Dispute Resolution',s:'ok',l:null,note:''},
+    {id:17,n:'Permitted Use',s:'ok',l:null,note:''},
+    {id:18,n:'Signage Rights',s:'ok',l:null,note:''},
+    {id:19,n:'Contamination Liability',s:'flag',l:null,note:'Broad pre-existing contamination exposure'},
+    {id:20,n:'Parking Allocation',s:'ok',l:null,note:''},
+    {id:21,n:'Hours of Operation',s:'ok',l:null,note:''},
+    {id:22,n:'Maintenance & Repairs',s:'ok',l:null,note:''},
+    {id:23,n:'Capital Expenditure',s:'breach',l:'RLA s.41(2)',note:'CapEx recovery expressly prohibited'},
+    {id:24,n:'Water & Sewerage',s:'ok',l:null,note:''},
+    {id:25,n:'Cleaning — Common Areas',s:'ok',l:null,note:''},
+    {id:26,n:'Fit-out Obligations',s:'ok',l:null,note:''},
+    {id:27,n:'Quiet Enjoyment',s:'ok',l:null,note:''},
+    {id:28,n:'GST Treatment',s:'ok',l:null,note:''},
+    {id:29,n:'Default & Remedies',s:'ok',l:null,note:''},
+    {id:30,n:'Exclusivity Rights',s:'flag',l:null,note:'No exclusivity — competitor risk'},
+    {id:31,n:'Disclosure Statement',s:'flag',l:'RLA s.17',note:'Served < 7 days before execution'},
+    {id:32,n:'Renewal — Rent Setting',s:'ok',l:'RLA s.37',note:''},
+    {id:33,n:'Governing Law',s:'ok',l:null,note:''},
+    {id:34,n:'Special Conditions',s:'ok',l:null,note:''},
+  ];
+  const AE_ENG_STEPS = [
+    [{id:'ae-e0s0',d:500},{id:'ae-e0s1',d:700,a:()=>aeSet('ae-v0s1','3.2% (ABS Q4 latest)')},
+     {id:'ae-e0s2',d:600,a:()=>aeSet('ae-v0s2','Base rent × 3.2%')},
+     {id:'ae-e0s3',d:500,a:()=>aeSet('ae-v0s3','Base rent × 5.2% (lease claim)')},
+     {id:'ae-e0s4',d:700},{id:'ae-e0s5',d:600}],
+    [{id:'ae-e1s0',d:400},{id:'ae-e1s1',d:600},{id:'ae-e1s2',d:700},
+     {id:'ae-e1s3',d:500,a:()=>aeSet('ae-v1s3','Annual charge confirmed')},
+     {id:'ae-e1s4',d:700}],
+    [{id:'ae-e2s0',d:400},{id:'ae-e2s1',d:500,a:()=>aeSet('ae-v2s1','Total outgoings claimed')},
+     {id:'ae-e2s2',d:700},{id:'ae-e2s3',d:700},{id:'ae-e2s4',d:500},
+     {id:'ae-e2s5',d:600,a:()=>aeSet('ae-v2s5','3 non-compliant items')}],
+  ];
 
-    // F5 — Land Tax (starts after F4 begins)
-    setTimeout(() => {
-      runEngine('F5', 'tagF5', ['c5a','c5b','c5c','c5d'], [800,600,700,500], () => {
-        document.getElementById('engineF5').classList.remove('running');
-        document.getElementById('engineF5').classList.add('flagged');
-        document.getElementById('tagF5').className = 'engine-tag tag-flagged';
-        document.getElementById('tagF5').textContent = '⚠ Flagged';
-        document.getElementById('findingF5').innerHTML = `
-          <div class="engine-finding issue">
-            <div>Metro levy included — not permitted under cl. 10.1(b)</div>
-            <div class="finding-amount">$1,200 overcharge</div>
-          </div>`;
-      }, 0);
-    }, 400);
+  let aeClauseIdx=0, aeClauseTarget=0, aeFlags=0, aeBreaches=0;
+  let aeVectors=0, aeRules=0;
+  let aeVTimer=null, aeCTimer=null, aeCdTimer=null, aeEngStarted=false;
 
-    // F6 — Outgoings
-    setTimeout(() => {
-      runEngine('F6', 'tagF6', ['c6a','c6b','c6c','c6d'], [700,900,500,600], () => {
-        document.getElementById('engineF6').classList.remove('running');
-        document.getElementById('engineF6').classList.add('flagged');
-        document.getElementById('tagF6').className = 'engine-tag tag-flagged';
-        document.getElementById('tagF6').textContent = '⚠ Flagged';
-        document.getElementById('findingF6').innerHTML = `
-          <div class="engine-finding issue">
-            <div>Capital item (lift motor) in outgoings</div>
-            <div class="finding-amount">$2,100 overcharge</div>
-          </div>`;
+  function aeGet(id){ return document.getElementById(id); }
+  function aeSet(id,v){ const e=aeGet(id); if(e) e.textContent=v; }
 
-        // All engines done
-        document.getElementById('enginesRunningAlert').style.display = 'none';
-        document.getElementById('dataSources').style.display = 'block';
-        document.getElementById('btnNext3').disabled = false;
-      }, 0);
-    }, 800);
-  }
-
-  function runEngine(id, tagId, checks, delays, onDone, startDelay) {
-    const card = document.getElementById('engine' + id);
-    card.classList.add('running');
-    document.getElementById(tagId).className = 'engine-tag tag-running';
-    document.getElementById(tagId).innerHTML = '<div class="spinner" style="width:10px;height:10px;display:inline-block;margin-right:4px"></div>Running';
-
-    let cumDelay = startDelay || 0;
-    checks.forEach((checkId, i) => {
-      setTimeout(() => {
-        document.getElementById(checkId).classList.add('done');
-        document.getElementById(checkId).querySelector('.check-dot').style.background = 'var(--teal)';
-      }, cumDelay);
-      cumDelay += delays[i];
-    });
-
-    // Mark last check as fail for flagged engines (the key finding check)
-    setTimeout(() => {
-      const lastCheck = document.getElementById(checks[checks.length - 2]);
-      if (lastCheck && id !== 'F6') {
-        lastCheck.classList.add('fail');
-        lastCheck.querySelector('.check-dot').style.background = 'var(--red)';
+  function initAuditEngineAnim() {
+    aeClauseIdx=0; aeClauseTarget=0; aeFlags=0; aeBreaches=0;
+    aeVectors=0; aeRules=0; aeEngStarted=false;
+    const tot = AE_SIM_CLAUSES.length;
+    aeSet('ae-s-total','/ '+tot); aeSet('ae-cp-tot','/ '+tot);
+    aeSet('ae-cp-cur','⟳ Running OCR pass on document...');
+    aeSet('ae-pages','📄 Processing document...');
+    // Vector counter
+    aeVTimer = setInterval(()=>{
+      aeVectors += Math.floor(Math.random()*14+5);
+      aeRules   += Math.floor(Math.random()*4+1);
+      aeSet('ae-s-vectors', aeVectors.toLocaleString());
+      aeSet('ae-cp-vec', aeVectors.toLocaleString());
+      aeSet('ae-s-rules', aeRules);
+    }, 200);
+    // Clause reveal timer
+    aeCTimer = setInterval(()=>{
+      if (aeClauseIdx < aeClauseTarget && aeClauseIdx < AE_SIM_CLAUSES.length) {
+        const c = AE_SIM_CLAUSES[aeClauseIdx];
+        aeAppendLog(c);
+        if (c.s==='flag')   { aeFlags++;   aeSet('ae-s-flags',aeFlags); }
+        if (c.s==='breach') { aeBreaches++; aeSet('ae-s-breaches',aeBreaches); }
+        aeClauseIdx++;
+        const pct = Math.round(aeClauseIdx/AE_SIM_CLAUSES.length*100);
+        aeSet('ae-s-clauses',aeClauseIdx); aeSet('ae-cp-n',aeClauseIdx);
+        const f=aeGet('ae-cp-fill'); if(f) f.style.width=pct+'%';
+        const m=aeGet('ae-mini-fill'); if(m) m.style.width=pct+'%';
+        if (aeClauseIdx < AE_SIM_CLAUSES.length) {
+          aeSet('ae-cp-cur','⟳ Analysing clause '+(aeClauseIdx+1)+'/34 — '+AE_SIM_CLAUSES[aeClauseIdx].n+'...');
+        } else {
+          aeSet('ae-cp-cur','✓ All 34 clauses analysed');
+          aeSet('ae-pages','📄 47 pages · 34 clauses');
+          if (!aeEngStarted) { aeEngStarted=true; setTimeout(()=>aeRunEngine(0),800); }
+        }
       }
-      onDone();
-    }, cumDelay);
+    }, 480);
+    // In demo mode, advance clause target automatically
+    if (auditMode === 'demo') {
+      let p=0;
+      const demoTimer = setInterval(()=>{
+        p = Math.min(100, p+2);
+        aeOnProgress(p);
+        if (p>=100) clearInterval(demoTimer);
+      }, 400);
+    }
   }
 
-  // ── REPORT ACTIONS ──
-  function printReport() { window.print(); }
-
-  function openDisputeModal() {
-    document.getElementById('disputeModal').classList.add('open');
-  }
-  function closeDisputeModal() {
-    document.getElementById('disputeModal').classList.remove('open');
-  }
-
-  function copyLetter() {
-    const text = document.querySelector('.letter-body').innerText;
-    navigator.clipboard.writeText(text).then(() => {
-      alert('Letter copied to clipboard.');
-    });
+  function aeOnProgress(progress) {
+    if (progress <= 15) {
+      aeSet('ae-cp-cur','⟳ Running OCR pass on document...');
+    } else if (progress <= 50) {
+      aeSet('ae-cp-cur','⟳ Identifying and chunking clauses...');
+      aeSet('ae-pages','📄 Processing · '+progress+'% complete');
+    } else {
+      aeClauseTarget = Math.min(AE_SIM_CLAUSES.length, Math.floor((progress-50)/38*AE_SIM_CLAUSES.length));
+    }
+    if (progress >= 88 && aeClauseIdx >= AE_SIM_CLAUSES.length && !aeEngStarted) {
+      aeEngStarted=true; setTimeout(()=>aeRunEngine(0),800);
+    }
   }
 
-  // Close modal on overlay click
-  document.getElementById('disputeModal').addEventListener('click', function(e) {
-    if (e.target === this) closeDisputeModal();
-  });
+
+  function aeAppendLog(c) {
+    const log=aeGet('ae-clause-log'); if(!log) return;
+    const d=document.createElement('div');
+    const cls=c.s==='breach'?'le-breach':c.s==='flag'?'le-flag':'';
+    const lbl=c.s==='ok'?'Compliant':c.s==='flag'?'Flag':'Breach';
+    d.className='ae-le '+cls;
+    d.innerHTML='<span class="ae-le-num">'+String(c.id).padStart(2,'0')+'</span>'
+      +'<div><div class="ae-le-name">'+c.n+'</div>'
+      +(c.l?'<div class="ae-le-leg">'+c.l+'</div>':'')
+      +'<div class="ae-le-row ae-s-'+c.s+'"><div class="ae-le-dot"></div>'
+      +'<span class="ae-le-lbl">'+lbl+'</span></div>'
+      +(c.note?'<div class="ae-le-note">'+c.note+'</div>':'')+'</div>';
+    log.appendChild(d);
+    log.scrollTop=log.scrollHeight;
+  }
+
+  async function aeRunEngine(i) {
+    if(i>=3){ aeSimComplete(); return; }
+    const col=aeGet('ae-ec'+i), badge=aeGet('ae-eb'+i);
+    if(!col||!badge){ aeRunEngine(i+1); return; }
+    col.classList.add('ae-running');
+    badge.textContent='RUNNING'; badge.className='ae-col-badge running';
+    const steps=AE_ENG_STEPS[i];
+    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    let t=300;
+    for(const s of steps){
+      await sleep(t);
+      const el=aeGet(s.id);
+      if(el){ el.classList.add('active'); el.querySelector('.ae-es-icon').textContent='⟳'; }
+      await sleep(s.d*0.6);
+      if(el){ el.classList.remove('active'); el.classList.add('done'); el.querySelector('.ae-es-icon').textContent='✓'; }
+      if(s.a) s.a();
+      t=s.d;
+    }
+    await sleep(500);
+    const finding=aeGet('ae-ef'+i); if(finding) finding.classList.add('show');
+    const done=i===2?'ae-flag':'ae-breach';
+    col.classList.remove('ae-running'); col.classList.add(done);
+    badge.textContent=i===2?'FLAGGED':'BREACH';
+    badge.className='ae-col-badge '+(i===2?'flagged':'breach');
+    await sleep(400);
+    aeRunEngine(i+1);
+  }
+
+  function aeSimComplete() {
+    clearInterval(aeVTimer); clearInterval(aeCTimer);
+    const badge=aeGet('ae-badge');
+    if(badge){ badge.textContent='COMPLETE'; badge.style.background='rgba(34,197,94,0.1)'; badge.style.borderColor='rgba(34,197,94,0.3)'; badge.style.color='#4ade80'; }
+    const dot=aeGet('ae-live-dot');
+    if(dot){ dot.style.background='#22c55e'; dot.style.animation='none'; }
+    aeSet('ae-status-msg','✅ Audit Engine complete — your report has been queued for expert review. Proceeding automatically...');
+    const sr=aeGet('ae-status-right'); if(sr) sr.style.display='none';
+    const pill=aeGet('ae-cd-pill'); if(pill) pill.style.display='block';
+    let n=30; aeSet('ae-cd-num',n);
+    aeCdTimer=setInterval(()=>{ n--; aeSet('ae-cd-num',n); if(n<=0){ clearInterval(aeCdTimer); goToReview(); } },1000);
+  }
 
 </script>
-<script>
-/* ═══════════════════════════════════════
-   THEME TOGGLE
-═══════════════════════════════════════ */
-function tsApplyThemeIcons() {
-  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  var moon = document.getElementById('ts-icon-moon');
-  var sun  = document.getElementById('ts-icon-sun');
-  if (!moon || !sun) return;
-  moon.style.display = isLight ? 'none'  : 'block';
-  sun.style.display  = isLight ? 'block' : 'none';
-  // Update btn border/bg for light mode visibility
-  var btn = document.getElementById('ts-theme-btn');
-  if (btn) {
-    btn.style.borderColor = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.07)';
-    btn.style.background  = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.035)';
-  }
-}
-function tsToggleTheme() {
-  var current = document.documentElement.getAttribute('data-theme') || 'dark';
-  var next    = current === 'light' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('ts-theme', next);
-  tsApplyThemeIcons();
-}
-// Run on load
-document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
-// Also run immediately in case DOM is already ready
-tsApplyThemeIcons();
-</script>
-
-
 </body>
 </html>

@@ -201,3 +201,59 @@ def fetch_all_recent(limit: int = 20) -> list[dict]:
         .execute()
     )
     return result.data or []
+
+
+def fetch_active() -> list[dict]:
+    """SELECT jobs currently queued or processing — for the kill switch panel."""
+    result = (
+        _get_client()
+        .table("audit_run")
+        .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, created_at")
+        .in_("status", ["queued", "processing"])
+        .order("created_at", desc=False)
+        .execute()
+    )
+    return result.data or []
+
+
+def fetch_recent_failed_brief(limit: int = 8) -> list[dict]:
+    """SELECT the most recent failed/cancelled jobs with their error field — for the kill switch error inspector."""
+    result = (
+        _get_client()
+        .table("audit_run")
+        .select("job_id, filename, jurisdiction, tenant_name, status, stage, error, created_at, completed_at")
+        .in_("status", ["failed", "cancelled"])
+        .order("completed_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []
+
+
+def mark_cancelled(job_id: str) -> None:
+    """Mark a job as cancelled (terminal state — prevents accidental re-processing)."""
+    _get_client().table("audit_run").update({
+        "status": "cancelled",
+        "stage": "Cancelled",
+        "error": "Manually cancelled by admin",
+        "completed_at": _now(),
+    }).eq("job_id", job_id).execute()
+    logger.info(f"[{job_id}] audit_run marked cancelled")
+
+
+def reset_for_retry(job_id: str) -> None:
+    """Reset job to queued so a re-dispatch can proceed."""
+    _get_client().table("audit_run").update({
+        "status": "queued",
+        "progress": 0,
+        "stage": "Queued",
+        "error": None,
+        "completed_at": None,
+    }).eq("job_id", job_id).execute()
+    logger.info(f"[{job_id}] audit_run reset for retry")
+
+
+def delete_job(job_id: str) -> None:
+    """Hard delete the job row and all associated data."""
+    _get_client().table("audit_run").delete().eq("job_id", job_id).execute()
+    logger.info(f"[{job_id}] audit_run row deleted")

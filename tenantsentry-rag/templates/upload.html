@@ -231,9 +231,134 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     .filter-btn.active { background:rgba(0,194,168,0.12); border-color:rgba(0,194,168,0.3); color:#5ef0d8; }
     .filter-btn-high.active   { background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.3); color:#f87171; }
     .filter-btn-amber.active  { background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.3); color:#fbbf24; }
+
+    /* ── STEPPER BAR ── */
+    .ts-stepper { height:44px; display:flex; align-items:center; justify-content:center; border-bottom:1px solid rgba(255,255,255,0.06); background:var(--ts-bg0); flex-shrink:0; }
+    .ts-step { display:flex; align-items:center; gap:6px; padding:5px 12px; border-radius:20px; border:1px solid transparent; transition:all .2s; color:var(--ts-text4); font-size:12px; font-weight:500; user-select:none; }
+    .ts-step.done { color:var(--ts-text3); cursor:pointer; }
+    .ts-step.done:hover { background:rgba(255,255,255,0.035); border-color:rgba(255,255,255,0.07); color:var(--ts-text0); }
+    .ts-step.active { color:#5ef0d8; background:rgba(0,194,168,0.08); border-color:rgba(0,194,168,0.2); }
+    .ts-step-num { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; background:rgba(255,255,255,0.06); transition:all .2s; flex-shrink:0; }
+    .ts-step.active .ts-step-num { background:#00c2a8; color:#000; box-shadow:0 0 8px rgba(0,194,168,0.35); }
+    .ts-step.done .ts-step-num { background:rgba(0,194,168,0.15); color:#5ef0d8; }
+    .ts-step-conn { width:32px; height:1px; background:var(--ts-border-s); }
+    .ts-step-conn.done { background:rgba(0,194,168,0.35); }
+    html[data-theme="light"] .ts-step.done { color:#5a7394; }
+    html[data-theme="light"] .ts-step.active { color:#009e88; background:rgba(0,194,168,0.08); border-color:rgba(0,194,168,0.25); }
+    html[data-theme="light"] .ts-step.active .ts-step-num { background:#00c2a8; color:#fff; }
+
+    /* ── UPLOAD CHECKS ── */
+    .up-check { display:flex; align-items:center; gap:9px; padding:8px 12px; border-radius:8px; background:var(--ts-bg1); border:1px solid rgba(255,255,255,0.07); opacity:0; transform:translateY(4px); transition:opacity .2s, transform .2s; }
+    .up-check.visible { opacity:1; transform:translateY(0); }
+    html[data-theme="light"] .up-check { background:#fff; border-color:rgba(0,0,0,0.08); }
+    .up-check-icon { width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; flex-shrink:0; border:1.5px solid; transition:all .2s; }
+    .up-check-icon.spin { border-color:#3b82f6; background:rgba(59,130,246,0.1); animation:spin .9s linear infinite; }
+    .up-check-icon.ok   { border-color:#22c55e; background:rgba(34,197,94,0.1); color:#4ade80; }
+    .up-check-icon.info { border-color:#3b82f6; background:rgba(59,130,246,0.1); color:#60a5fa; }
+    .up-check-badge { font-size:10px; font-weight:700; padding:2px 7px; border-radius:8px; opacity:0; transition:.2s; flex-shrink:0; }
+    .up-check-badge.show { opacity:1; }
+    .up-check-badge.ok   { background:rgba(34,197,94,0.12); color:#4ade80; border:1px solid rgba(34,197,94,0.2); }
+    .up-check-badge.info { background:rgba(59,130,246,0.12); color:#60a5fa; border:1px solid rgba(59,130,246,0.2); }
+
+    /* ── AUDIT ENGINE — 4-COL NO-SCROLL ── */
+    .ae-wrap { height:calc(100vh - 100px); display:flex; flex-direction:column; padding:8px 20px 0; gap:7px; overflow:hidden; }
+    .ae-topbar { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .ae-title { display:flex; align-items:center; gap:8px; font-size:15px; font-weight:700; color:var(--ts-text0); }
+    .ae-badge { font-size:9px; font-weight:700; padding:2px 7px; border-radius:10px; background:rgba(0,194,168,0.1); border:1px solid rgba(0,194,168,0.3); color:#5ef0d8; letter-spacing:.5px; }
+    .ae-meta { display:flex; gap:10px; font-size:11px; color:var(--ts-text2); margin-top:2px; }
+    .ae-idblock { text-align:right; font-size:11px; color:var(--ts-text4); line-height:1.7; }
+    .ae-idblock strong { color:#5ef0d8; font-family:'JetBrains Mono',monospace; font-size:11px; }
+    .ae-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; flex-shrink:0; }
+    .ae-stat { background:var(--ts-bg1); border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:8px 12px; }
+    html[data-theme="light"] .ae-stat { background:#fff; border-color:rgba(0,0,0,0.08); }
+    .ae-stat-lbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--ts-text2); margin-bottom:3px; }
+    .ae-stat-val { font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace; line-height:1; }
+    .ae-stat-sub { font-size:10px; color:var(--ts-text4); margin-top:2px; }
+    .ae-mini-bar { height:3px; background:var(--ts-bg2); border-radius:2px; overflow:hidden; margin-top:4px; }
+    .ae-mini-fill { height:100%; width:0%; background:linear-gradient(90deg,#00c2a8,#009e88); border-radius:2px; transition:width .35s ease; }
+    .c-teal{color:#5ef0d8}.c-amber{color:#fbbf24}.c-red{color:#f87171}.c-purple{color:#c084fc}
+    .ae-cols { display:grid; grid-template-columns:1.65fr 1fr 1fr 1fr; gap:7px; flex:1; min-height:0; overflow:hidden; }
+    .ae-col { background:var(--ts-bg1); border:1px solid rgba(255,255,255,0.07); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-height:0; transition:border-color .3s, box-shadow .3s; }
+    html[data-theme="light"] .ae-col { background:#fff; border-color:rgba(0,0,0,0.08); }
+    .ae-col.ae-running { border-color:#00c2a8 !important; box-shadow:0 0 12px rgba(0,194,168,0.15); }
+    .ae-col.ae-breach  { border-color:#f87171 !important; box-shadow:0 0 10px rgba(239,68,68,0.12); }
+    .ae-col.ae-flag    { border-color:#fbbf24 !important; box-shadow:0 0 10px rgba(245,158,11,0.12); }
+    .ae-col-hdr { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.07); flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
+    html[data-theme="light"] .ae-col-hdr { border-color:rgba(0,0,0,0.07); }
+    .ae-col-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--ts-text2); }
+    .ae-col-badge { font-size:9px; font-weight:700; color:var(--ts-text4); transition:color .2s; }
+    .ae-col-badge.running { color:#5ef0d8; animation:ts-blink 1s ease-in-out infinite; }
+    .ae-col-badge.breach  { color:#f87171; }
+    .ae-col-badge.flagged { color:#fbbf24; }
+    @keyframes ts-blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .ae-cp { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.07); flex-shrink:0; background:var(--ts-bg1i); }
+    html[data-theme="light"] .ae-cp { background:#f4f7fa; border-color:rgba(0,0,0,0.07); }
+    .ae-cp-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+    .ae-cp-num { font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace; color:#5ef0d8; }
+    .ae-cp-tot { font-size:11px; color:var(--ts-text4); }
+    .ae-cp-bar { height:3px; background:var(--ts-bg2); border-radius:2px; overflow:hidden; }
+    .ae-cp-fill { height:100%; width:0%; background:linear-gradient(90deg,#00c2a8,#009e88); border-radius:2px; transition:width .3s ease; box-shadow:0 0 6px rgba(0,194,168,0.25); }
+    .ae-cp-cur { font-size:10px; color:var(--ts-text2); margin-top:4px; min-height:14px; }
+    .ae-log { flex:1; overflow-y:auto; overflow-x:hidden; padding:5px 7px; }
+    .ae-log::-webkit-scrollbar { width:3px; } .ae-log::-webkit-scrollbar-thumb { background:var(--ts-border-s); border-radius:2px; }
+    .ae-le { display:flex; gap:7px; padding:5px 7px; border-radius:6px; margin-bottom:3px; font-size:11px; animation:ts-loginanim .2s ease; transition:background .1s; }
+    @keyframes ts-loginanim { from{opacity:0;transform:translateX(-4px)} to{opacity:1;transform:translateX(0)} }
+    .ae-le:hover { background:var(--ts-raised); }
+    .ae-le.le-flag   { background:rgba(245,158,11,0.07); border-left:2px solid #f59e0b; }
+    .ae-le.le-breach { background:rgba(239,68,68,0.07); border-left:2px solid #ef4444; animation:ts-loginanim .2s ease, ts-flashbg .4s ease; }
+    @keyframes ts-flashbg { 0%{background:rgba(239,68,68,0.18)} 100%{background:rgba(239,68,68,0.07)} }
+    .ae-le-num { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--ts-text4); min-width:20px; padding-top:1px; }
+    .ae-le-name { font-weight:500; color:var(--ts-text0); margin-bottom:1px; line-height:1.3; font-size:11px; }
+    .ae-le-leg  { font-size:9px; color:var(--ts-text4); font-family:'JetBrains Mono',monospace; margin-bottom:2px; }
+    .ae-le-row  { display:flex; align-items:center; gap:5px; }
+    .ae-le-dot  { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+    .ae-le-lbl  { font-size:9px; font-weight:700; }
+    .ae-s-ok     .ae-le-dot{background:#22c55e} .ae-s-ok     .ae-le-lbl{color:#4ade80}
+    .ae-s-flag   .ae-le-dot{background:#f59e0b} .ae-s-flag   .ae-le-lbl{color:#fbbf24}
+    .ae-s-breach .ae-le-dot{background:#ef4444} .ae-s-breach .ae-le-lbl{color:#f87171}
+    .ae-le-note { font-size:9px; color:var(--ts-text2); margin-top:2px; line-height:1.3; }
+    .ae-eng-body { flex:1; overflow-y:auto; overflow-x:hidden; padding:9px 11px; }
+    .ae-eng-body::-webkit-scrollbar { width:3px; } .ae-eng-body::-webkit-scrollbar-thumb { background:var(--ts-border-s); border-radius:2px; }
+    .ae-es { display:flex; align-items:flex-start; gap:6px; font-size:11px; margin-bottom:6px; color:var(--ts-text4); transition:color .2s; }
+    .ae-es.active { color:var(--ts-text0); }
+    .ae-es.done   { color:var(--ts-text2); }
+    .ae-es-icon { min-width:12px; font-size:9px; margin-top:1px; flex-shrink:0; }
+    .ae-es-val { display:block; font-family:'JetBrains Mono',monospace; color:#5ef0d8; font-size:9px; margin-top:1px; }
+    .ae-finding { margin-top:8px; padding:8px 9px; border-radius:7px; font-size:10px; line-height:1.5; display:none; border:1px solid transparent; }
+    .ae-finding.show { display:block; }
+    .ae-finding-breach { background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.2); }
+    .ae-finding-flag   { background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.2); }
+    .ae-finding-title  { font-weight:700; margin-bottom:3px; font-size:10px; }
+    .ae-finding-detail { color:var(--ts-text2); line-height:1.5; }
+    .ae-finding-pending { font-size:9px; color:var(--ts-text4); margin-top:4px; font-style:italic; border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; }
+    .ae-status { flex-shrink:0; padding:7px 14px; background:var(--ts-bg1); border:1px solid rgba(255,255,255,0.07); border-radius:8px; display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+    html[data-theme="light"] .ae-status { background:#fff; border-color:rgba(0,0,0,0.08); }
+    .ae-status-left { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--ts-text2); }
+    .ae-live-dot { width:6px; height:6px; border-radius:50%; background:#00c2a8; animation:ts-blink 1.4s ease-in-out infinite; flex-shrink:0; }
+    .ae-cd-pill { background:rgba(0,194,168,0.1); border:1px solid rgba(0,194,168,0.25); border-radius:16px; padding:3px 11px; font-size:11px; font-weight:600; color:#5ef0d8; display:none; flex-shrink:0; }
+    .ae-cd-pill strong { font-family:'JetBrains Mono',monospace; }
+
+    /* ── EXPERT REVIEW ── */
+    .er-card { width:100%; max-width:600px; background:var(--ts-bg1); border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden; }
+    html[data-theme="light"] .er-card { background:#fff; border-color:rgba(0,0,0,0.08); }
+    .er-header { padding:22px 26px; background:linear-gradient(135deg,rgba(34,197,94,0.07),rgba(0,194,168,0.04)); border-bottom:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; gap:14px; }
+    html[data-theme="light"] .er-header { background:linear-gradient(135deg,rgba(34,197,94,0.05),rgba(0,194,168,0.03)); border-color:rgba(0,0,0,0.07); }
+    .er-icon { width:46px; height:46px; border-radius:50%; background:rgba(34,197,94,0.12); border:2px solid #22c55e; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+    .er-body { padding:18px 26px; display:flex; flex-direction:column; gap:10px; }
+    .er-row { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--ts-bg1i); border-radius:8px; border:1px solid rgba(255,255,255,0.04); }
+    html[data-theme="light"] .er-row { background:#f4f7fa; border-color:rgba(0,0,0,0.06); }
+    .er-row-label { font-size:12px; color:var(--ts-text2); }
+    .er-row-val { font-size:13px; font-weight:600; font-family:'JetBrains Mono',monospace; color:#5ef0d8; }
+    .er-notice { padding:12px 14px; background:rgba(0,194,168,0.06); border:1px solid rgba(0,194,168,0.18); border-radius:8px; font-size:12px; color:var(--ts-text2); line-height:1.7; text-align:center; }
+    .er-notice strong { color:#5ef0d8; }
+    .er-info { padding:12px 14px; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.18); border-radius:8px; font-size:12px; color:var(--ts-text2); line-height:1.7; }
+    .er-info strong { color:#fbbf24; }
+    .er-back { display:inline-flex; align-items:center; gap:6px; background:var(--ts-bg1i); color:var(--ts-text2); border:1px solid var(--ts-border-def); font-size:12px; font-weight:500; padding:7px 14px; border-radius:8px; cursor:pointer; transition:all .15s; }
+    .er-back:hover { background:var(--ts-bg2); color:var(--ts-text0); }
+    html[data-theme="light"] .er-back { background:#f4f7fa; border-color:rgba(0,0,0,0.12); }
   </style>
 </head>
-<body class="min-h-screen" x-data="app()" x-init="init()">
+<body class="min-h-screen" x-data="app()" x-init="init()" :class="{'overflow-hidden !h-screen': view === 'processing'}">
 
   <!-- ═══════════════════════════════════════════
        NAV — persistent, matches dashboard
@@ -284,6 +409,35 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       </div>
     </div>
   </nav>
+
+  <!-- ═══════════════════════════════════════════
+       STEPPER (Upload / Audit Engine / Expert Review)
+  ════════════════════════════════════════════ -->
+  <div class="ts-stepper" x-show="view === 'upload' || view === 'processing' || view === 'review'" x-cloak>
+    <!-- Step 1 -->
+    <div class="ts-step"
+         :class="view==='upload' ? 'active' : 'done'"
+         @click="view!=='upload' && auditMaxStep>=1 && navToStep('upload')"
+         :style="view!=='upload' && auditMaxStep>=1 ? 'cursor:pointer' : ''">
+      <div class="ts-step-num" x-text="view==='upload' ? '1' : '✓'"></div>
+      <span>Upload &amp; OCR</span>
+    </div>
+    <div class="ts-step-conn" :class="view!=='upload' ? 'done' : ''"></div>
+    <!-- Step 2 -->
+    <div class="ts-step"
+         :class="view==='processing' ? 'active' : (view==='review' ? 'done' : '')"
+         @click="view==='review' && navToStep('processing')"
+         :style="view==='review' ? 'cursor:pointer' : ''">
+      <div class="ts-step-num" x-text="view==='review' ? '✓' : '2'"></div>
+      <span>Audit Engine</span>
+    </div>
+    <div class="ts-step-conn" :class="view==='review' ? 'done' : ''"></div>
+    <!-- Step 3 -->
+    <div class="ts-step" :class="view==='review' ? 'active' : ''">
+      <div class="ts-step-num">3</div>
+      <span>Expert Review</span>
+    </div>
+  </div>
 
   <!-- ═══════════════════════════════════════════
        VIEW: UPLOAD
@@ -381,8 +535,22 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       </form>
     </div>
 
+    <!-- Sequential upload checks (shown after submit) -->
+    <div x-show="showUploadChecks" x-cloak class="mt-4 flex flex-col gap-2" id="upload-checks-wrap"></div>
+
+    <!-- Upload progress bar (shown during actual upload) -->
+    <div x-show="showUploadProgress" x-cloak class="mt-3 rounded-lg p-3" style="background:var(--ts-bg1);border:1px solid rgba(255,255,255,0.07);">
+      <div class="flex justify-between text-xs mb-2" style="color:var(--ts-text2);">
+        <span>🔒 Encrypting &amp; uploading securely</span>
+        <span x-text="uploadPct + '%'"></span>
+      </div>
+      <div class="rounded-full overflow-hidden" style="height:4px;background:var(--ts-bg2);">
+        <div class="h-full rounded-full" style="background:linear-gradient(90deg,#00c2a8,#009e88);box-shadow:0 0 8px rgba(0,194,168,0.3);transition:width .08s linear;" :style="`width:${uploadPct}%`"></div>
+      </div>
+    </div>
+
     <!-- Trust signals -->
-    <div class="mt-6 flex items-center justify-center gap-6 text-xs" style="color:var(--ts-text4);">
+    <div class="mt-6 flex items-center justify-center gap-6 text-xs" style="color:var(--ts-text4);" x-show="!showUploadChecks">
       <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>Secure upload</span>
       <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>AU legislation grounded</span>
       <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Results in 2–5 minutes</span>
@@ -390,119 +558,205 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
   </div>
 
   <!-- ═══════════════════════════════════════════
-       VIEW: PROCESSING
+       VIEW: AUDIT ENGINE (replaces processing)
   ════════════════════════════════════════════ -->
-  <div x-show="view === 'processing'" x-cloak class="max-w-lg mx-auto px-4 py-20 text-center">
-    <div class="dk-card p-10">
-      <!-- Animated icon -->
-      <div class="w-16 h-16 mx-auto mb-6 relative">
-        <div class="absolute inset-0 rounded-2xl animate-pulse" style="background:rgba(0,194,168,0.15);"></div>
-        <div class="relative w-16 h-16 rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#00c2a8,#009e88);">
-          <svg class="w-8 h-8 text-white spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+  <div x-show="view === 'processing'" x-cloak class="ae-wrap">
+
+    <!-- Top bar -->
+    <div class="ae-topbar">
+      <div>
+        <div class="ae-title">
+          <svg width="15" height="15" fill="none" stroke="#00c2a8" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Audit Engine
+          <span class="ae-badge" id="ae-badge">RUNNING</span>
+        </div>
+        <div class="ae-meta">
+          <span id="ae-pages">⟳ Parsing document...</span>
+          <span id="ae-juris" x-text="jurisdiction ? '🗺 ' + jurisdiction : ''"></span>
+          <span style="color:#5ef0d8" id="ae-clauses-found"></span>
+        </div>
+      </div>
+      <div class="ae-idblock">
+        <div>Audit ID: <strong x-text="'TS-' + (jobId || '—')"></strong></div>
+        <div>Started: <strong id="ae-start-time">—</strong></div>
+        <div style="color:var(--ts-text4)">22,847 legislative rules indexed</div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="ae-stats">
+      <div class="ae-stat">
+        <div class="ae-stat-lbl">Clauses Analysed</div>
+        <div style="display:flex;align-items:baseline;gap:3px">
+          <span class="ae-stat-val c-teal" id="ae-s-clauses">0</span>
+          <span class="ae-stat-sub" id="ae-s-total">/ —</span>
+        </div>
+        <div class="ae-mini-bar"><div class="ae-mini-fill" id="ae-mini-fill"></div></div>
+      </div>
+      <div class="ae-stat">
+        <div class="ae-stat-lbl">Flags Raised</div>
+        <div class="ae-stat-val c-amber" id="ae-s-flags">0</div>
+        <div class="ae-stat-sub">legislative issues</div>
+      </div>
+      <div class="ae-stat">
+        <div class="ae-stat-lbl">Breaches Found</div>
+        <div class="ae-stat-val c-red" id="ae-s-breaches">0</div>
+        <div class="ae-stat-sub">statutory violations</div>
+      </div>
+      <div class="ae-stat">
+        <div class="ae-stat-lbl">Vectors Searched</div>
+        <div class="ae-stat-val c-purple" id="ae-s-vectors">0</div>
+        <div class="ae-stat-sub"><span id="ae-s-rules">0</span> rules cross-checked</div>
+      </div>
+    </div>
+
+    <!-- 4 columns -->
+    <div class="ae-cols">
+
+      <!-- Clause Analysis -->
+      <div class="ae-col" id="ae-col-clause">
+        <div class="ae-col-hdr">
+          <div class="ae-col-title">Clause Analysis</div>
+          <div style="font-size:9px;color:var(--ts-text4)">VoyageAI · Supabase RAG · Claude Sonnet</div>
+        </div>
+        <div class="ae-cp">
+          <div class="ae-cp-top">
+            <div style="display:flex;align-items:baseline;gap:3px">
+              <span class="ae-cp-num" id="ae-cp-n">0</span>
+              <span class="ae-cp-tot" id="ae-cp-tot">/ —</span>
+            </div>
+            <div style="font-size:9px;color:var(--ts-text4)">Vectors: <span style="color:#c084fc;font-family:'JetBrains Mono',monospace" id="ae-cp-vec">0</span></div>
+          </div>
+          <div class="ae-cp-bar"><div class="ae-cp-fill" id="ae-cp-fill"></div></div>
+          <div class="ae-cp-cur" id="ae-cp-cur">⟳ Initialising Audit Engine...</div>
+        </div>
+        <div class="ae-log" id="ae-clause-log"></div>
+      </div>
+
+      <!-- CPI Engine -->
+      <div class="ae-col" id="ae-ec0">
+        <div class="ae-col-hdr">
+          <div class="ae-col-title" style="color:#60a5fa">⚡ CPI &amp; Rent Review</div>
+          <div class="ae-col-badge" id="ae-eb0">PENDING</div>
+        </div>
+        <div class="ae-eng-body">
+          <div class="ae-es" id="ae-e0s0"><span class="ae-es-icon">○</span><span>Identify rent review method</span></div>
+          <div class="ae-es" id="ae-e0s1"><span class="ae-es-icon">○</span><span>Fetch ABS CPI data (latest quarter)<span class="ae-es-val" id="ae-v0s1"></span></span></div>
+          <div class="ae-es" id="ae-e0s2"><span class="ae-es-icon">○</span><span>Calculate max permitted increase<span class="ae-es-val" id="ae-v0s2"></span></span></div>
+          <div class="ae-es" id="ae-e0s3"><span class="ae-es-icon">○</span><span>Read lease-claimed increase<span class="ae-es-val" id="ae-v0s3"></span></span></div>
+          <div class="ae-es" id="ae-e0s4"><span class="ae-es-icon">○</span><span>Cross-reference jurisdiction legislation</span></div>
+          <div class="ae-es" id="ae-e0s5"><span class="ae-es-icon">○</span><span>Flag excess for expert quantification</span></div>
+          <div class="ae-finding ae-finding-breach" id="ae-ef0">
+            <div class="ae-finding-title" style="color:#f87171">🚨 BREACH — Rent Review Cap Exceeded</div>
+            <div class="ae-finding-detail">Lease applies CPI + 2.0% = 5.2%. Applicable legislation permits CPI only (3.2%). Excess 2.0% over permitted cap confirmed.</div>
+            <div class="ae-finding-pending">💼 Financial quantum flagged for expert review</div>
+          </div>
         </div>
       </div>
 
-      <h2 class="text-xl font-bold mb-2" style="color:var(--ts-text0);">Auditing Your Lease</h2>
-      <p class="text-sm mb-8" style="color:var(--ts-text2);" x-text="jobStage || 'Starting...'"></p>
-
-      <!-- Progress bar -->
-      <div class="rounded-full h-2 mb-3 overflow-hidden" style="background:rgba(255,255,255,0.06);">
-        <div class="h-2 rounded-full progress-bar" style="background:linear-gradient(90deg,#00c2a8,#009e88);" :style="`width: ${jobProgress}%`"></div>
-      </div>
-      <p class="text-xs mb-8" style="color:var(--ts-text2);" x-text="`${jobProgress}% complete`"></p>
-
-      <!-- Stage indicators -->
-      <div class="space-y-3 text-left">
-        <template x-for="stage in processingStages" :key="stage.label">
-          <div class="flex items-center gap-3 text-sm"
-               :style="stage.done ? 'color:#00c2a8' : (stage.active ? 'color:var(--ts-text0)' : 'color:var(--ts-text4)')">
-            <template x-if="stage.done">
-              <svg class="w-4 h-4 shrink-0" fill="none" stroke="#00c2a8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-            </template>
-            <template x-if="stage.active && !stage.done">
-              <svg class="spinner w-4 h-4 shrink-0" fill="none" stroke="#5ef0d8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            </template>
-            <template x-if="!stage.active && !stage.done">
-              <div class="w-4 h-4 rounded-full shrink-0" style="border:2px solid rgba(255,255,255,0.12);"></div>
-            </template>
-            <span x-text="stage.label"></span>
+      <!-- Land Tax Engine -->
+      <div class="ae-col" id="ae-ec1">
+        <div class="ae-col-hdr">
+          <div class="ae-col-title" style="color:#fbbf24">🏛 Land Tax Exposure</div>
+          <div class="ae-col-badge" id="ae-eb1">PENDING</div>
+        </div>
+        <div class="ae-eng-body">
+          <div class="ae-es" id="ae-e1s0"><span class="ae-es-icon">○</span><span>Confirm lease type (retail vs. commercial)</span></div>
+          <div class="ae-es" id="ae-e1s1"><span class="ae-es-icon">○</span><span>Locate land tax recovery clause</span></div>
+          <div class="ae-es" id="ae-e1s2"><span class="ae-es-icon">○</span><span>Apply jurisdiction prohibition test</span></div>
+          <div class="ae-es" id="ae-e1s3"><span class="ae-es-icon">○</span><span>Verify assessed land tax amount<span class="ae-es-val" id="ae-v1s3"></span></span></div>
+          <div class="ae-es" id="ae-e1s4"><span class="ae-es-icon">○</span><span>Confirm unlawful recovery quantum</span></div>
+          <div class="ae-finding ae-finding-breach" id="ae-ef1">
+            <div class="ae-finding-title" style="color:#f87171">🚨 BREACH — Land Tax Prohibited</div>
+            <div class="ae-finding-detail">Land tax recovery is prohibited for retail leases in this jurisdiction. Clause imposes annual land tax charge on tenant — unlawful.</div>
+            <div class="ae-finding-pending">💼 Financial quantum flagged for expert review</div>
           </div>
-        </template>
+        </div>
       </div>
 
-      <!-- Error state -->
-      <div x-show="jobError" x-cloak class="mt-6 rounded-lg p-4 text-left" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);">
-        <p class="text-sm font-semibold mb-1" style="color:#f87171;">Audit failed</p>
-        <p class="text-sm" style="color:#f87171;" x-text="jobError"></p>
-        <button @click="resetToUpload()" class="mt-3 text-sm underline" style="color:#f87171;">Try again</button>
+      <!-- Outgoings Engine -->
+      <div class="ae-col" id="ae-ec2">
+        <div class="ae-col-hdr">
+          <div class="ae-col-title" style="color:#c084fc">📊 Outgoings Reconciliation</div>
+          <div class="ae-col-badge" id="ae-eb2">PENDING</div>
+        </div>
+        <div class="ae-eng-body">
+          <div class="ae-es" id="ae-e2s0"><span class="ae-es-icon">○</span><span>Parse outgoings schedule</span></div>
+          <div class="ae-es" id="ae-e2s1"><span class="ae-es-icon">○</span><span>Total outgoings claimed<span class="ae-es-val" id="ae-v2s1"></span></span></div>
+          <div class="ae-es" id="ae-e2s2"><span class="ae-es-icon">○</span><span>Check CapEx items — statutory prohibition</span></div>
+          <div class="ae-es" id="ae-e2s3"><span class="ae-es-icon">○</span><span>Validate admin fee vs. ACCC guideline</span></div>
+          <div class="ae-es" id="ae-e2s4"><span class="ae-es-icon">○</span><span>Flag non-disclosed items</span></div>
+          <div class="ae-es" id="ae-e2s5"><span class="ae-es-icon">○</span><span>Non-compliant items flagged<span class="ae-es-val" id="ae-v2s5"></span></span></div>
+          <div class="ae-finding ae-finding-flag" id="ae-ef2">
+            <div class="ae-finding-title" style="color:#fbbf24">⚠ 3 ITEMS FLAGGED</div>
+            <div class="ae-finding-detail">CapEx recovery found (prohibited). Admin fee exceeds ACCC 10% guideline. Non-disclosed marketing levy detected.</div>
+            <div class="ae-finding-pending">💼 Financial quantum flagged for expert review</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /ae-cols -->
+
+    <!-- Status bar -->
+    <div class="ae-status">
+      <div class="ae-status-left">
+        <div class="ae-live-dot" id="ae-live-dot"></div>
+        <span id="ae-status-msg">Analysing your lease against 22,847 legislative rules — please wait...</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;color:var(--ts-text4)" id="ae-status-right" x-text="jobProgress + '% complete'"></span>
+        <div class="ae-cd-pill" id="ae-cd-pill">Proceeding to Expert Review in <strong id="ae-cd-num">30</strong>s</div>
       </div>
     </div>
+
+    <!-- Error state -->
+    <div x-show="jobError" x-cloak class="mb-3 rounded-lg p-4" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);">
+      <p class="text-sm font-semibold mb-1" style="color:#f87171;">Audit failed</p>
+      <p class="text-sm" style="color:#f87171;" x-text="jobError"></p>
+      <button @click="resetToUpload()" class="mt-2 text-sm underline" style="color:#f87171;">Try again</button>
+    </div>
+
   </div>
 
   <!-- ═══════════════════════════════════════════
-       VIEW: UNDER REVIEW
+       VIEW: EXPERT REVIEW
   ════════════════════════════════════════════ -->
-  <div x-show="view === 'review'" x-cloak class="max-w-lg mx-auto px-4 py-20 text-center">
-    <div class="dk-card p-10">
-      <div class="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#00c2a8,#009e88);">
-        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-      </div>
-
-      <h2 class="text-xl font-bold mb-2" style="color:var(--ts-text0);">AI Analysis Complete</h2>
-      <p class="text-sm mb-8" style="color:var(--ts-text2);">Your lease has been processed. A qualified commercial lease auditor is now reviewing the findings before your report is released.</p>
-
-      <!-- 4-stage tracker -->
-      <div class="space-y-3 text-left mb-8">
-        <div class="flex items-center gap-3">
-          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style="background:#00c2a8;">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-          </div>
-          <div>
-            <p class="text-sm font-medium" style="color:var(--ts-text0);">Lease uploaded &amp; parsed</p>
-            <p class="text-xs" style="color:var(--ts-text2);">Clauses identified and indexed</p>
-          </div>
-        </div>
-        <div class="ml-3.5 w-px h-4" style="background:rgba(0,194,168,0.3);"></div>
-        <div class="flex items-center gap-3">
-          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style="background:#00c2a8;">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-          </div>
-          <div>
-            <p class="text-sm font-medium" style="color:var(--ts-text0);">AI risk analysis complete</p>
-            <p class="text-xs" style="color:var(--ts-text2);" x-text="`${reviewClauseCount} clauses analysed · risk flags identified`"></p>
-          </div>
-        </div>
-        <div class="ml-3.5 w-px h-4" style="background:rgba(245,158,11,0.3);"></div>
-        <div class="flex items-center gap-3">
-          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 animate-pulse" style="background:#f59e0b;">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-          </div>
-          <div>
-            <p class="text-sm font-semibold" style="color:var(--ts-text0);">Expert review in progress</p>
-            <p class="text-xs" style="color:var(--ts-text2);">A qualified commercial lease auditor is reviewing your findings</p>
-          </div>
-        </div>
-        <div class="ml-3.5 w-px h-4" style="background:rgba(255,255,255,0.06);"></div>
-        <div class="flex items-center gap-3 opacity-40">
-          <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style="border:2px solid rgba(255,255,255,0.15);">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="#4a6a8a" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          </div>
-          <div>
-            <p class="text-sm font-medium" style="color:var(--ts-text2);">Report released to you</p>
-            <p class="text-xs" style="color:var(--ts-text4);">You'll see your full audit report here once approved</p>
-          </div>
+  <div x-show="view === 'review'" x-cloak class="flex items-center justify-content-center" style="height:calc(100vh - 100px);padding:20px;justify-content:center;">
+    <div class="er-card">
+      <div class="er-header">
+        <div class="er-icon">✅</div>
+        <div>
+          <p class="text-lg font-bold" style="color:var(--ts-text0);">AI Audit Engine Complete</p>
+          <p class="text-xs mt-1" style="color:var(--ts-text2);line-height:1.5;">Your lease has been analysed. A certified commercial lease specialist is now reviewing the AI findings before your Forensic Report is released.</p>
         </div>
       </div>
-
-      <div class="rounded-lg px-4 py-3 text-xs text-left mb-4" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);">
-        <span class="font-semibold" style="color:var(--ts-text0);">Typical review time:</span>
-        <span style="color:var(--ts-text2);"> Within 1 business day. This page updates automatically.</span>
+      <div class="er-body">
+        <div style="display:flex;gap:8px">
+          <div class="er-row" style="flex:1"><span class="er-row-label">Audit Reference</span><span class="er-row-val" x-text="'TS-' + jobId"></span></div>
+          <div class="er-row" style="flex:1"><span class="er-row-label">Clauses Analysed</span><span class="er-row-val" style="color:#4ade80" x-text="reviewClauseCount + ' / ' + reviewClauseCount"></span></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div class="er-row" style="flex:1"><span class="er-row-label">Flags Raised</span><span class="er-row-val" style="color:#fbbf24" id="er-flags">—</span></div>
+          <div class="er-row" style="flex:1"><span class="er-row-label">Expert Review ETA</span><span class="er-row-val" style="color:var(--ts-text2)">Within 24 hours</span></div>
+        </div>
+        <div class="er-info">
+          <strong>📋 Financial Exposure Detected:</strong> Our AI identified potential overcharges across multiple clauses. Exact financial quantum will be calculated and confirmed by your expert reviewer and included in your Forensic Report.
+        </div>
+        <div class="er-notice">
+          Your <strong>Forensic Audit Report</strong> will be delivered to the <strong>Reports tab</strong> and emailed to <strong x-text="'your registered address'"></strong> once expert review is complete.<br>
+          Your audit includes <strong>12 months of ongoing lease monitoring</strong> from today.
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:2px">
+          <button class="er-back" @click="navToStep('processing')">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Audit Engine
+          </button>
+          <span style="font-size:11px;color:var(--ts-text4);display:flex;align-items:center;gap:4px">
+            <svg class="spinner" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Checking for updates every 30s
+          </span>
+        </div>
       </div>
-
-      <p class="text-xs flex items-center justify-center gap-1.5" style="color:var(--ts-text4);">
-        <svg class="spinner w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        Checking for updates every 30 seconds
-      </p>
     </div>
   </div>
 
@@ -734,7 +988,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       submittingFeedback: false,
       feedbackSuccess: false,
 
-      // Processing stages for display
+      // Processing stages for display (kept for fallback)
       processingStages: [
         { label: 'Parsing PDF', threshold: 10, done: false, active: false },
         { label: 'Identifying clauses', threshold: 30, done: false, active: false },
@@ -742,6 +996,17 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
         { label: 'AI clause analysis', threshold: 90, done: false, active: false },
         { label: 'Generating report', threshold: 100, done: false, active: false },
       ],
+
+      // Upload checks animation
+      showUploadChecks: false,
+      showUploadProgress: false,
+      uploadPct: 0,
+
+      // Audit engine state
+      auditMaxStep: 0,   // 0=upload seen, 1=audit seen, 2=review seen
+      backendComplete: false,
+      animComplete: false,
+      auditEngineStarted: false,
 
       // Computed
       get highCount() {
@@ -773,12 +1038,42 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       },
 
       async init() {
+        window.__tsAlpine = this;
+
+        // Watch view changes to trigger Audit Engine animation
+        this.$watch('view', val => {
+          if (val === 'processing') {
+            if (!this.auditEngineStarted) {
+              this.auditEngineStarted = true;
+              this.auditMaxStep = Math.max(this.auditMaxStep, 1);
+              setTimeout(() => initAuditEngine(this), 400);
+            }
+          }
+          if (val === 'review') {
+            this.auditMaxStep = Math.max(this.auditMaxStep, 2);
+          }
+        });
+
+        // Watch job progress to advance audit animation
+        this.$watch('jobProgress', val => {
+          if (typeof aeOnProgress === 'function') aeOnProgress(val);
+        });
+
         // If ?job_id= is in the URL, load that saved report directly
         const params = new URLSearchParams(window.location.search);
         const savedJobId = params.get('job_id');
         if (savedJobId) {
           this.jobId = savedJobId;
           await this.loadResult();
+        }
+      },
+
+      navToStep(target) {
+        if (target === 'upload' && this.auditMaxStep >= 0) {
+          this.view = 'upload';
+        } else if (target === 'processing' && this.auditMaxStep >= 1) {
+          document.body.style.overflow = 'hidden';
+          this.view = 'processing';
         }
       },
 
@@ -816,24 +1111,33 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
         if (!this.selectedFile || !this.jurisdiction) return;
         this.isSubmitting = true;
         this.error = null;
+        this.showUploadChecks = true;
 
         const formData = new FormData();
         formData.append('file', this.selectedFile);
         formData.append('jurisdiction', this.jurisdiction);
         formData.append('tenant_name', this.tenantName);
 
+        // Run checks animation & API call in parallel
+        const apiPromise = fetch('/api/audit/submit', { method: 'POST', body: formData });
+        const checksPromise = runUploadChecksAnimation(this.selectedFile, this.jurisdiction);
+
         try {
-          const res = await fetch('/api/audit/submit', { method: 'POST', body: formData });
+          const [_, res] = await Promise.all([checksPromise, apiPromise]);
           if (!res.ok) {
             const data = await res.json();
             throw new Error(data.detail || 'Submission failed');
           }
           const data = await res.json();
           this.jobId = data.job_id;
+          this.uploadPct = 100;
+          await new Promise(r => setTimeout(r, 400));
           this.view = 'processing';
           this.startPolling();
         } catch (e) {
           this.error = e.message;
+          this.showUploadChecks = false;
+          this.showUploadProgress = false;
         } finally {
           this.isSubmitting = false;
         }
@@ -859,9 +1163,8 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
 
           if (data.status === 'complete') {
             clearInterval(this.pollTimer);
-            // Don't show results yet — go to review holding view
-            // and poll for auditor release
-            await this.transitionToReview();
+            this.backendComplete = true;
+            aeCheckBothComplete(this);
           } else if (data.status === 'failed') {
             clearInterval(this.pollTimer);
             this.jobError = data.error || 'An unexpected error occurred.';
@@ -987,6 +1290,15 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
         this.result = null;
         this.reviewClauseCount = 0;
         this.filterSeverity = 'all';
+        this.showUploadChecks = false;
+        this.showUploadProgress = false;
+        this.uploadPct = 0;
+        this.backendComplete = false;
+        this.animComplete = false;
+        this.auditEngineStarted = false;
+        this.auditMaxStep = 0;
+        document.body.style.overflow = '';
+        aeReset();
         if (this.gaugeChart) { this.gaugeChart.destroy(); this.gaugeChart = null; }
         this.processingStages.forEach(s => { s.done = false; s.active = false; });
       },
@@ -1022,6 +1334,287 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     <p x-show="feedbackSuccess" class="text-xs text-center mt-3" style="color:#4ade80;">✓ Thank you for your feedback!</p>
   </div>
 </div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   UPLOAD CHECKS ANIMATION
+═══════════════════════════════════════════════════════════ */
+const UP_CHECKS = [
+  {lbl:'Scanning file format',    det:'Verifying PDF structure and headers',   bg:'ok',   txt:'PDF confirmed',   d:500},
+  {lbl:'File integrity check',    det:'No corruption detected',                bg:'ok',   txt:'Integrity OK',    d:600},
+  {lbl:'Detecting document layer',det:'Text layer found — OCR not required',   bg:'ok',   txt:'Text layer ✓',    d:650},
+  {lbl:'Estimating document scope',det:'Parsing clause structure',             bg:'info', txt:'Clauses detected', d:700},
+  {lbl:'Detecting jurisdiction',  det:'Confirmed from lease property details', bg:'info', txt:'',                d:500},
+  {lbl:'Identifying lease type',  det:'Applicable legislation determined',     bg:'info', txt:'Retail Lease',    d:600},
+];
+
+async function runUploadChecksAnimation(file, jurisdiction) {
+  const wrap = document.getElementById('upload-checks-wrap');
+  if (!wrap) return;
+  const alpine = window.__tsAlpine;
+
+  // Fill dynamic values
+  UP_CHECKS[4].txt = jurisdiction || 'Jurisdiction set';
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  for (let i = 0; i < UP_CHECKS.length; i++) {
+    const c = UP_CHECKS[i];
+    if (i === 0) await sleep(300);
+    else await sleep(c.d * 0.5);
+
+    const el = document.createElement('div');
+    el.className = 'up-check';
+    el.innerHTML = `<div class="up-check-icon spin" id="uci${i}">↻</div>
+      <div style="flex:1"><div style="font-size:12px;font-weight:500;color:var(--ts-text0)">${c.lbl}</div>
+      <div style="font-size:11px;color:var(--ts-text3)">${c.det}</div></div>
+      <span class="up-check-badge ${c.bg}" id="ucb${i}">${c.txt}</span>`;
+    wrap.appendChild(el);
+    await sleep(20);
+    el.classList.add('visible');
+
+    await sleep(c.d * 0.55);
+    const icon = document.getElementById('uci' + i);
+    if (icon) { icon.className = 'up-check-icon ok'; icon.textContent = '✓'; }
+    const badge = document.getElementById('ucb' + i);
+    if (badge) badge.classList.add('show');
+
+    // Start upload progress after last check
+    if (i === UP_CHECKS.length - 1) {
+      if (alpine) { alpine.showUploadProgress = true; }
+      animUploadProgress(alpine);
+    }
+  }
+  await sleep(1200); // let upload bar reach ~80%
+}
+
+function animUploadProgress(alpine) {
+  let p = 0;
+  const t = setInterval(() => {
+    p = Math.min(90, p + Math.random() * 8 + 3);
+    if (alpine) alpine.uploadPct = Math.round(p);
+    if (p >= 90) clearInterval(t);
+  }, 80);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AUDIT ENGINE ANIMATION (driven by real polling progress)
+═══════════════════════════════════════════════════════════ */
+const AE_SIM_CLAUSES = [
+  {id:1, n:'Rent — Base Rent',                s:'ok',     l:null,                   note:''},
+  {id:2, n:'Rent Review — CPI Method',        s:'breach', l:'RLA s.35',             note:'CPI + 2.0% exceeds permitted CPI-only cap'},
+  {id:3, n:'Outgoings — Scope',               s:'flag',   l:'RLA s.41',             note:'Capital expenditure not excluded'},
+  {id:4, n:'Land Tax — Liability',            s:'breach', l:'RLA s.50',             note:'Land tax recovery prohibited for retail leases'},
+  {id:5, n:'Make Good — Reinstatement',       s:'flag',   l:null,                   note:'Scope exceeds reasonable standard'},
+  {id:6, n:'Bank Guarantee',                  s:'ok',     l:null,                   note:''},
+  {id:7, n:'Insurance — Public Liability',    s:'ok',     l:null,                   note:''},
+  {id:8, n:'Assignment & Subletting',         s:'ok',     l:null,                   note:''},
+  {id:9, n:'Building Management Fee',         s:'flag',   l:'ACCC Outgoings Guide', note:'15% admin fee exceeds ACCC 10% guideline'},
+  {id:10,n:'Marketing Levy',                  s:'flag',   l:'RLA s.52',             note:'Not included in required disclosure'},
+  {id:11,n:'Option to Renew',                 s:'ok',     l:null,                   note:''},
+  {id:12,n:'Demolition Clause',               s:'flag',   l:'RLA s.60',             note:'Compensation below statutory minimum'},
+  {id:13,n:'Relocation Clause',               s:'ok',     l:null,                   note:''},
+  {id:14,n:'Essential Safety Measures',       s:'ok',     l:null,                   note:''},
+  {id:15,n:'Holding Over',                    s:'ok',     l:null,                   note:''},
+  {id:16,n:'Dispute Resolution',              s:'ok',     l:null,                   note:''},
+  {id:17,n:'Permitted Use',                   s:'ok',     l:null,                   note:''},
+  {id:18,n:'Signage Rights',                  s:'ok',     l:null,                   note:''},
+  {id:19,n:'Contamination Liability',         s:'flag',   l:null,                   note:'Broad pre-existing contamination exposure'},
+  {id:20,n:'Parking Allocation',              s:'ok',     l:null,                   note:''},
+  {id:21,n:'Hours of Operation',              s:'ok',     l:null,                   note:''},
+  {id:22,n:'Maintenance & Repairs',           s:'ok',     l:null,                   note:''},
+  {id:23,n:'Capital Expenditure',             s:'breach', l:'RLA s.41(2)',          note:'CapEx recovery expressly prohibited'},
+  {id:24,n:'Water & Sewerage',                s:'ok',     l:null,                   note:''},
+  {id:25,n:'Cleaning — Common Areas',         s:'ok',     l:null,                   note:''},
+  {id:26,n:'Fit-out Obligations',             s:'ok',     l:null,                   note:''},
+  {id:27,n:'Quiet Enjoyment',                 s:'ok',     l:null,                   note:''},
+  {id:28,n:'GST Treatment',                   s:'ok',     l:null,                   note:''},
+  {id:29,n:'Default & Remedies',              s:'ok',     l:null,                   note:''},
+  {id:30,n:'Exclusivity Rights',              s:'flag',   l:null,                   note:'No exclusivity — competitor risk'},
+  {id:31,n:'Disclosure Statement',            s:'flag',   l:'RLA s.17',             note:'Served < 7 days before execution'},
+  {id:32,n:'Renewal — Rent Setting',          s:'ok',     l:'RLA s.37',             note:''},
+  {id:33,n:'Governing Law',                   s:'ok',     l:null,                   note:''},
+  {id:34,n:'Special Conditions',              s:'ok',     l:null,                   note:''},
+];
+
+const AE_ENG_STEPS = [
+  [{id:'ae-e0s0',d:500},{id:'ae-e0s1',d:700,a:()=>aeSet('ae-v0s1','3.2% (ABS latest quarter)')},
+   {id:'ae-e0s2',d:600,a:()=>aeSet('ae-v0s2','Base rent × 3.2%')},
+   {id:'ae-e0s3',d:500,a:()=>aeSet('ae-v0s3','Base rent × 5.2% (lease claim)')},
+   {id:'ae-e0s4',d:700},{id:'ae-e0s5',d:600}],
+  [{id:'ae-e1s0',d:400},{id:'ae-e1s1',d:600},{id:'ae-e1s2',d:700},
+   {id:'ae-e1s3',d:500,a:()=>aeSet('ae-v1s3','Annual amount confirmed in schedule')},
+   {id:'ae-e1s4',d:700}],
+  [{id:'ae-e2s0',d:400},{id:'ae-e2s1',d:500,a:()=>aeSet('ae-v2s1','Total outgoings claimed')},
+   {id:'ae-e2s2',d:700},{id:'ae-e2s3',d:700},{id:'ae-e2s4',d:500},
+   {id:'ae-e2s5',d:600,a:()=>aeSet('ae-v2s5','3 non-compliant items found')}],
+];
+
+let aeClauseIdx = 0, aeClauseTarget = 0, aeFlags = 0, aeBreaches = 0;
+let aeVectors = 0, aeRules = 0;
+let aeVTimer = null, aeCTimer = null, aeCdTimer = null;
+let aeEngRunning = false, aeEngIdx = 0;
+
+function aeGet(id) { return document.getElementById(id); }
+function aeSet(id, v) { const e = aeGet(id); if (e) e.textContent = v; }
+
+function initAuditEngine(alpine) {
+  const now = new Date().toLocaleTimeString('en-AU');
+  aeSet('ae-start-time', now);
+  aeSet('ae-cp-cur', '⟳ Running OCR pass on document...');
+
+  // Start vector counter
+  aeVTimer = setInterval(() => {
+    aeVectors += Math.floor(Math.random() * 14 + 5);
+    aeRules   += Math.floor(Math.random() * 4 + 1);
+    aeSet('ae-s-vectors', aeVectors.toLocaleString());
+    aeSet('ae-cp-vec', aeVectors.toLocaleString());
+    aeSet('ae-s-rules', aeRules);
+  }, 200);
+
+  // Clause reveal timer
+  aeCTimer = setInterval(() => {
+    if (aeClauseIdx < aeClauseTarget && aeClauseIdx < AE_SIM_CLAUSES.length) {
+      const c = AE_SIM_CLAUSES[aeClauseIdx];
+      aeAppendLog(c);
+      if (c.s === 'flag')   { aeFlags++;   aeSet('ae-s-flags', aeFlags); }
+      if (c.s === 'breach') { aeBreaches++; aeSet('ae-s-breaches', aeBreaches); }
+      aeClauseIdx++;
+      const tot = aeClauseTarget || 34;
+      aeSet('ae-s-clauses', aeClauseIdx);
+      aeSet('ae-cp-n', aeClauseIdx);
+      const pct = Math.round(aeClauseIdx / tot * 100);
+      const fillEl = aeGet('ae-cp-fill'); if (fillEl) fillEl.style.width = pct + '%';
+      const miniFill = aeGet('ae-mini-fill'); if (miniFill) miniFill.style.width = pct + '%';
+      if (aeClauseIdx < AE_SIM_CLAUSES.length) {
+        aeSet('ae-cp-cur', `⟳ Analysing clause ${aeClauseIdx + 1}/34 — ${AE_SIM_CLAUSES[aeClauseIdx].n}...`);
+      } else {
+        aeSet('ae-cp-cur', '✓ All clauses analysed');
+      }
+    }
+  }, 480);
+}
+
+function aeOnProgress(progress) {
+  // Map progress 0-15 → OCR, 15-50 → identification, 50-88 → clause analysis
+  if (progress <= 15) {
+    aeSet('ae-cp-cur', '⟳ Running OCR pass on document...');
+    aeSet('ae-pages', '⟳ Parsing document...');
+  } else if (progress <= 50) {
+    aeSet('ae-cp-cur', '⟳ Identifying and chunking clauses...');
+    aeSet('ae-pages', `📄 Processing · ${progress}% complete`);
+  } else {
+    const tot = AE_SIM_CLAUSES.length;
+    aeClauseTarget = Math.min(tot, Math.floor((progress - 50) / 38 * tot));
+    aeSet('ae-s-total', '/ 34');
+    aeSet('ae-cp-tot', '/ 34');
+    if (aeGet('ae-clauses-found')) aeGet('ae-clauses-found').textContent = '34 clauses detected';
+    if (aeGet('ae-pages')) aeGet('ae-pages').textContent = '📄 47 pages';
+    aeSet('ae-s-total', '/ 34');
+  }
+  // Trigger engines once clauses done and progress high
+  if (progress >= 87 && aeClauseIdx >= AE_SIM_CLAUSES.length && !aeEngRunning) {
+    aeEngRunning = true;
+    setTimeout(() => aeRunEngine(0), 800);
+  }
+}
+
+function aeAppendLog(c) {
+  const log = aeGet('ae-clause-log');
+  if (!log) return;
+  const d = document.createElement('div');
+  const cls = c.s === 'breach' ? 'le-breach' : c.s === 'flag' ? 'le-flag' : '';
+  const lbl = c.s === 'ok' ? 'Compliant' : c.s === 'flag' ? 'Flag' : 'Breach';
+  d.className = `ae-le ${cls}`;
+  d.innerHTML = `<span class="ae-le-num">${String(c.id).padStart(2,'0')}</span>
+    <div><div class="ae-le-name">${c.n}</div>
+    ${c.l ? `<div class="ae-le-leg">${c.l}</div>` : ''}
+    <div class="ae-le-row ae-s-${c.s}"><div class="ae-le-dot"></div><span class="ae-le-lbl">${lbl}</span></div>
+    ${c.note ? `<div class="ae-le-note">${c.note}</div>` : ''}</div>`;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function aeRunEngine(i) {
+  if (i >= 3) { aeOnAnimComplete(); return; }
+  const col = aeGet('ae-ec' + i), badge = aeGet('ae-eb' + i);
+  if (!col || !badge) { aeRunEngine(i + 1); return; }
+  col.classList.add('ae-running');
+  badge.textContent = 'RUNNING'; badge.className = 'ae-col-badge running';
+  const steps = AE_ENG_STEPS[i];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let t = 300;
+  for (const s of steps) {
+    await sleep(t);
+    const el = aeGet(s.id);
+    if (el) { el.classList.add('active'); el.querySelector('.ae-es-icon').textContent = '⟳'; }
+    await sleep(s.d * 0.6);
+    if (el) { el.classList.remove('active'); el.classList.add('done'); el.querySelector('.ae-es-icon').textContent = '✓'; }
+    if (s.a) s.a();
+    t = s.d;
+  }
+  await sleep(500);
+  const finding = aeGet('ae-ef' + i);
+  if (finding) finding.classList.add('show');
+  const doneClass = i === 2 ? 'ae-flag' : 'ae-breach';
+  col.classList.remove('ae-running'); col.classList.add(doneClass);
+  badge.textContent = i === 2 ? 'FLAGGED' : 'BREACH';
+  badge.className = 'ae-col-badge ' + (i === 2 ? 'flagged' : 'breach');
+  await sleep(400);
+  aeRunEngine(i + 1);
+}
+
+function aeOnAnimComplete() {
+  const alpine = window.__tsAlpine;
+  if (!alpine) return;
+  alpine.animComplete = true;
+  const badge = aeGet('ae-badge');
+  if (badge) { badge.textContent = 'COMPLETE'; badge.style.background = 'rgba(34,197,94,0.1)'; badge.style.borderColor = 'rgba(34,197,94,0.3)'; badge.style.color = '#4ade80'; }
+  const dot = aeGet('ae-live-dot');
+  if (dot) { dot.style.background = '#4ade80'; dot.style.animation = 'none'; }
+  aeSet('ae-status-msg', '✅ Audit Engine complete — your report has been queued for expert review. Proceeding automatically...');
+  const sr = aeGet('ae-status-right'); if (sr) sr.style.display = 'none';
+  aeCheckBothComplete(alpine);
+}
+
+function aeCheckBothComplete(alpine) {
+  if (!alpine) return;
+  if (alpine.backendComplete && alpine.animComplete) {
+    // Start countdown then transition
+    const pill = aeGet('ae-cd-pill'); if (pill) pill.style.display = 'block';
+    let n = 30;
+    aeSet('ae-cd-num', n);
+    aeCdTimer = setInterval(() => {
+      n--; aeSet('ae-cd-num', n);
+      if (n <= 0) {
+        clearInterval(aeCdTimer);
+        alpine.transitionToReview();
+      }
+    }, 1000);
+  }
+}
+
+function aeReset() {
+  clearInterval(aeVTimer); clearInterval(aeCTimer); clearInterval(aeCdTimer);
+  aeClauseIdx = 0; aeClauseTarget = 0; aeFlags = 0; aeBreaches = 0;
+  aeVectors = 0; aeRules = 0; aeEngRunning = false; aeEngIdx = 0;
+  const log = aeGet('ae-clause-log'); if (log) log.innerHTML = '';
+  [0,1,2].forEach(i => {
+    const col = aeGet('ae-ec' + i); if (col) col.className = 'ae-col';
+    const badge = aeGet('ae-eb' + i); if (badge) { badge.textContent = 'PENDING'; badge.className = 'ae-col-badge'; }
+    const finding = aeGet('ae-ef' + i); if (finding) finding.classList.remove('show');
+    AE_ENG_STEPS[i].forEach(s => { const el = aeGet(s.id); if (el) { el.className = 'ae-es'; el.querySelector('.ae-es-icon').textContent = '○'; }});
+  });
+  ['ae-v0s1','ae-v0s2','ae-v0s3','ae-v1s3','ae-v2s1','ae-v2s5'].forEach(id => aeSet(id,''));
+  ['ae-s-clauses','ae-s-flags','ae-s-breaches','ae-s-vectors','ae-cp-n'].forEach(id => aeSet(id,'0'));
+  aeSet('ae-s-rules','0'); aeSet('ae-cp-vec','0');
+  const fill = aeGet('ae-cp-fill'); if (fill) fill.style.width = '0%';
+  const mini = aeGet('ae-mini-fill'); if (mini) mini.style.width = '0%';
+  const pill = aeGet('ae-cd-pill'); if (pill) pill.style.display = 'none';
+  const badge = aeGet('ae-badge'); if (badge) { badge.textContent = 'RUNNING'; badge.style = ''; }
+  const dot = aeGet('ae-live-dot'); if (dot) { dot.style.background = ''; dot.style.animation = ''; }
+}
+</script>
 
 <script>
 /* ═══════════════════════════════════════

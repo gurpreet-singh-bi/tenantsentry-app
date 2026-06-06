@@ -360,13 +360,22 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
 
       <!-- Tabs -->
       <div class="flex border-b px-4 pt-3" style="border-color:rgba(255,255,255,0.07)">
-        <button @click="activeTab='pending'" :class="activeTab==='pending'?'tab-active':'tab-inactive'" class="text-xs font-semibold pb-2 mr-5 transition-colors">
+        <button @click="switchTab('pending')" :class="activeTab==='pending'?'tab-active':'tab-inactive'" class="text-xs font-semibold pb-2 mr-4 transition-colors">
           Pending
           <span x-show="pending.length>0" class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full" style="background:#3d1515;color:#f87171" x-text="pending.length"></span>
         </button>
-        <button @click="activeTab='reviewed'" :class="activeTab==='reviewed'?'tab-active':'tab-inactive'" class="text-xs font-semibold pb-2 transition-colors">
+        <button @click="switchTab('reviewed')" :class="activeTab==='reviewed'?'tab-active':'tab-inactive'" class="text-xs font-semibold pb-2 mr-4 transition-colors">
           Reviewed
           <span x-show="reviewed.length>0" class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full" style="background:#1a2e1a;color:#6fdb7a" x-text="reviewed.length"></span>
+        </button>
+        <button @click="switchTab('active')" :class="activeTab==='active'?'tab-active':'tab-inactive'" class="text-xs font-semibold pb-2 transition-colors flex items-center gap-1">
+          Active
+          <!-- Pulsing red dot when jobs are running -->
+          <span x-show="activeJobs.length>0" class="relative flex h-2 w-2 ml-0.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style="background:#f87171"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2" style="background:#ef4444"></span>
+          </span>
+          <span x-show="activeJobs.length>0" class="ml-1 text-xs px-1.5 py-0.5 rounded-full" style="background:#3d1515;color:#f87171" x-text="activeJobs.length"></span>
         </button>
       </div>
 
@@ -413,6 +422,163 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                 <div class="text-xs mt-1.5" style="color:#2a3a4a" x-text="fmtDate(job.reviewed_at)"></div>
               </div>
             </template>
+          </div>
+        </template>
+
+        <!-- ── ACTIVE JOBS (kill switch) ── -->
+        <template x-if="activeTab==='active'">
+          <div>
+            <div x-show="activeLoading && !activeJobs.length" class="text-xs text-center py-8" style="color:#2a3a4a">Loading…</div>
+            <div x-show="!activeLoading && !activeJobs.length" class="text-xs text-center py-8" style="color:#2a3a4a">
+              <div class="text-2xl mb-2">✓</div>
+              No active jobs — pipeline is idle
+            </div>
+
+            <template x-for="job in activeJobs" :key="job.job_id">
+              <div class="card p-3 mb-2" style="border-color:rgba(239,68,68,0.2)">
+
+                <!-- Job header -->
+                <div class="flex items-start justify-between gap-2 mb-2">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold truncate" x-text="job.tenant_name || '—'"></div>
+                    <div class="text-xs truncate mt-0.5" style="color:var(--ts-text2)" x-text="job.filename"></div>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-xs px-1.5 py-0.5 rounded font-mono" style="background:var(--ts-border-s);color:#6ab4ff" x-text="job.jurisdiction"></span>
+                    <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                      :class="job.status==='processing' ? 'bg-teal-900/40 text-teal-400' : 'bg-slate-800 text-slate-400'"
+                      x-text="job.status === 'processing' ? '⚙ Running' : '⏳ Queued'"></span>
+                  </div>
+                </div>
+
+                <!-- Stage + elapsed -->
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs" style="color:var(--ts-text3)" x-text="job.stage || 'Waiting…'"></span>
+                  <span class="text-xs font-mono" style="color:#2a4a68" x-text="fmtElapsed(job.elapsed_seconds)"></span>
+                </div>
+
+                <!-- Progress bar -->
+                <div class="w-full h-1.5 rounded-full mb-3 overflow-hidden" style="background:var(--ts-border-s)">
+                  <div class="h-1.5 rounded-full transition-all duration-500"
+                    :style="'width:' + (job.progress || 0) + '%;background:' + (job.status==='processing' ? '#0d9488' : '#2a4a68')"
+                  ></div>
+                </div>
+
+                <!-- Kill switch buttons -->
+                <div class="flex gap-1.5 flex-wrap">
+                  <button
+                    @click="killJob(job.job_id, 'fail')"
+                    :disabled="cancellingJob[job.job_id]"
+                    class="btn btn-red flex-1 justify-center py-1 px-2 text-xs"
+                    title="Stop immediately and mark as failed">
+                    <span x-text="cancellingJob[job.job_id]==='fail' ? '…' : '🛑 Kill'"></span>
+                  </button>
+                  <button
+                    @click="killJob(job.job_id, 'retry')"
+                    :disabled="cancellingJob[job.job_id]"
+                    class="btn btn-amber flex-1 justify-center py-1 px-2 text-xs"
+                    title="Cancel and re-queue for a fresh run">
+                    <span x-text="cancellingJob[job.job_id]==='retry' ? '…' : '🔄 Reset'"></span>
+                  </button>
+                  <button
+                    @click="killJob(job.job_id, 'delete')"
+                    :disabled="cancellingJob[job.job_id]"
+                    class="btn btn-ghost flex-1 justify-center py-1 px-2 text-xs"
+                    style="color:#f87171;border-color:rgba(239,68,68,0.2)"
+                    title="Hard delete — removes all data for this job">
+                    <span x-text="cancellingJob[job.job_id]==='delete' ? '…' : '🗑 Remove'"></span>
+                  </button>
+                </div>
+
+                <!-- Result message after action -->
+                <div x-show="killResult[job.job_id]" class="mt-2 text-xs p-2 rounded"
+                  :style="killResult[job.job_id]?.ok ? 'background:#1a2e1a;color:#6fdb7a;border:1px solid rgba(34,197,94,0.2)' : 'background:#3d1515;color:#f87171;border:1px solid rgba(239,68,68,0.2)'"
+                  x-text="killResult[job.job_id]?.message || (killResult[job.job_id]?.ok ? '✓ Done' : '✗ Failed')">
+                </div>
+              </div>
+            </template>
+
+            <!-- ── Recent Failures section ── -->
+            <template x-if="recentFailed.length > 0">
+              <div class="mt-3">
+                <div class="text-xs font-bold uppercase tracking-wider mb-2 px-1 flex items-center gap-2" style="color:#f87171;letter-spacing:0.7px">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                  Recent Failures
+                </div>
+
+                <template x-for="job in recentFailed" :key="job.job_id">
+                  <div class="card mb-2" style="border-color:rgba(239,68,68,0.25)">
+
+                    <!-- Clickable header — click to expand error -->
+                    <div class="p-3 cursor-pointer select-none"
+                         @click="expandedError[job.job_id] = !expandedError[job.job_id]">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                          <div class="text-xs font-semibold truncate" x-text="job.tenant_name || '—'"></div>
+                          <div class="text-xs truncate mt-0.5" style="color:var(--ts-text2)" x-text="job.filename"></div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                          <span class="text-xs px-1.5 py-0.5 rounded font-mono" style="background:var(--ts-border-s);color:#6ab4ff" x-text="job.jurisdiction"></span>
+                          <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                            :class="job.status === 'cancelled' ? 'text-amber-400' : 'text-red-400'"
+                            :style="job.status === 'cancelled' ? 'background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)' : 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)'"
+                            x-text="job.status === 'cancelled' ? '⊘ Cancelled' : '✗ Failed'"></span>
+                          <!-- Expand chevron -->
+                          <svg class="w-3.5 h-3.5 shrink-0 transition-transform" style="color:var(--ts-text2)"
+                            :style="expandedError[job.job_id] ? 'transform:rotate(180deg)' : ''"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                          </svg>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-3 mt-1.5">
+                        <span class="text-xs" style="color:#4a3a3a" x-text="job.stage || 'Failed'"></span>
+                        <span class="text-xs" style="color:#2a2a3a" x-text="fmtDate(job.completed_at)"></span>
+                      </div>
+                    </div>
+
+                    <!-- Expandable error body -->
+                    <div x-show="expandedError[job.job_id]"
+                         style="border-top:1px solid rgba(239,68,68,0.15)">
+                      <div class="p-3">
+                        <div class="text-xs font-semibold mb-1.5" style="color:#f87171">Error detail</div>
+                        <template x-if="job.error">
+                          <pre class="text-xs rounded p-2.5 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed"
+                               style="background:#1a0a0a;border:1px solid rgba(239,68,68,0.15);color:#f4a0a0;font-family:ui-monospace,monospace;max-height:180px;overflow-y:auto"
+                               x-text="job.error"></pre>
+                        </template>
+                        <div x-show="!job.error" class="text-xs italic" style="color:#4a3a3a">No error message recorded.</div>
+                        <!-- Quick re-dispatch if it's not a manual cancel -->
+                        <div x-show="job.status !== 'cancelled'" class="mt-2 flex gap-2">
+                          <button
+                            @click.stop="killJob(job.job_id, 'retry')"
+                            :disabled="cancellingJob[job.job_id]"
+                            class="btn btn-amber text-xs py-1 px-3"
+                            title="Reset and re-queue this failed job">
+                            🔄 Retry
+                          </button>
+                          <button
+                            @click.stop="killJob(job.job_id, 'delete')"
+                            :disabled="cancellingJob[job.job_id]"
+                            class="btn btn-ghost text-xs py-1 px-3"
+                            style="color:#f87171;border-color:rgba(239,68,68,0.2)">
+                            🗑 Remove
+                          </button>
+                        </div>
+                        <div x-show="killResult[job.job_id]" class="mt-2 text-xs p-2 rounded"
+                          :style="killResult[job.job_id]?.ok ? 'background:#1a2e1a;color:#6fdb7a' : 'background:#3d1515;color:#f87171'"
+                          x-text="killResult[job.job_id]?.message">
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- Last refreshed indicator -->
+            <div x-show="lastActiveRefresh" class="text-xs text-center mt-2" style="color:#1e2a3a" x-text="'Refreshed ' + lastActiveRefresh"></div>
           </div>
         </template>
       </div>
@@ -927,6 +1093,15 @@ function adminPortal() {
     sidebarTab: 'doc',
     activeDocClause: null,
     dashStats: null,
+    // ── Kill switch ──
+    activeJobs: [],
+    recentFailed: [],
+    activeLoading: false,
+    activeRefreshTimer: null,
+    cancellingJob: {},      // job_id → action string while in flight
+    killResult: {},         // job_id → { ok, message }
+    expandedError: {},      // job_id → bool (error section expanded)
+    lastActiveRefresh: '',
 
     async init() {
       const res = await fetch('/api/admin/queue', { credentials: 'include' });
@@ -936,7 +1111,96 @@ function adminPortal() {
         this.pending = data.pending;
         this.reviewed = data.reviewed;
         await this.loadDashboard();
+        await this.loadActiveJobs();
       }
+    },
+
+    switchTab(tab) {
+      this.activeTab = tab;
+      if (tab === 'active') {
+        this.loadActiveJobs();
+        this._startActiveRefresh();
+      } else {
+        this._stopActiveRefresh();
+      }
+    },
+
+    _startActiveRefresh() {
+      this._stopActiveRefresh();
+      this.activeRefreshTimer = setInterval(() => this.loadActiveJobs(), 5000);
+    },
+
+    _stopActiveRefresh() {
+      if (this.activeRefreshTimer) {
+        clearInterval(this.activeRefreshTimer);
+        this.activeRefreshTimer = null;
+      }
+    },
+
+    async loadActiveJobs() {
+      this.activeLoading = true;
+      try {
+        const res = await fetch('/api/admin/active', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          this.activeJobs = data.jobs || [];
+          this.recentFailed = data.recent_failed || [];
+          const now = new Date();
+          this.lastActiveRefresh = now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+      } catch (_) {}
+      finally { this.activeLoading = false; }
+    },
+
+    async killJob(jobId, action) {
+      if (this.cancellingJob[jobId]) return;   // debounce
+      const labels = { fail: 'Kill', retry: 'Reset', delete: 'Remove' };
+      const warnings = {
+        fail:   'Kill this audit and mark it failed?',
+        retry:  'Cancel and re-queue this audit for a fresh run?',
+        delete: '⚠ Hard delete this job and all its data? This cannot be undone.',
+      };
+      if (!confirm(warnings[action] || 'Are you sure?')) return;
+
+      this.cancellingJob = { ...this.cancellingJob, [jobId]: action };
+      this.killResult = { ...this.killResult, [jobId]: null };
+
+      try {
+        const res = await fetch(`/api/admin/cancel/${jobId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ action }),
+        });
+        const data = await res.json();
+        let msg = '';
+        if (data.ok) {
+          if (action === 'fail')   msg = '🛑 Killed — marked failed';
+          if (action === 'delete') msg = '🗑 Deleted';
+          if (action === 'retry')  msg = data.resubmitted ? '🔄 Re-queued for fresh run' : '🔄 Reset (re-upload PDF to retry)';
+        } else {
+          msg = data.detail || 'Action failed';
+        }
+        this.killResult = { ...this.killResult, [jobId]: { ok: data.ok, message: msg } };
+        // Refresh active list and queue after action
+        await this.loadActiveJobs();
+        await this.loadQueue();
+      } catch(e) {
+        this.killResult = { ...this.killResult, [jobId]: { ok: false, message: 'Connection error' } };
+      } finally {
+        this.cancellingJob = { ...this.cancellingJob, [jobId]: null };
+      }
+    },
+
+    fmtElapsed(seconds) {
+      if (seconds == null) return '';
+      if (seconds < 60)  return seconds + 's';
+      if (seconds < 3600) {
+        const m = Math.floor(seconds / 60), s = seconds % 60;
+        return m + 'm ' + s + 's';
+      }
+      const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
+      return h + 'h ' + m + 'm';
     },
 
     async loadDashboard() {
@@ -977,11 +1241,13 @@ function adminPortal() {
     },
 
     async logout() {
+      this._stopActiveRefresh();
       await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
       this.authed = false;
       this.selectedJob = null;
       this.pending = [];
       this.reviewed = [];
+      this.activeJobs = [];
     },
 
     async loadQueue() {
