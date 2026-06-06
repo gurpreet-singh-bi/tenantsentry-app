@@ -204,13 +204,16 @@ def fetch_all_recent(limit: int = 20) -> list[dict]:
 
 
 def fetch_active() -> list[dict]:
-    """SELECT jobs currently queued or processing — for the kill switch panel."""
+    """SELECT jobs currently queued or processing — for the kill switch panel.
+    Ordered newest-first so a freshly submitted job appears at the top, not buried
+    under zombie jobs stuck in 'processing' from a prior server restart.
+    """
     result = (
         _get_client()
         .table("audit_run")
         .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, created_at")
         .in_("status", ["queued", "processing"])
-        .order("created_at", desc=False)
+        .order("created_at", desc=True)   # newest first
         .execute()
     )
     return result.data or []
