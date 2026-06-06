@@ -63,6 +63,11 @@ class AuditResult(BaseModel):
     # Pipeline performance instrumentation — per-stage durations in ms.
     # Stored in audit_run.stage_timings (separate column); excluded from reports.
     stage_timings: dict = Field(default_factory=dict)
+    # Multi-doc: reconciliation results for each outgoings/invoice doc uploaded.
+    # Each entry is a serialised ReconciliationResult dict from outgoings_engine.
+    reconciliation_results: list[dict] = Field(default_factory=list)
+    # Non-fatal pipeline warnings (e.g. unsupported doc type, amendment not analysed).
+    pipeline_warnings: list[str] = Field(default_factory=list)
 
     @property
     def high_risk_flags(self) -> list[dict]:

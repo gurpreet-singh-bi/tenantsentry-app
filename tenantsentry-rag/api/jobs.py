@@ -444,6 +444,48 @@ def list_reviewed() -> list[Job]:
     )
 
 
+# ── Uploaded-doc metadata (multi-doc support) ────────────────────────────────
+# Tracks every file the user submitted alongside a job: lease, outgoings, invoice, amendment.
+# Stored in-memory (keyed by job_id) and flushed to Supabase job metadata when available.
+
+_uploaded_docs: dict[str, list[dict]] = {}   # job_id → [ {filename, doc_type, size_bytes, status, warnings} ]
+
+
+def store_uploaded_doc_meta(
+    job_id: str,
+    filename: str,
+    doc_type: str,          # "lease" | "outgoings" | "invoice" | "amendment" | "other"
+    size_bytes: int,
+    status: str = "queued", # "queued" | "processing" | "complete" | "failed" | "skipped"
+    warnings: list = None,
+) -> None:
+    """Register a doc that was uploaded for this job."""
+    entry = {
+        "filename": filename,
+        "doc_type": doc_type,
+        "size_bytes": size_bytes,
+        "status": status,
+        "warnings": warnings or [],
+    }
+    _uploaded_docs.setdefault(job_id, []).append(entry)
+
+
+def update_uploaded_doc_status(job_id: str, filename: str, status: str, warnings: list = None) -> None:
+    """Update processing status of a specific doc within a job."""
+    docs = _uploaded_docs.get(job_id, [])
+    for doc in docs:
+        if doc["filename"] == filename:
+            doc["status"] = status
+            if warnings is not None:
+                doc["warnings"] = warnings
+            return
+
+
+def get_uploaded_docs(job_id: str) -> list[dict]:
+    """Return the list of uploaded doc metadata for a job."""
+    return _uploaded_docs.get(job_id, [])
+
+
 # ── Document storage (in-memory) ─────────────────────────────────────────────
 
 def store_document(job_id: str, filename: str, data: bytes, content_type: str = "application/pdf") -> None:

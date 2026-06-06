@@ -509,9 +509,9 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                 <template x-for="job in recentFailed" :key="job.job_id">
                   <div class="card mb-2" style="border-color:rgba(239,68,68,0.25)">
 
-                    <!-- Clickable header — click to expand error -->
+                    <!-- Clickable header — click to select job and expand error -->
                     <div class="p-3 cursor-pointer select-none"
-                         @click="expandedError[job.job_id] = !expandedError[job.job_id]">
+                         @click="selectJob(job); expandedError[job.job_id] = !expandedError[job.job_id]">
                       <div class="flex items-start justify-between gap-2">
                         <div class="flex-1 min-w-0">
                           <div class="text-xs font-semibold truncate" x-text="job.tenant_name || '—'"></div>
@@ -531,9 +531,30 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                           </svg>
                         </div>
                       </div>
-                      <div class="flex items-center gap-3 mt-1.5">
-                        <span class="text-xs" style="color:#4a3a3a" x-text="job.stage || 'Failed'"></span>
-                        <span class="text-xs" style="color:#2a2a3a" x-text="fmtDate(job.completed_at)"></span>
+                      <div class="flex items-center justify-between mt-1.5">
+                        <div class="flex items-center gap-3">
+                          <span class="text-xs" style="color:#4a3a3a" x-text="job.stage || 'Failed'"></span>
+                          <span class="text-xs" style="color:#2a2a3a" x-text="fmtDate(job.completed_at)"></span>
+                        </div>
+                        <!-- Always-visible action buttons -->
+                        <div class="flex gap-1" x-show="job.status !== 'cancelled'" @click.stop>
+                          <button
+                            @click="killJob(job.job_id, 'retry')"
+                            :disabled="cancellingJob[job.job_id]"
+                            class="btn btn-amber text-xs py-0.5 px-2"
+                            style="font-size:10px"
+                            title="Reset and re-queue">
+                            <span x-text="cancellingJob[job.job_id] ? '…' : '🔄 Retry'"></span>
+                          </button>
+                          <button
+                            @click="killJob(job.job_id, 'delete')"
+                            :disabled="cancellingJob[job.job_id]"
+                            class="btn btn-ghost text-xs py-0.5 px-2"
+                            style="font-size:10px;color:#f87171;border-color:rgba(239,68,68,0.2)"
+                            title="Hard delete">
+                            🗑
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -548,23 +569,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                                x-text="job.error"></pre>
                         </template>
                         <div x-show="!job.error" class="text-xs italic" style="color:#4a3a3a">No error message recorded.</div>
-                        <!-- Quick re-dispatch if it's not a manual cancel -->
-                        <div x-show="job.status !== 'cancelled'" class="mt-2 flex gap-2">
-                          <button
-                            @click.stop="killJob(job.job_id, 'retry')"
-                            :disabled="cancellingJob[job.job_id]"
-                            class="btn btn-amber text-xs py-1 px-3"
-                            title="Reset and re-queue this failed job">
-                            🔄 Retry
-                          </button>
-                          <button
-                            @click.stop="killJob(job.job_id, 'delete')"
-                            :disabled="cancellingJob[job.job_id]"
-                            class="btn btn-ghost text-xs py-1 px-3"
-                            style="color:#f87171;border-color:rgba(239,68,68,0.2)">
-                            🗑 Remove
-                          </button>
-                        </div>
+                        <!-- Retry/Remove are now in the card header row -->
                         <div x-show="killResult[job.job_id]" class="mt-2 text-xs p-2 rounded"
                           :style="killResult[job.job_id]?.ok ? 'background:#1a2e1a;color:#6fdb7a' : 'background:#3d1515;color:#f87171'"
                           x-text="killResult[job.job_id]?.message">
@@ -1004,9 +1009,83 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                 </a>
               </div>
 
-              <div class="text-xs mt-3 p-2.5 rounded" style="background:var(--ts-bg1);border:1px solid var(--ts-border-s);color:var(--ts-text2)">
-                Additional documents (invoices, outgoings) appear here once multi-document upload is wired to the backend.
+              <!-- ── Additional uploaded documents (multi-doc) ── -->
+              <div class="text-xs font-bold uppercase tracking-wider mt-4 mb-2" style="color:var(--ts-text2);letter-spacing:0.7px">Additional Uploaded Documents</div>
+
+              <!-- Loading state -->
+              <div x-show="loadingUploadedDocs" class="text-xs py-3 text-center" style="color:var(--ts-text2)">Loading…</div>
+
+              <!-- No additional docs -->
+              <div x-show="!loadingUploadedDocs && uploadedDocs.filter(d => d.doc_type !== 'lease').length === 0"
+                   class="text-xs p-2.5 rounded" style="background:var(--ts-bg1);border:1px solid var(--ts-border-s);color:var(--ts-text2)">
+                No additional documents were submitted with this job. Tenants can upload outgoings schedules and invoices alongside the lease.
               </div>
+
+              <!-- Doc list -->
+              <template x-for="doc in uploadedDocs.filter(d => d.doc_type !== 'lease')" :key="doc.filename">
+                <div class="doc-row mb-2">
+                  <span style="font-size:16px" x-text="doc.doc_type === 'outgoings' ? '📊' : doc.doc_type === 'invoice' ? '🧾' : doc.doc_type === 'amendment' ? '📝' : '📄'"></span>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold truncate" x-text="doc.filename"></div>
+                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                        :style="doc.doc_type === 'outgoings'  ? 'background:rgba(139,92,246,0.15);color:#a78bfa' :
+                                doc.doc_type === 'invoice'    ? 'background:rgba(245,158,11,0.12);color:#fbbf24' :
+                                doc.doc_type === 'amendment'  ? 'background:rgba(20,184,166,0.12);color:#2dd4bf' :
+                                                                'background:rgba(255,255,255,0.06);color:var(--ts-text2)'"
+                        x-text="doc.doc_type"></span>
+                      <span class="text-xs" style="color:var(--ts-text2)" x-text="(doc.size_bytes / 1024).toFixed(0) + ' KB'"></span>
+                      <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                        :style="doc.status === 'complete' ? 'background:rgba(34,197,94,0.12);color:#6fdb7a' :
+                                doc.status === 'failed'   ? 'background:rgba(239,68,68,0.12);color:#f87171' :
+                                doc.status === 'partial'  ? 'background:rgba(245,158,11,0.12);color:#fbbf24' :
+                                                            'background:rgba(255,255,255,0.06);color:var(--ts-text2)'"
+                        x-text="doc.status"></span>
+                    </div>
+                    <!-- Per-doc warnings -->
+                    <template x-for="(w, wi) in (doc.warnings || [])" :key="wi">
+                      <div class="mt-1 text-xs leading-relaxed" style="color:#fbbf24" x-text="'⚠ ' + w"></div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Reconciliation summary (if outgoings docs present) -->
+              <template x-for="recon in (resultData?.reconciliation_results ?? [])" :key="recon.doc_filename">
+                <div class="mt-3 p-3 rounded-lg text-xs" style="background:var(--ts-bg1);border:1px solid var(--ts-border-s)">
+                  <div class="font-bold mb-1" style="color:var(--ts-text0)" x-text="recon.doc_filename"></div>
+                  <div class="flex gap-3 mb-2">
+                    <div><span style="color:var(--ts-text2)">Claimed: </span><span class="font-semibold" x-text="'$' + ((recon.total_claimed_cents || 0) / 100).toLocaleString('en-AU', {minimumFractionDigits:2})"></span></div>
+                    <div><span style="color:var(--ts-text2)">Disputed: </span><span class="font-semibold" :style="recon.total_disputed_cents > 0 ? 'color:#f87171' : 'color:#6fdb7a'" x-text="'$' + ((recon.total_disputed_cents || 0) / 100).toLocaleString('en-AU', {minimumFractionDigits:2})"></span></div>
+                  </div>
+                  <div class="flex items-center gap-1.5 mb-2">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold"
+                      :style="recon.engine_status === 'complete' ? 'background:rgba(34,197,94,0.12);color:#6fdb7a' : recon.engine_status === 'failed' ? 'background:rgba(239,68,68,0.12);color:#f87171' : 'background:rgba(245,158,11,0.12);color:#fbbf24'"
+                      x-text="recon.engine_status"></span>
+                    <span style="color:var(--ts-text2)" x-text="(recon.findings?.length ?? 0) + ' findings'"></span>
+                  </div>
+                  <!-- Finding breakdown -->
+                  <template x-for="(finding, fi) in (recon.findings ?? []).slice(0, 4)" :key="fi">
+                    <div class="py-1 border-t" style="border-color:rgba(255,255,255,0.05)">
+                      <div class="flex items-start gap-1.5">
+                        <span class="mt-0.5 text-xs font-semibold"
+                          :style="finding.finding_type === 'compliant' ? 'color:#6fdb7a' : finding.finding_type === 'unclear' ? 'color:var(--ts-text2)' : 'color:#f87171'"
+                          x-text="finding.finding_type.toUpperCase()"></span>
+                        <div class="flex-1">
+                          <div x-text="finding.line_item_description" style="color:var(--ts-text0)"></div>
+                          <div x-text="finding.explanation" style="color:var(--ts-text2)"></div>
+                          <div x-show="finding.legislation_ref" x-text="finding.legislation_ref" style="color:#0d9488;font-family:monospace"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                  <div x-show="(recon.findings?.length ?? 0) > 4" class="text-xs text-center pt-1" style="color:var(--ts-text2)" x-text="'+' + ((recon.findings?.length ?? 0) - 4) + ' more in full report'"></div>
+                  <!-- Recon warnings -->
+                  <template x-for="(w, wi) in (recon.warnings || [])" :key="wi">
+                    <div class="mt-1 text-xs" style="color:#fbbf24" x-text="'⚠ ' + w"></div>
+                  </template>
+                </div>
+              </template>
             </div>
 
             <!-- ── TAB: REVIEW DECISION ── -->
@@ -1082,6 +1161,8 @@ function adminPortal() {
     selectedJob: null,
     resultData: null,
     loadingResult: false,
+    uploadedDocs: [],
+    loadingUploadedDocs: false,
     reviewNotes: '',
     reviewing: false,
     releasing: false,
@@ -1272,6 +1353,7 @@ function adminPortal() {
     async selectJob(job) {
       this.selectedJob = job;
       this.resultData = null;
+      this.uploadedDocs = [];
       this.reviewNotes = job.reviewer_notes || '';
       this.actionError = '';
       this.searchQuery = '';
@@ -1281,18 +1363,27 @@ function adminPortal() {
       this.activeDocClause = null;
       this.sidebarTab = 'doc';
       this.loadingResult = true;
-      try {
-        const res = await fetch(`/api/admin/result/${job.job_id}`, { credentials: 'include' });
-        if (res.ok) {
-          this.resultData = await res.json();
-          // Init clause state
-          (this.resultData.clause_analyses || []).forEach(c => {
-            this.clauseState[c.clause_heading] = { status: null, note: '', addingNote: false };
-          });
-        }
-      } finally {
-        this.loadingResult = false;
+      this.loadingUploadedDocs = true;
+
+      // Fetch audit result and uploaded docs in parallel
+      const [resultRes, docsRes] = await Promise.allSettled([
+        fetch(`/api/admin/result/${job.job_id}`, { credentials: 'include' }),
+        fetch(`/api/jobs/${job.job_id}/documents`, { credentials: 'include' }),
+      ]);
+
+      if (resultRes.status === 'fulfilled' && resultRes.value.ok) {
+        this.resultData = await resultRes.value.json();
+        (this.resultData.clause_analyses || []).forEach(c => {
+          this.clauseState[c.clause_heading] = { status: null, note: '', addingNote: false };
+        });
       }
+      this.loadingResult = false;
+
+      if (docsRes.status === 'fulfilled' && docsRes.value.ok) {
+        const docsPayload = await docsRes.value.json();
+        this.uploadedDocs = docsPayload.documents ?? [];
+      }
+      this.loadingUploadedDocs = false;
     },
 
     toggleClause(heading) {

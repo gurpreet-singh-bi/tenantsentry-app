@@ -65,7 +65,7 @@ from api.jobs import (
     create_job, get_job, get_job_result, update_job_progress, complete_job, fail_job, JobStatus,
     review_job, release_job, list_pending_review, list_reviewed, list_active, cancel_job,
     store_document, get_document,
-    _USE_SUPABASE, _jobs_fallback,
+    _USE_SUPABASE, _jobs_fallback, _cancelled_jobs,
 )
 
 # ── Mode management (DEV / LIVE) ──────────────────────────────────────────────
@@ -304,10 +304,6 @@ async def audit_page(request: Request):
     return templates.TemplateResponse("audit.html", {"request": request})
 
 
-@app.get("/upload", response_class=HTMLResponse)
-async def upload_page(request: Request):
-    """Alpine.js upload/process/results SPA — wired to real audit API."""
-    return templates.TemplateResponse("upload.html", {"request": request})
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -528,17 +524,25 @@ async def admin_chat_queries(limit: int = 100, _: None = Depends(require_admin))
 # Audit API
 # ══════════════════════════════════════════════════════════════════════════════
 
+VALID_DOC_TYPES = {"lease", "outgoings", "invoice", "amendment", "other"}
+VALID_IMG_EXTS  = {".pdf", ".png", ".jpg", ".jpeg"}
+
+
 @app.post("/api/audit/submit")
 async def submit_audit(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(..., description="Commercial lease PDF"),
+    files: list[UploadFile] = File(..., description="Lease PDF plus any supporting documents"),
+    doc_types: list[str] = Form(..., description="Doc type per file: lease|outgoings|invoice|amendment|other"),
     jurisdiction: str = Form(...),
     tenant_name: str = Form(""),
-    chat_session_id: str = Form(""),  # optional — links F-CHAT session to upload
+    chat_session_id: str = Form(""),
 ):
     """
-    Submit a lease PDF for async audit.
-    Returns job_id immediately. Poll /api/audit/status/{job_id} for progress.
+    Submit one or more documents for async audit.
+
+    files[0] must be the primary lease (doc_types[0]=="lease").
+    Additional files may be outgoings schedules, invoices, or amendments.
+    Returns job_id immediately; poll /api/audit/status/{job_id} for progress.
     """
     jur = jurisdiction.upper().strip()
     if jur not in VALID_JURISDICTIONS:
@@ -547,29 +551,93 @@ async def submit_audit(
             detail=f"Invalid jurisdiction. Must be one of: {sorted(VALID_JURISDICTIONS)}"
         )
 
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
+    if len(files) != len(doc_types):
+        raise HTTPException(
+            status_code=400,
+            detail=f"files and doc_types must have the same length ({len(files)} vs {len(doc_types)})."
+        )
 
-    content = await file.read()
-    file_size_mb = len(content) / (1024 * 1024)
-    if file_size_mb > MAX_FILE_SIZE_MB:
-        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE_MB}MB.")
+    # Validate doc types
+    invalid_types = [dt for dt in doc_types if dt not in VALID_DOC_TYPES]
+    if invalid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid doc_type(s): {invalid_types}. Must be one of: {sorted(VALID_DOC_TYPES)}"
+        )
 
-    # G2: SHA-256 fingerprint of the raw PDF bytes.
-    # Passed to the pipeline so it can skip re-embedding duplicate uploads.
-    document_hash = hashlib.sha256(content).hexdigest()
-    logger.info(f"Document hash (SHA-256): {document_hash[:16]}… | size: {file_size_mb:.2f}MB")
+    # Identify lease file — must be exactly one
+    lease_indices = [i for i, dt in enumerate(doc_types) if dt == "lease"]
+    if not lease_indices:
+        raise HTTPException(status_code=400, detail="At least one file must have doc_type='lease'.")
+    if len(lease_indices) > 1:
+        raise HTTPException(status_code=400, detail="Only one file may have doc_type='lease'.")
+
+    lease_idx = lease_indices[0]
+    lease_file = files[lease_idx]
+
+    if not lease_file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="The lease document must be a PDF file.")
+
+    # Read and validate all files
+    file_data: list[dict] = []
+    submission_warnings: list[str] = []
+
+    for i, (f, dt) in enumerate(zip(files, doc_types)):
+        ext = "." + f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
+        if ext not in VALID_IMG_EXTS:
+            submission_warnings.append(
+                f"'{f.filename}' has unsupported extension '{ext}' — accepted: PDF, JPG, PNG. File skipped."
+            )
+            continue
+
+        content = await f.read()
+        size_mb = len(content) / (1024 * 1024)
+        if size_mb > MAX_FILE_SIZE_MB:
+            submission_warnings.append(
+                f"'{f.filename}' exceeds {MAX_FILE_SIZE_MB}MB limit ({size_mb:.1f}MB) — file skipped."
+            )
+            continue
+
+        file_data.append({
+            "filename": f.filename,
+            "doc_type": dt,
+            "content": content,
+            "size_bytes": len(content),
+        })
+
+    if not any(fd["doc_type"] == "lease" for fd in file_data):
+        raise HTTPException(status_code=400, detail="Lease file could not be read or was too large.")
+
+    lease_data = next(fd for fd in file_data if fd["doc_type"] == "lease")
+    additional_data = [fd for fd in file_data if fd["doc_type"] != "lease"]
+
+    document_hash = hashlib.sha256(lease_data["content"]).hexdigest()
+    logger.info(
+        f"Multi-doc submit: lease={lease_data['filename']} "
+        f"additional={[fd['filename'] for fd in additional_data]} | "
+        f"jurisdiction={jur} | hash={document_hash[:12]}…"
+    )
 
     job = create_job(
-        filename=file.filename,
+        filename=lease_data["filename"],
         jurisdiction=jur,
         tenant_name=tenant_name.strip() or "Unknown",
     )
 
-    logger.info(f"Job {job.job_id} created: {file.filename} | {jur} | {tenant_name}")
+    # Register all uploaded doc metadata on the job immediately (visible in auditor portal)
+    from api.jobs import store_uploaded_doc_meta
+    for fd in file_data:
+        store_uploaded_doc_meta(
+            job_id=job.job_id,
+            filename=fd["filename"],
+            doc_type=fd["doc_type"],
+            size_bytes=fd["size_bytes"],
+            status="queued",
+        )
 
-    # F-CHAT conversion attribution — mark all prior chat queries from this
-    # session as converted so we can measure chat→upload funnel performance.
+    logger.info(f"Job {job.job_id} created: {lease_data['filename']} | {jur} | docs={len(file_data)}")
+
+    # F-CHAT attribution
     if chat_session_id.strip():
         try:
             from db.chat_query_store import mark_converted
@@ -579,26 +647,37 @@ async def submit_audit(
         except Exception as e:
             logger.warning(f"F-CHAT mark_converted failed (non-fatal): {e}")
 
-    # Persist original PDF for auditor download
-    store_document(job.job_id, file.filename, content)
+    # Persist primary lease PDF for auditor download
+    store_document(job.job_id, lease_data["filename"], lease_data["content"])
 
-    # V2: dispatch to bounded executor — prevents event loop starvation.
-    # _schedule_audit_job is async so BackgroundTasks awaits it; inside it
-    # uses run_in_executor to run the blocking pipeline off the event loop.
     background_tasks.add_task(
         _schedule_audit_job,
         job_id=job.job_id,
-        pdf_bytes=content,
-        filename=file.filename,
+        pdf_bytes=lease_data["content"],
+        filename=lease_data["filename"],
         jurisdiction=jur,
         tenant_name=tenant_name.strip() or "Unknown",
         document_hash=document_hash,
+        additional_docs_data=additional_data,
+        submission_warnings=submission_warnings,
     )
 
-    return JSONResponse({
-        "job_id": job.job_id,
-        "status": "queued",
-    })
+    response_payload = {"job_id": job.job_id, "status": "queued", "doc_count": len(file_data)}
+    if submission_warnings:
+        response_payload["warnings"] = submission_warnings
+
+    return JSONResponse(response_payload)
+
+
+@app.get("/api/jobs/{job_id}/documents")
+async def get_job_documents(job_id: str):
+    """Return list of all uploaded documents for a job with their processing status."""
+    from api.jobs import get_job as _get_job, get_uploaded_docs
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    docs = get_uploaded_docs(job_id)
+    return JSONResponse({"job_id": job_id, "documents": docs})
 
 
 async def _schedule_audit_job(
@@ -608,53 +687,93 @@ async def _schedule_audit_job(
     jurisdiction: str,
     tenant_name: str,
     document_hash: str,
+    additional_docs_data: list[dict] = None,
+    submission_warnings: list[str] = None,
 ) -> None:
     """
     V2: Async wrapper that dispatches the blocking audit pipeline to the bounded
-    thread executor. BackgroundTasks awaits this; the actual pipeline runs off
-    the event loop in _audit_executor to prevent starvation.
-
-    Writes pdf_bytes to a temp file (pipelines expect pdf_path, not bytes),
-    then calls the appropriate pipeline, then cleans up.
+    thread executor. Writes temp files for all docs, passes additional_docs to
+    pipeline for outgoings/invoice reconciliation, then cleans up.
     """
+    from api.jobs import update_uploaded_doc_status
     loop = asyncio.get_event_loop()
     pipeline = _get_pipeline()
 
     def _run():
+        tmp_paths_to_clean: list[str] = []
+
+        # Write lease to temp file
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
             tmp.write(pdf_bytes)
-            tmp_path = tmp.name
+            lease_tmp_path = tmp.name
+        tmp_paths_to_clean.append(lease_tmp_path)
+
+        # Write additional docs to temp files
+        additional_docs: list[dict] = []
+        if additional_docs_data:
+            for fd in additional_docs_data:
+                ext = "." + fd["filename"].rsplit(".", 1)[-1].lower() if "." in fd["filename"] else ".pdf"
+                with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                    tmp.write(fd["content"])
+                    tmp_path = tmp.name
+                tmp_paths_to_clean.append(tmp_path)
+                additional_docs.append({
+                    "path": tmp_path,
+                    "doc_type": fd["doc_type"],
+                    "filename": fd["filename"],
+                })
+                update_uploaded_doc_status(job_id, fd["filename"], "processing")
+
         try:
+            update_uploaded_doc_status(job_id, filename, "processing")
+
             result = pipeline(
-                pdf_path=tmp_path,
+                pdf_path=lease_tmp_path,
                 jurisdiction=jurisdiction,
                 tenant_name=tenant_name,
                 job_id=job_id,
                 document_hash=document_hash,
                 progress_callback=lambda pct, stage: update_job_progress(job_id, pct, stage),
+                additional_docs=additional_docs if additional_docs else None,
             )
-            # model_dump(mode="json") ensures all Python types (datetime, Decimal, etc.)
-            # are converted to JSON-safe equivalents before being passed to Supabase.
-            # model_dump() WITHOUT mode="json" returns raw Python objects (e.g. datetime
-            # for audit_date) which httpx's json.dumps() cannot serialize, silently
-            # causing mark_complete to fail and findings to never land in Supabase.
+
             result_dict = (
                 result.model_dump(mode="json") if hasattr(result, "model_dump")
                 else (result if isinstance(result, dict) else result.__dict__)
             )
+
+            # Merge any submission-time warnings into pipeline warnings
+            if submission_warnings:
+                result_dict.setdefault("pipeline_warnings", [])
+                result_dict["pipeline_warnings"] = submission_warnings + result_dict["pipeline_warnings"]
+
+            # Update doc statuses from reconciliation results
+            update_uploaded_doc_status(job_id, filename, "complete")
+            for recon in result_dict.get("reconciliation_results", []):
+                doc_fn = recon.get("doc_filename", "")
+                recon_status = recon.get("engine_status", "complete")
+                recon_warnings = recon.get("warnings", [])
+                mapped = "complete" if recon_status == "complete" else (
+                    "failed" if recon_status == "failed" else "partial"
+                )
+                update_uploaded_doc_status(job_id, doc_fn, mapped, recon_warnings)
+
             complete_job(job_id, result_dict)
+
         except Exception as e:
             logger.exception(f"[{job_id}] Audit pipeline failed: {e}")
+            update_uploaded_doc_status(job_id, filename, "failed")
+            for fd in (additional_docs_data or []):
+                update_uploaded_doc_status(job_id, fd["filename"], "failed")
             fail_job(job_id, str(e))
         finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+            for p in tmp_paths_to_clean:
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
 
     try:
-        # Hard 1-hour ceiling: if _run() stalls (e.g. Supabase write hangs despite the
-        # 30s postgrest timeout), this cancels the future and surfaces a visible failure.
         await asyncio.wait_for(
             loop.run_in_executor(_audit_executor, _run),
             timeout=3600,
@@ -902,6 +1021,33 @@ def download_single_evidence_pack(job_id: str, flag_id: str):
         raise HTTPException(status_code=500, detail="Evidence pack generation failed.")
 
 
+@app.get("/api/admin/report/{job_id}")
+async def admin_download_report(job_id: str, _: None = Depends(require_admin)):
+    """
+    Admin PDF report download — bypasses release gate for auditor review.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail="Audit not yet complete.")
+
+    try:
+        from output.report_generator import generate_pdf_report
+        result = get_job_result(job_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Audit result not found.")
+        report_path = generate_pdf_report(result, job_id=job_id)
+        safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
+        filename = f"TenantSentry_DRAFT_Audit_{safe_name}_{job.jurisdiction}.pdf"
+        return FileResponse(path=report_path, media_type="application/pdf", filename=filename)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Admin report generation failed for {job_id}: {e}")
+        raise HTTPException(status_code=500, detail="Report generation failed.")
+
+
 @app.get("/api/admin/evidence/{job_id}")
 async def admin_download_evidence(job_id: str, _: None = Depends(require_admin)):
     """
@@ -1060,6 +1206,21 @@ async def admin_active_jobs(_: None = Depends(require_admin)):
         except Exception:
             job_dict["elapsed_seconds"] = None
         return job_dict
+
+    # ── Zombie cleanup: jobs stuck as processing for > 90 min ────────────────
+    # These are left over from server restarts — the in-flight thread was killed
+    # but the Supabase row was never updated. Mark them failed so they leave the
+    # Active list and drop into Recent Failures instead.
+    ZOMBIE_THRESHOLD_S = 90 * 60
+    for j in list_active():
+        try:
+            created = datetime.fromisoformat(j.created_at).astimezone(timezone.utc) if j.created_at else None
+            if created and (now - created).total_seconds() > ZOMBIE_THRESHOLD_S:
+                if j.status == JobStatus.PROCESSING and j.job_id not in _cancelled_jobs:
+                    logger.warning(f"[{j.job_id}] Zombie job detected (>{ZOMBIE_THRESHOLD_S//60}m as processing) — marking failed")
+                    fail_job(j.job_id, f"Auto-expired: stuck as processing for >{ZOMBIE_THRESHOLD_S//60} minutes (server restart likely)")
+        except Exception as e:
+            logger.error(f"Zombie check failed for {j.job_id}: {e}")
 
     # Active (queued / processing)
     active = [_with_elapsed(j.to_dict()) for j in list_active()]

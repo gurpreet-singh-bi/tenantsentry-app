@@ -2236,7 +2236,9 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
   // Visual step n maps to: 1=screen1, 2=screen3, 3=screen3b
   const FLOW_SCREENS = { 1:'screen1', 2:'screen3', 3:'screen3b' };
 
+  let _maxFlowStep = 0;
   function setFlowStep(n) {
+    _maxFlowStep = Math.max(_maxFlowStep, n);
     // Hide all screens
     ['screen1','screen2','screen3','screen3b','screen4'].forEach(id => {
       const el = document.getElementById(id);
@@ -2250,10 +2252,11 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       const step = document.getElementById('s' + i);
       if (!step) return;
       step.classList.remove('active','done');
-      if (i < n) step.classList.add('done');
+      // done = already passed (i < n) OR previously visited (i <= maxFlowStep) when going back
+      if (i !== n && i <= _maxFlowStep) step.classList.add('done');
       if (i === n) step.classList.add('active');
       const circle = step.querySelector('.step-circle');
-      if (circle) circle.textContent = (i < n) ? '✓' : i;
+      if (circle) circle.textContent = (i < n || (i > n && i <= _maxFlowStep)) ? '✓' : i;
     });
     [1,2].forEach(i => {
       const line = document.getElementById('line' + i);
@@ -2372,31 +2375,91 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     markReviewComplete();
   }
 
-  // ── LIVE API SUBMIT (called from goToAuditEngine in live mode) ──
+  // ── WARNING TOAST SYSTEM ─────────────────────────────────────────────────────
+  // Subtle, non-blocking warnings shown in a fixed strip above the audit engine.
+  // Never blocks the user; always dismissable. Used for: doc type issues,
+  // engine gaps, data quality problems, partial results.
+  const _activeWarnings = new Set();
+  function showWarning(key, message, level = 'warn') {
+    if (_activeWarnings.has(key)) return; // deduplicate
+    _activeWarnings.add(key);
+    const container = document.getElementById('warningStrip') || _createWarningStrip();
+    const colours = {
+      warn:  { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)', icon: '⚠', text: '#f59e0b' },
+      info:  { bg: 'rgba(99,102,241,0.10)', border: 'rgba(99,102,241,0.30)', icon: 'ℹ', text: '#a5b4fc' },
+      error: { bg: 'rgba(239,68,68,0.10)',  border: 'rgba(239,68,68,0.30)',  icon: '✕', text: '#f87171' },
+    };
+    const c = colours[level] || colours.warn;
+    const el = document.createElement('div');
+    el.style.cssText = `display:flex;align-items:flex-start;gap:8px;padding:8px 12px;
+      border-radius:6px;border:1px solid ${c.border};background:${c.bg};
+      font-size:12px;color:${c.text};line-height:1.5;margin-bottom:6px;`;
+    el.innerHTML = `<span style="flex-shrink:0;font-size:13px">${c.icon}</span>
+      <span style="flex:1">${message}</span>
+      <button onclick="this.closest('div').remove()" style="background:none;border:none;
+        color:${c.text};cursor:pointer;font-size:14px;padding:0 2px;opacity:0.7;flex-shrink:0">×</button>`;
+    container.appendChild(el);
+  }
+  function _createWarningStrip() {
+    const strip = document.createElement('div');
+    strip.id = 'warningStrip';
+    strip.style.cssText = 'position:fixed;bottom:16px;right:16px;width:380px;z-index:9999;';
+    document.body.appendChild(strip);
+    return strip;
+  }
+
+  // ── LIVE API SUBMIT ───────────────────────────────────────────────────────────
+  // Sends ALL uploaded files with their doc types. No silent drops.
   async function submitToAuditAPI() {
-    const leaseFile = uploadedFiles.find(f => f.docType === 'lease') || uploadedFiles[0];
-    if (!leaseFile) return;
     const jurisdiction = document.getElementById('leaseState')?.value || 'NSW';
     const leaseRef = document.getElementById('leaseRef')?.value || '';
     const jobIdEl = document.getElementById('ae-job-id');
+
+    const leaseFiles = uploadedFiles.filter(f => f.docType === 'lease');
+    if (leaseFiles.length === 0) {
+      showWarning('no-lease', 'No file is tagged as "Lease" — please tag your primary document correctly.', 'error');
+      return;
+    }
+
     try {
       const formData = new FormData();
-      formData.append('file', leaseFile.file);
+      uploadedFiles.forEach(f => {
+        formData.append('files', f.file);
+        formData.append('doc_types', f.docType);
+      });
       formData.append('jurisdiction', jurisdiction);
-      formData.append('tenant_name', leaseRef || 'TenantSentry Demo');
+      formData.append('tenant_name', leaseRef || 'TenantSentry');
+
       const res = await fetch('/api/audit/submit', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText);
+      }
       const data = await res.json();
       reviewJobId = data.job_id;
       if (jobIdEl) jobIdEl.textContent = data.job_id;
-      // Poll job status to advance animation
+
+      // Surface any submission-time warnings (oversized files, unsupported types, etc.)
+      (data.warnings || []).forEach((w, i) => showWarning('submit-warn-'+i, w, 'warn'));
+
+      // Note which non-lease docs were submitted
+      const extraDocs = uploadedFiles.filter(f => f.docType !== 'lease');
+      if (extraDocs.length > 0) {
+        const docList = extraDocs.map(f => `${f.file.name} (${f.docType})`).join(', ');
+        showWarning('extra-docs', `Additional documents submitted for analysis: ${docList}. Results will appear in the reconciliation panel when ready.`, 'info');
+      }
+
       pollAuditJobStatus();
     } catch (e) {
       const msg = document.getElementById('ae-status-msg');
       if (msg) msg.textContent = '⚠ Submission error: ' + e.message;
+      showWarning('submit-error', 'Submission failed: ' + e.message, 'error');
     }
   }
 
+  // ── JOB STATUS POLLING (live mode only) ──────────────────────────────────────
+  // Drives ALL live-mode display from real backend data.
+  // No hardcoded sim data is referenced in this path.
   let aeJobPollTimer = null;
   async function pollAuditJobStatus() {
     if (!reviewJobId) return;
@@ -2405,18 +2468,209 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
         const res = await fetch(`/api/audit/status/${reviewJobId}`);
         const data = await res.json();
         const p = data.progress || 0;
+        const stage = data.stage || '';
+
+        // Update status bar from real data
         const sr = document.getElementById('ae-status-right');
         if (sr) sr.textContent = p + '% complete';
+        const msgEl = document.getElementById('ae-status-msg');
+        if (msgEl && stage) msgEl.textContent = '⟳ ' + stage;
+
+        // Extract real clause totals from stage strings
+        const triageM = stage.match(/Triaging (\d+) clauses/i);
+        if (triageM) {
+          aeTotalClauses = parseInt(triageM[1]);
+          aeSet('ae-s-total', '/ ' + aeTotalClauses);
+          aeSet('ae-cp-tot',  '/ ' + aeTotalClauses);
+          aeSet('ae-pages',   '📄 ' + aeTotalClauses + ' clauses detected');
+        }
+        const analysisM = stage.match(/Analysed (\d+) of (\d+) flagged/i);
+        if (analysisM) {
+          const done = parseInt(analysisM[1]);
+          const flagTotal = parseInt(analysisM[2]);
+          const displayTotal = aeTotalClauses || flagTotal;
+          aeSet('ae-s-clauses', done);
+          aeSet('ae-cp-n',      done);
+          aeSet('ae-s-total',   '/ ' + displayTotal);
+          aeSet('ae-cp-tot',    '/ ' + displayTotal);
+          const pbar = aeGet('ae-cp-fill');
+          if (pbar) pbar.style.width = Math.round(done / Math.max(flagTotal,1) * 100) + '%';
+          const mbar = aeGet('ae-mini-fill');
+          if (mbar) mbar.style.width = Math.round(p) + '%';
+        }
+        const reconM = stage.match(/Reconciling/i);
+        if (reconM) {
+          const ec2 = aeGet('ae-ec2');
+          const eb2 = aeGet('ae-eb2');
+          if (ec2) ec2.classList.add('ae-running');
+          if (eb2) { eb2.textContent = 'RUNNING'; eb2.className = 'ae-col-badge running'; }
+        }
+
         aeOnProgress(p);
+
         if (data.status === 'complete' || p >= 100) {
           clearInterval(aeJobPollTimer);
+          // Fetch final results and render real findings
+          await _renderLiveResults(reviewJobId);
           aeSimComplete();
+        }
+        if (data.status === 'failed') {
+          clearInterval(aeJobPollTimer);
+          const errMsg = data.error || 'Unknown error';
+          if (msgEl) msgEl.textContent = '✕ Audit failed: ' + errMsg;
+          showWarning('audit-failed', 'Audit pipeline failed: ' + errMsg, 'error');
         }
       } catch (_) {}
     }, 3000);
   }
 
+  // ── LIVE RESULTS RENDERER ─────────────────────────────────────────────────────
+  // Called once when the job reaches 'complete'. Fetches the real findings and
+  // renders the clause log and outgoings reconciliation panel from actual data.
+  // Nothing in here uses hardcoded numbers or demo data.
+  async function _renderLiveResults(jobId) {
+    try {
+      const res = await fetch(`/api/audit/report/${jobId}`);
+      if (!res.ok) {
+        showWarning('result-fetch', 'Could not load audit results — the report may still be processing.', 'warn');
+        return;
+      }
+      const findings = await res.json();
+      _renderClauseLog(findings);
+      _renderReconPanel(findings);
+      _renderPipelineWarnings(findings);
+    } catch (e) {
+      showWarning('result-render', 'Error loading results: ' + e.message, 'warn');
+    }
+  }
+
+  function _renderClauseLog(findings) {
+    const log = aeGet('ae-clause-log');
+    if (!log) return;
+    log.innerHTML = '';
+    aeFlags = 0; aeBreaches = 0;
+    const analyses = findings.clause_analyses || [];
+    if (analyses.length === 0) {
+      log.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px">No clause data available.</div>';
+      return;
+    }
+    analyses.forEach((ca, i) => {
+      const hasHighFlags = (ca.risk_flags || []).some(f => f.severity === 'high');
+      const hasMedFlags  = (ca.risk_flags || []).some(f => f.severity === 'medium');
+      const status = hasHighFlags ? 'breach' : hasMedFlags ? 'flag' : 'ok';
+      const legRefs = (ca.risk_flags || []).map(f => f.legislation_ref).filter(Boolean);
+      const c = {
+        id: i + 1,
+        n: ca.clause_heading || `Clause ${i+1}`,
+        s: status,
+        l: legRefs[0] || null,
+        note: ca.risk_flags?.[0]?.description || '',
+      };
+      aeAppendLog(c);
+      if (status === 'flag')   { aeFlags++;    aeSet('ae-s-flags', aeFlags); }
+      if (status === 'breach') { aeBreaches++; aeSet('ae-s-breaches', aeBreaches); }
+    });
+    aeSet('ae-s-clauses', analyses.length);
+    aeSet('ae-cp-n', analyses.length);
+    aeSet('ae-pages', '📄 ' + analyses.length + ' clauses analysed');
+  }
+
+  function _renderReconPanel(findings) {
+    const reconResults = findings.reconciliation_results || [];
+    const col = aeGet('ae-ec2');
+    const badge = aeGet('ae-eb2');
+
+    if (reconResults.length === 0) {
+      // No outgoings doc was submitted — show a clear gap, not dummy data
+      if (col) {
+        col.classList.remove('ae-running');
+        col.style.opacity = '0.45';
+      }
+      if (badge) { badge.textContent = 'NO DATA'; badge.className = 'ae-col-badge'; badge.style.cssText = 'background:rgba(255,255,255,0.04);color:var(--text-muted);border-color:rgba(255,255,255,0.1)'; }
+      const body = col?.querySelector('.ae-eng-body');
+      if (body) body.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:8px 0;line-height:1.6">No outgoings schedule was uploaded.<br>Upload an outgoings statement alongside the lease to enable reconciliation.</div>';
+      return;
+    }
+
+    // Render first reconciliation result
+    const recon = reconResults[0];
+    const status = recon.engine_status;
+    const findings_list = recon.findings || [];
+    const disputed = recon.total_disputed_cents || 0;
+    const claimed  = recon.total_claimed_cents || 0;
+
+    if (col) col.classList.remove('ae-running');
+
+    if (status === 'failed' || status === 'skipped') {
+      if (badge) { badge.textContent = status === 'failed' ? 'FAILED' : 'SKIPPED'; badge.className = 'ae-col-badge'; }
+      (recon.warnings || []).forEach((w, i) => showWarning('recon-warn-'+i, w, status === 'failed' ? 'error' : 'warn'));
+      if (col) col.classList.add('ae-flag');
+      return;
+    }
+
+    // Count by type
+    const overcharges  = findings_list.filter(f => f.finding_type === 'overcharge' || f.finding_type === 'prohibited');
+    const compliant    = findings_list.filter(f => f.finding_type === 'compliant');
+    const unclear      = findings_list.filter(f => f.finding_type === 'unclear' || f.finding_type === 'undisclosed');
+
+    const hasIssues = overcharges.length > 0;
+    if (badge) {
+      badge.textContent = hasIssues ? 'FLAGGED' : (unclear.length > 0 ? 'REVIEW' : 'COMPLIANT');
+      badge.className   = 'ae-col-badge ' + (hasIssues ? 'flagged' : (unclear.length > 0 ? 'flagged' : ''));
+    }
+    if (col) col.classList.add(hasIssues ? 'ae-flag' : '');
+
+    const body = col?.querySelector('.ae-eng-body');
+    if (body) {
+      const disputedAud = (disputed / 100).toLocaleString('en-AU', {style:'currency', currency:'AUD'});
+      const claimedAud  = (claimed / 100).toLocaleString('en-AU', {style:'currency', currency:'AUD'});
+      const period = [recon.period_start, recon.period_end].filter(Boolean).join(' – ') || 'Period not specified';
+
+      let html = `
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">${recon.doc_filename} · ${period}</div>
+        <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+          <div><div style="font-size:10px;color:var(--text-muted)">Total Claimed</div><div style="font-weight:700;font-size:13px">${claimedAud}</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted)">Disputed</div><div style="font-weight:700;font-size:13px;color:${disputed>0?'var(--red)':'var(--green)'}">${disputedAud}</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted)">Issues</div><div style="font-weight:700;font-size:13px;color:var(--amber)">${overcharges.length}</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted)">Unclear</div><div style="font-weight:700;font-size:13px;color:var(--text-muted)">${unclear.length}</div></div>
+        </div>`;
+
+      if (findings_list.length > 0) {
+        html += '<div style="display:flex;flex-direction:column;gap:4px">';
+        findings_list.slice(0, 6).forEach(f => {
+          const typeColour = f.finding_type === 'compliant' ? 'var(--green)' : f.finding_type === 'unclear' ? 'var(--text-muted)' : 'var(--red)';
+          html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+            <div style="width:6px;height:6px;border-radius:50%;background:${typeColour};margin-top:4px;flex-shrink:0"></div>
+            <div style="flex:1;font-size:11px">
+              <div style="font-weight:600">${f.line_item_description}</div>
+              <div style="color:var(--text-muted);font-size:10px">${f.explanation}</div>
+              ${f.legislation_ref ? `<div style="color:var(--teal);font-size:10px">${f.legislation_ref}</div>` : ''}
+            </div>
+            <div style="font-size:10px;color:${typeColour};white-space:nowrap">${f.finding_type.toUpperCase()}</div>
+          </div>`;
+        });
+        if (findings_list.length > 6) {
+          html += `<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:4px">+${findings_list.length-6} more findings in the full report</div>`;
+        }
+        html += '</div>';
+      } else if (status === 'partial') {
+        html += '<div style="font-size:11px;color:var(--text-muted)">Reconciliation ran but produced no findings. Check warnings for details.</div>';
+      }
+
+      body.innerHTML = html;
+    }
+
+    // Surface recon warnings
+    (recon.warnings || []).filter(w => w).forEach((w, i) => showWarning('recon-warn-'+i, w, 'warn'));
+  }
+
+  function _renderPipelineWarnings(findings) {
+    (findings.pipeline_warnings || []).forEach((w, i) => showWarning('pipe-warn-'+i, w, 'warn'));
+  }
+
   // ── AUDIT ENGINE ANIMATION ──
+  // AE_SIM_CLAUSES is used ONLY in demo mode for the walkthrough experience.
+  // In live mode, _renderLiveResults() replaces these with real findings.
   const AE_SIM_CLAUSES = [
     {id:1,n:'Rent — Base Rent',s:'ok',l:null,note:''},
     {id:2,n:'Rent Review — CPI Method',s:'breach',l:'RLA s.35',note:'CPI + 2.0% exceeds permitted CPI-only cap'},
@@ -2427,48 +2681,22 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     {id:7,n:'Insurance — Public Liability',s:'ok',l:null,note:''},
     {id:8,n:'Assignment & Subletting',s:'ok',l:null,note:''},
     {id:9,n:'Building Management Fee',s:'flag',l:'ACCC Guide',note:'15% admin fee exceeds ACCC 10% guideline'},
-    {id:10,n:'Marketing Levy',s:'flag',l:'RLA s.52',note:'Not included in required outgoings disclosure'},
-    {id:11,n:'Option to Renew',s:'ok',l:null,note:''},
-    {id:12,n:'Demolition Clause',s:'flag',l:'RLA s.60',note:'Compensation below statutory minimum'},
-    {id:13,n:'Relocation Clause',s:'ok',l:null,note:''},
-    {id:14,n:'Essential Safety Measures',s:'ok',l:null,note:''},
-    {id:15,n:'Holding Over',s:'ok',l:null,note:''},
-    {id:16,n:'Dispute Resolution',s:'ok',l:null,note:''},
-    {id:17,n:'Permitted Use',s:'ok',l:null,note:''},
-    {id:18,n:'Signage Rights',s:'ok',l:null,note:''},
-    {id:19,n:'Contamination Liability',s:'flag',l:null,note:'Broad pre-existing contamination exposure'},
-    {id:20,n:'Parking Allocation',s:'ok',l:null,note:''},
-    {id:21,n:'Hours of Operation',s:'ok',l:null,note:''},
-    {id:22,n:'Maintenance & Repairs',s:'ok',l:null,note:''},
-    {id:23,n:'Capital Expenditure',s:'breach',l:'RLA s.41(2)',note:'CapEx recovery expressly prohibited'},
-    {id:24,n:'Water & Sewerage',s:'ok',l:null,note:''},
-    {id:25,n:'Cleaning — Common Areas',s:'ok',l:null,note:''},
-    {id:26,n:'Fit-out Obligations',s:'ok',l:null,note:''},
-    {id:27,n:'Quiet Enjoyment',s:'ok',l:null,note:''},
-    {id:28,n:'GST Treatment',s:'ok',l:null,note:''},
-    {id:29,n:'Default & Remedies',s:'ok',l:null,note:''},
-    {id:30,n:'Exclusivity Rights',s:'flag',l:null,note:'No exclusivity — competitor risk'},
-    {id:31,n:'Disclosure Statement',s:'flag',l:'RLA s.17',note:'Served < 7 days before execution'},
-    {id:32,n:'Renewal — Rent Setting',s:'ok',l:'RLA s.37',note:''},
-    {id:33,n:'Governing Law',s:'ok',l:null,note:''},
-    {id:34,n:'Special Conditions',s:'ok',l:null,note:''},
+    {id:10,n:'Option to Renew',s:'ok',l:null,note:''},
+    {id:11,n:'Demolition Clause',s:'flag',l:'RLA s.60',note:'Compensation below statutory minimum'},
+    {id:12,n:'Holding Over',s:'ok',l:null,note:''},
   ];
+  // AE_ENG_STEPS: demo-only timing for the three engine columns.
+  // Values here are for pacing only — no numbers shown to user from these in live mode.
   const AE_ENG_STEPS = [
-    [{id:'ae-e0s0',d:500},{id:'ae-e0s1',d:700,a:()=>aeSet('ae-v0s1','3.2% (ABS Q4 latest)')},
-     {id:'ae-e0s2',d:600,a:()=>aeSet('ae-v0s2','Base rent × 3.2%')},
-     {id:'ae-e0s3',d:500,a:()=>aeSet('ae-v0s3','Base rent × 5.2% (lease claim)')},
-     {id:'ae-e0s4',d:700},{id:'ae-e0s5',d:600}],
-    [{id:'ae-e1s0',d:400},{id:'ae-e1s1',d:600},{id:'ae-e1s2',d:700},
-     {id:'ae-e1s3',d:500,a:()=>aeSet('ae-v1s3','Annual charge confirmed')},
-     {id:'ae-e1s4',d:700}],
-    [{id:'ae-e2s0',d:400},{id:'ae-e2s1',d:500,a:()=>aeSet('ae-v2s1','Total outgoings claimed')},
-     {id:'ae-e2s2',d:700},{id:'ae-e2s3',d:700},{id:'ae-e2s4',d:500},
-     {id:'ae-e2s5',d:600,a:()=>aeSet('ae-v2s5','3 non-compliant items')}],
+    [{id:'ae-e0s0',d:500},{id:'ae-e0s1',d:700},{id:'ae-e0s2',d:600},{id:'ae-e0s3',d:500},{id:'ae-e0s4',d:700},{id:'ae-e0s5',d:600}],
+    [{id:'ae-e1s0',d:400},{id:'ae-e1s1',d:600},{id:'ae-e1s2',d:700},{id:'ae-e1s3',d:500},{id:'ae-e1s4',d:700}],
+    [{id:'ae-e2s0',d:400},{id:'ae-e2s1',d:500},{id:'ae-e2s2',d:700},{id:'ae-e2s3',d:700},{id:'ae-e2s4',d:500},{id:'ae-e2s5',d:600}],
   ];
 
   let aeClauseIdx=0, aeClauseTarget=0, aeFlags=0, aeBreaches=0;
   let aeVectors=0, aeRules=0;
   let aeVTimer=null, aeCTimer=null, aeCdTimer=null, aeEngStarted=false;
+  let aeTotalClauses=0;
 
   function aeGet(id){ return document.getElementById(id); }
   function aeSet(id,v){ const e=aeGet(id); if(e) e.textContent=v; }
@@ -2476,11 +2704,28 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
   function initAuditEngineAnim() {
     aeClauseIdx=0; aeClauseTarget=0; aeFlags=0; aeBreaches=0;
     aeVectors=0; aeRules=0; aeEngStarted=false;
-    const tot = AE_SIM_CLAUSES.length;
-    aeSet('ae-s-total','/ '+tot); aeSet('ae-cp-tot','/ '+tot);
-    aeSet('ae-cp-cur','⟳ Running OCR pass on document...');
-    aeSet('ae-pages','📄 Processing document...');
-    // Vector counter
+
+    if (auditMode === 'live') {
+      // Live mode: show neutral "processing" state — real data populates on completion
+      aeSet('ae-s-total','/ —'); aeSet('ae-cp-tot','/ —');
+      aeSet('ae-cp-cur','⟳ Submitting documents to audit pipeline...');
+      aeSet('ae-pages','📄 Processing...');
+      // Show outgoings panel as pending if outgoings were uploaded
+      const hasOutgoings = uploadedFiles.some(f => f.docType === 'outgoings' || f.docType === 'invoice');
+      const eb2 = aeGet('ae-eb2');
+      if (!hasOutgoings && eb2) {
+        eb2.textContent = 'NOT SUBMITTED';
+        eb2.style.cssText = 'background:rgba(255,255,255,0.04);color:var(--text-muted);border-color:rgba(255,255,255,0.1)';
+      }
+    } else {
+      // Demo mode: use sim clauses for animated walkthrough
+      const tot = AE_SIM_CLAUSES.length;
+      aeSet('ae-s-total','/ '+tot); aeSet('ae-cp-tot','/ '+tot);
+      aeSet('ae-cp-cur','⟳ Running OCR pass on document...');
+      aeSet('ae-pages','📄 Processing document...');
+    }
+
+    // Vector counter (cosmetic progress indicator — fine in all modes)
     aeVTimer = setInterval(()=>{
       aeVectors += Math.floor(Math.random()*14+5);
       aeRules   += Math.floor(Math.random()*4+1);
@@ -2488,7 +2733,9 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       aeSet('ae-cp-vec', aeVectors.toLocaleString());
       aeSet('ae-s-rules', aeRules);
     }, 200);
-    // Clause reveal timer
+
+    // Clause reveal timer — demo mode only
+    if (auditMode !== 'live') {
     aeCTimer = setInterval(()=>{
       if (aeClauseIdx < aeClauseTarget && aeClauseIdx < AE_SIM_CLAUSES.length) {
         const c = AE_SIM_CLAUSES[aeClauseIdx];
@@ -2501,10 +2748,12 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
         const f=aeGet('ae-cp-fill'); if(f) f.style.width=pct+'%';
         const m=aeGet('ae-mini-fill'); if(m) m.style.width=pct+'%';
         if (aeClauseIdx < AE_SIM_CLAUSES.length) {
-          aeSet('ae-cp-cur','⟳ Analysing clause '+(aeClauseIdx+1)+'/34 — '+AE_SIM_CLAUSES[aeClauseIdx].n+'...');
+          const _tot = aeTotalClauses || AE_SIM_CLAUSES.length;
+          aeSet('ae-cp-cur','⟳ Analysing clause '+(aeClauseIdx+1)+'/'+_tot+' — '+AE_SIM_CLAUSES[aeClauseIdx].n+'...');
         } else {
-          aeSet('ae-cp-cur','✓ All 34 clauses analysed');
-          aeSet('ae-pages','📄 47 pages · 34 clauses');
+          const _tot = aeTotalClauses || AE_SIM_CLAUSES.length;
+          aeSet('ae-cp-cur','✓ All '+_tot+' clauses analysed');
+          aeSet('ae-pages','📄 '+_tot+' clauses analysed');
           if (!aeEngStarted) { aeEngStarted=true; setTimeout(()=>aeRunEngine(0),800); }
         }
       }
@@ -2518,9 +2767,13 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
         if (p>=100) clearInterval(demoTimer);
       }, 400);
     }
+    } // end if (auditMode !== 'live')
   }
 
   function aeOnProgress(progress) {
+    // In live mode, display text is driven by real stage strings from pollAuditJobStatus.
+    // This function is only used for demo/dev mode animation pacing.
+    if (auditMode === 'live') return;
     if (progress <= 15) {
       aeSet('ae-cp-cur','⟳ Running OCR pass on document...');
     } else if (progress <= 50) {
@@ -2552,6 +2805,9 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
   }
 
   async function aeRunEngine(i) {
+    // In live mode, engine columns are driven by _renderReconPanel() from real data.
+    // aeRunEngine is demo-only.
+    if (auditMode === 'live') { aeSimComplete(); return; }
     if(i>=3){ aeSimComplete(); return; }
     const col=aeGet('ae-ec'+i), badge=aeGet('ae-eb'+i);
     if(!col||!badge){ aeRunEngine(i+1); return; }
@@ -2566,15 +2822,17 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       if(el){ el.classList.add('active'); el.querySelector('.ae-es-icon').textContent='⟳'; }
       await sleep(s.d*0.6);
       if(el){ el.classList.remove('active'); el.classList.add('done'); el.querySelector('.ae-es-icon').textContent='✓'; }
-      if(s.a) s.a();
+      // s.a() previously set hardcoded values like '3.2% (ABS Q4 latest)'.
+      // These are demo-only — we do NOT call s.a() as those labels are removed.
       t=s.d;
     }
     await sleep(500);
     const finding=aeGet('ae-ef'+i); if(finding) finding.classList.add('show');
     const done=i===2?'ae-flag':'ae-breach';
     col.classList.remove('ae-running'); col.classList.add(done);
-    badge.textContent=i===2?'FLAGGED':'BREACH';
-    badge.className='ae-col-badge '+(i===2?'flagged':'breach');
+    // Demo labels only — not shown in live mode
+    badge.textContent=i===2?'COMPLETE':'COMPLETE';
+    badge.className='ae-col-badge';
     await sleep(400);
     aeRunEngine(i+1);
   }

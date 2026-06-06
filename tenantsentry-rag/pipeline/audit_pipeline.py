@@ -152,9 +152,10 @@ def run_audit(
     job_id: str = None,
     document_hash: str = None,
     progress_callback: ProgressCallback = None,
+    additional_docs: list[dict] = None,
 ) -> AuditResult:
     """
-    Full audit pipeline for a commercial lease PDF.
+    Full audit pipeline for a commercial lease PDF, with optional additional docs.
 
     Args:
         pdf_path:          Absolute path to the lease PDF
@@ -166,9 +167,15 @@ def run_audit(
                            checks whether this document is already in the vector
                            store and skips embedding if so.
         progress_callback: Optional fn(pct: int, stage: str)
+        additional_docs:   Optional list of dicts:
+                           [{"path": str, "doc_type": str, "filename": str}, ...]
+                           Supported doc_types: "outgoings", "invoice", "amendment"
+                           Outgoings/invoices run through outgoings_engine after lease analysis.
+                           Amendments are noted in warnings (not yet analysed).
 
     Returns:
-        AuditResult with clause analyses, risk flags, and extracted lease dates
+        AuditResult with clause analyses, risk flags, extracted lease dates,
+        and reconciliation_results for any outgoings/invoice docs.
     """
     logger.info(f"Starting audit: {pdf_path} | {jurisdiction} | vector_store={USE_VECTOR_STORE}")
     cb = progress_callback
@@ -470,6 +477,72 @@ def run_audit(
     if _cpi_series_used and "cpi_index_series" not in extracted_rules:
         extracted_rules["cpi_index_series"] = _cpi_series_used
 
+    # 8b. Optional: outgoings / invoice reconciliation
+    # Runs after lease analysis so we have clause_analyses available for context.
+    reconciliation_results: list[dict] = []
+    pipeline_warnings: list[str] = []
+
+    if additional_docs:
+        from ingestion.outgoings_parser import parse_outgoings_pdf
+        from pipeline.outgoings_engine import run_outgoings_reconciliation, reconciliation_result_to_dict
+
+        clause_analyses_dicts = [ca.model_dump() for ca in clause_analyses]
+
+        outgoings_docs = [d for d in additional_docs if d.get("doc_type") in ("outgoings", "invoice")]
+        amendment_docs = [d for d in additional_docs if d.get("doc_type") == "amendment"]
+        other_docs     = [d for d in additional_docs if d.get("doc_type") not in ("outgoings", "invoice", "amendment")]
+
+        if amendment_docs:
+            for ad in amendment_docs:
+                pipeline_warnings.append(
+                    f"Lease amendment '{ad['filename']}' was uploaded but amendment analysis is "
+                    "not yet implemented — it has been noted but not cross-referenced against the lease. "
+                    "Please review it manually."
+                )
+
+        if other_docs:
+            for od in other_docs:
+                pipeline_warnings.append(
+                    f"Document '{od['filename']}' (type: {od.get('doc_type','other')}) was uploaded "
+                    "but no analysis engine exists for this document type — it was ignored."
+                )
+
+        for i, doc in enumerate(outgoings_docs):
+            doc_path     = doc["path"]
+            doc_filename = doc["filename"]
+            doc_type     = doc["doc_type"]
+            base_pct     = 93 + int(i / max(len(outgoings_docs), 1) * 4)  # 93-97%
+
+            _progress(cb, base_pct, f"Parsing {doc_type} document: {doc_filename}...")
+            logger.info(f"Running outgoings engine on: {doc_filename} ({doc_type})")
+
+            try:
+                parsed_out = parse_outgoings_pdf(doc_path)
+
+                def _recon_cb(stage: str):
+                    _progress(cb, base_pct + 1, stage)
+
+                recon = run_outgoings_reconciliation(
+                    parsed_outgoings=parsed_out,
+                    doc_filename=doc_filename,
+                    clause_analyses=clause_analyses_dicts,
+                    jurisdiction=jur,
+                    progress_callback=_recon_cb,
+                )
+                reconciliation_results.append(reconciliation_result_to_dict(recon))
+
+            except Exception as e:
+                logger.error(f"Outgoings engine failed for {doc_filename}: {e}")
+                reconciliation_results.append({
+                    "doc_filename": doc_filename,
+                    "doc_type": doc_type,
+                    "engine_status": "failed",
+                    "warnings": [f"Processing failed: {e}. This document was not reconciled."],
+                    "findings": [],
+                    "total_claimed_cents": 0,
+                    "total_disputed_cents": 0,
+                })
+
     _timings["total_ms"] = _ms(_t0)
 
     result = AuditResult(
@@ -483,12 +556,15 @@ def run_audit(
         lease_dates=lease_dates,
         extracted_rules=extracted_rules,
         stage_timings=_timings,
+        reconciliation_results=reconciliation_results,
+        pipeline_warnings=pipeline_warnings,
     )
 
     logger.info(
         f"Audit complete — {len(clause_analyses)} clauses, "
         f"{len(all_flags)} flags ({len(high_flags)} high), "
         f"risk={risk_score}/100, dates={len(lease_dates)} | "
+        f"recon_docs={len(reconciliation_results)} | "
         f"triage={_timings.get('triage_ms')}ms "
         f"analysis={_timings.get('analysis_ms')}ms "
         f"total={_timings.get('total_ms')}ms"

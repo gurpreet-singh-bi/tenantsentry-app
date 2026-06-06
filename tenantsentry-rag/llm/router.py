@@ -273,7 +273,10 @@ def triage_clauses(
         "- General repair and maintenance (standard obligations only)\n"
         "- Insurance obligations (standard only, no unusual liability)\n"
         "- Confidentiality (standard)\n\n"
-        "TARGET: Flag roughly 20-35% of clauses. Be selective — most leases have 60-70% boilerplate.\n\n"
+        "TARGET: Flag roughly 20-35% of clauses (5-9 per 25-clause batch). Be selective — most leases "
+        "have 60-70% boilerplate. If you are flagging more than 40%, re-read the DO NOT FLAG list and "
+        "reconsider. A missed important clause is worse than a missed boilerplate clause, so when in "
+        "doubt on a HIGH-VALUE topic, flag it — but do not flag clauses that clearly belong in DO NOT FLAG.\n\n"
         "Return ONLY a JSON array of the clause numbers (integers) that need deep analysis. "
         "Example: [0, 3, 7]\n\n"
         f"CLAUSES:\n{clause_list}\n\n"
@@ -283,20 +286,22 @@ def triage_clauses(
     try:
         response = client.messages.create(
             model=HAIKU_MODEL,
-            max_tokens=256,
+            max_tokens=512,  # 256 was too tight for large-index batches (e.g. indices 125-149)
             messages=[{"role": "user", "content": prompt}],
             timeout=30.0,
         )
         raw = response.content[0].text.strip()
         indices = json.loads(raw)
         valid = [int(i) for i in indices if isinstance(i, (int, float))]
+        flag_pct = round(100 * len(valid) / len(chunks)) if chunks else 0
         logger.info(
             f"Haiku triage batch offset={batch_offset} size={len(chunks)}: "
-            f"{len(valid)} flagged → {valid}"
+            f"{len(valid)} flagged ({flag_pct}%) → {valid}"
         )
         return valid
     except Exception as e:
         logger.warning(
-            f"Haiku triage failed (batch_offset={batch_offset}): {e} — flagging all {len(chunks)} clauses"
+            f"Haiku triage FALLBACK (batch_offset={batch_offset}): {e} "
+            f"— flagging all {len(chunks)} clauses (may inflate triage rate)"
         )
         return list(range(batch_offset, batch_offset + len(chunks)))
