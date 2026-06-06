@@ -158,6 +158,11 @@ _jobs_fallback: dict[str, Job] = {}
 # ── In-memory document fallback (dev only — used when Supabase Storage unavailable) ──
 _documents: dict[str, dict] = {}   # job_id → { filename, content_type, data: bytes }
 
+# ── Kill-switch: job IDs cancelled mid-flight ─────────────────────────────────
+# complete_job() checks this before writing results, ensuring a cancelled job's
+# in-flight thread cannot overwrite the cancelled/deleted state in DB or memory.
+_cancelled_jobs: set[str] = set()
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -219,24 +224,36 @@ def update_job_progress(job_id: str, progress: int, stage: str) -> None:
             logger.error(f"[{job_id}] Supabase progress update failed: {e}")
 
 
+_CLAUSE_TEXT_EXCERPT_CHARS = 1500   # chars kept per clause for the auditor excerpt panel
+
+
 def _strip_clause_text(result: dict) -> dict:
     """
     Return a copy of result with:
-      - clause_text removed from each ClauseAnalysis (raw text is in the PDF; no need to double-store)
+      - clause_text truncated to _CLAUSE_TEXT_EXCERPT_CHARS per clause so the
+        auditor's "Document Excerpt" panel has something to display, while keeping
+        the JSONB payload manageable (~252 KB max for a 168-clause lease vs.
+        ~2-5 MB for the full text).
       - stage_timings removed (stored in its own column, not in findings JSONB)
-    Reduces JSONB payload from ~2-5MB to ~200-400KB for a 168-clause lease.
     """
     stripped = {k: v for k, v in result.items() if k != "stage_timings"}
     if "clause_analyses" in stripped and isinstance(stripped["clause_analyses"], list):
-        stripped["clause_analyses"] = [
-            {k: v for k, v in ca.items() if k != "clause_text"}
-            if isinstance(ca, dict) else ca
-            for ca in stripped["clause_analyses"]
-        ]
+        truncated = []
+        for ca in stripped["clause_analyses"]:
+            if isinstance(ca, dict) and "clause_text" in ca:
+                ca = dict(ca)
+                text = ca["clause_text"] or ""
+                if len(text) > _CLAUSE_TEXT_EXCERPT_CHARS:
+                    ca["clause_text"] = text[:_CLAUSE_TEXT_EXCERPT_CHARS] + "…"
+            truncated.append(ca)
+        stripped["clause_analyses"] = truncated
     return stripped
 
 
 def complete_job(job_id: str, result: dict) -> None:
+    if job_id in _cancelled_jobs:
+        logger.warning(f"[{job_id}] complete_job skipped — job was cancelled mid-flight")
+        return
     job = _jobs_fallback.get(job_id)
     if job:
         job.status = JobStatus.COMPLETE
@@ -314,6 +331,89 @@ def release_job(job_id: str) -> Optional[Job]:
         job.released = True
         job.released_at = datetime.now(_SYDNEY_TZ).isoformat()
     return job
+
+
+def cancel_job(job_id: str, action: str = "fail") -> dict:
+    """
+    Kill switch — three modes:
+
+    "fail"   → Mark job as cancelled (terminal). In-flight thread results are
+               silently discarded via _cancelled_jobs guard in complete_job().
+    "retry"  → Cancel current run + reset to queued so it can be re-dispatched.
+               Caller (main.py) is responsible for re-dispatching if PDF is available.
+    "delete" → Hard-delete from memory + Supabase. Irreversible.
+
+    Returns a result dict passed back to the admin API response.
+    """
+    # Always add to cancelled set first — prevents the running thread from
+    # committing its result if complete_job() is called after we return.
+    _cancelled_jobs.add(job_id)
+
+    if action == "delete":
+        _jobs_fallback.pop(job_id, None)
+        _documents.pop(job_id, None)
+        if _supabase_ok():
+            try:
+                _store.delete_job(job_id)
+            except Exception as e:
+                logger.error(f"[{job_id}] Supabase delete failed: {e}")
+        # Remove from cancelled set — job is gone, no need to track
+        _cancelled_jobs.discard(job_id)
+        logger.info(f"[{job_id}] Job deleted by admin")
+        return {"ok": True, "action": "delete"}
+
+    if action == "retry":
+        # Step 1: discard from cancelled set so a fresh dispatch can complete_job()
+        _cancelled_jobs.discard(job_id)
+        # Step 2: reset in-memory state
+        job = _jobs_fallback.get(job_id)
+        if job:
+            job.status = JobStatus.QUEUED
+            job.progress = 0
+            job.stage = "Queued"
+            job.error = None
+        # Step 3: reset in Supabase
+        if _supabase_ok():
+            try:
+                _store.reset_for_retry(job_id)
+            except Exception as e:
+                logger.error(f"[{job_id}] Supabase retry reset failed: {e}")
+        # Re-dispatch is handled by main.py (needs pdf_bytes + event loop).
+        # We signal whether the PDF is available so main.py can decide.
+        has_pdf = job_id in _documents or (
+            _supabase_ok()  # assume Supabase Storage has it if bucket is configured
+        )
+        logger.info(f"[{job_id}] Job reset for retry by admin (pdf_available={has_pdf})")
+        return {"ok": True, "action": "retry", "pdf_available": has_pdf}
+
+    # Default: "fail" — mark cancelled (terminal)
+    job = _jobs_fallback.get(job_id)
+    if job:
+        job.status = JobStatus.FAILED
+        job.stage = "Cancelled"
+        job.error = "Manually cancelled by admin"
+        job.completed_at = datetime.now(_SYDNEY_TZ).isoformat()
+    if _supabase_ok():
+        try:
+            _store.mark_cancelled(job_id)
+        except Exception as e:
+            logger.error(f"[{job_id}] Supabase mark_cancelled failed: {e}")
+    logger.info(f"[{job_id}] Job cancelled by admin")
+    return {"ok": True, "action": "fail"}
+
+
+def list_active() -> list[Job]:
+    """Return jobs currently queued or processing — for the kill switch panel."""
+    active_statuses = {JobStatus.QUEUED, JobStatus.PROCESSING}
+    if _supabase_ok():
+        try:
+            return [Job.from_row(r) for r in _store.fetch_active()]
+        except Exception as e:
+            logger.error(f"Supabase list_active failed, using fallback: {e}")
+    return sorted(
+        [j for j in _jobs_fallback.values() if j.status in active_statuses],
+        key=lambda j: j.created_at or "",
+    )
 
 
 def list_pending_review() -> list[Job]:

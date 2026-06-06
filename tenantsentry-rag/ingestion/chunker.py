@@ -32,6 +32,24 @@ class Chunk:
         self.metadata.setdefault("chunk_type", "lease")
 
 
+def _is_toc_page(text: str) -> bool:
+    """
+    Return True if this page is predominantly a Table of Contents.
+
+    TOC lines have the pattern: "Some Heading .......  12"
+    (heading text, then 5+ dots, then a page number).
+    If >50% of non-blank lines match that pattern the page is a TOC page
+    and should be excluded from clause chunking — otherwise the dotted
+    leaders become the "body" of every matched heading.
+    """
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    if len(lines) < 3:
+        return False
+    toc_line = re.compile(r'.+\.{5,}\s*\d+\s*$')
+    toc_count = sum(1 for l in lines if toc_line.match(l))
+    return toc_count / len(lines) > 0.5
+
+
 def chunk_document(pages: list[dict], document_metadata: dict) -> list[Chunk]:
     """
     Takes parsed pages from pdf_parser and returns clause-level chunks.
@@ -43,7 +61,17 @@ def chunk_document(pages: list[dict], document_metadata: dict) -> list[Chunk]:
     Returns:
         List of Chunk objects ready for embedding
     """
-    full_text = "\n".join(p["text"] for p in pages)
+    # Strip Table of Contents pages before chunking.
+    # TOC pages contain dotted leaders (e.g. "2.1 Lease ........... 7") that
+    # match clause heading patterns but produce empty/dotted bodies.  Without
+    # this filter, Haiku triage flags those near-empty TOC chunks instead of
+    # the real body clauses, causing "CLAUSE TEXT NOT PROVIDED" on every flag.
+    body_pages = [p for p in pages if not _is_toc_page(p.get("text", ""))]
+    toc_skipped = len(pages) - len(body_pages)
+    if toc_skipped:
+        logger.info(f"Skipped {toc_skipped} TOC page(s) before chunking")
+
+    full_text = "\n".join(p["text"] for p in body_pages)
     raw_chunks = _split_on_clause_headings(full_text)
 
     # Claude's context window is large but we cap clause chunks at 6000 chars
@@ -94,38 +122,4 @@ def _split_on_clause_headings(text: str) -> list[tuple[str, str]]:
             heading_text = match.group().split("\n")[0].strip()
             heading_positions.append((match.start(), heading_text))
 
-    if not heading_positions:
-        # No headings found — fall back to paragraph splitting
-        logger.warning("No clause headings detected, falling back to paragraph split")
-        return _paragraph_fallback(text)
-
-    # Sort by position and deduplicate overlapping matches
-    heading_positions.sort(key=lambda x: x[0])
-    heading_positions = _deduplicate_headings(heading_positions)
-
-    # Build chunks
-    chunks = []
-    for i, (pos, heading) in enumerate(heading_positions):
-        start = pos + len(heading)
-        end = heading_positions[i + 1][0] if i + 1 < len(heading_positions) else len(text)
-        body = text[start:end].strip()
-        chunks.append((heading, body))
-
-    return chunks
-
-
-def _deduplicate_headings(positions: list[tuple]) -> list[tuple]:
-    """Remove headings that overlap with previous match."""
-    result = []
-    last_end = -1
-    for pos, heading in positions:
-        if pos > last_end:
-            result.append((pos, heading))
-            last_end = pos + len(heading)
-    return result
-
-
-def _paragraph_fallback(text: str) -> list[tuple[str, str]]:
-    """Split by double newline when no clause headings are found."""
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-    return [("", p) for p in paragraphs]
+  
