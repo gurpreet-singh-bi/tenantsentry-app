@@ -9,12 +9,15 @@ Serves:
   - Static files (CSS/JS)
 
 Page routes:
-  GET /                → redirect to /login (unauthenticated) or /dashboard
-  GET /login           → login.html
-  GET /signup          → signup.html
-  GET /audit           → audit.html  (dark-theme audit flow prototype)
-  GET /upload          → upload.html (Alpine.js upload/process/results SPA, wired to API)
-  GET /dashboard       → dashboard.html (TODO)
+  GET /                    → redirect to /login (unauthenticated) or /dashboard
+  GET /login               → login.html
+  GET /signup              → signup.html
+  GET /audit               → audit.html  (dark-theme audit flow prototype)
+  GET /upload              → upload.html (Alpine.js upload/process/results SPA, wired to API)
+  GET /dashboard           → dashboard.html  (tenant dashboard)
+  GET /auditor             → auditor.html    (auditor QA portal — human-in-loop review)
+  GET /admin               → admin.html      (super-admin portal — all portals end-to-end)
+  GET /partners/dashboard  → partners_dashboard.html  (channel partner portal)
 
 Run locally:
     uvicorn api.main:app --reload --port 8000
@@ -244,7 +247,8 @@ def require_admin(
 #            in Supabase, then issue a signed JWT cookie.
 #
 # Portal: tenantsentry.ai/partners/login
-# Admin:  admin.tenantsentry.ai  (separate subdomain — see deployment notes)
+# Auditor: tenantsentry.ai/auditor  (audit QA portal)
+# Admin:   tenantsentry.ai/admin    (super-admin, all portals)
 # ─────────────────────────────────────────────────────────────────────────────
 PARTNER_TOKEN = os.environ.get("PARTNER_TOKEN", "partner-changeme-set-in-env")
 
@@ -961,10 +965,11 @@ def download_report(job_id: str):
 
 
 @app.get("/api/audit/evidence/{job_id}")
-def download_evidence_pack(job_id: str):
+async def download_evidence_pack(job_id: str):
     """
     G6: Download the evidence pack ZIP for all HIGH-severity flags in a released audit.
     Contains: clause excerpts, legislation PDFs, CPI verification, and dispute letter drafts.
+    Capped at 10 HIGH flags; runs off the event loop with a 90 s hard timeout.
     """
     job = get_job(job_id)
     if not job:
@@ -979,12 +984,39 @@ def download_evidence_pack(job_id: str):
         result = get_job_result(job_id)
         if not result:
             raise HTTPException(status_code=404, detail="Audit result not found.")
-        zip_path = generate_evidence_packs(result, job_id=job_id)
+
+        HIGH_FLAG_CAP = 10
+        result_capped = dict(result)
+        clause_analyses = result_capped.get("clause_analyses") or []
+        high_seen, capped_clauses = 0, []
+        for ca in clause_analyses:
+            flags = ca.get("risk_flags") or []
+            high_here = [f for f in flags if f.get("severity") == "high"]
+            if high_here and high_seen < HIGH_FLAG_CAP:
+                remaining = HIGH_FLAG_CAP - high_seen
+                trimmed = dict(ca)
+                trimmed["risk_flags"] = high_here[:remaining] + [f for f in flags if f.get("severity") != "high"]
+                high_seen += len(high_here[:remaining])
+                capped_clauses.append(trimmed)
+            else:
+                capped_clauses.append(ca)
+        result_capped["clause_analyses"] = capped_clauses
+
+        loop = asyncio.get_event_loop()
+        try:
+            zip_path = await asyncio.wait_for(
+                loop.run_in_executor(None, generate_evidence_packs, result_capped, job_id),
+                timeout=90.0,
+            )
+        except asyncio.TimeoutError:
+            raise HTTPException(status_code=504, detail="Evidence pack timed out. Try again.")
+
         if not zip_path:
             raise HTTPException(status_code=404, detail="No HIGH-severity flags — evidence pack not generated.")
         safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
         filename = f"TenantSentry_EvidencePack_{safe_name}_{job.jurisdiction}.zip"
-        return FileResponse(path=zip_path, media_type="application/zip", filename=filename)
+        return FileResponse(path=zip_path, media_type="application/zip", filename=filename,
+                            headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     except HTTPException:
         raise
     except Exception as e:
@@ -1052,6 +1084,8 @@ async def admin_download_report(job_id: str, _: None = Depends(require_admin)):
 async def admin_download_evidence(job_id: str, _: None = Depends(require_admin)):
     """
     G6: Admin evidence pack download — bypasses release gate for auditor review.
+    Runs pack generation in a thread pool to avoid blocking the event loop.
+    Capped at 10 HIGH flags and hard-limited to 90 s total.
     """
     job = get_job(job_id)
     if not job:
@@ -1064,26 +1098,69 @@ async def admin_download_evidence(job_id: str, _: None = Depends(require_admin))
         result = get_job_result(job_id)
         if not result:
             raise HTTPException(status_code=404, detail="Audit result not found.")
-        zip_path = generate_evidence_packs(result, job_id=job_id)
+
+        # Cap to top 10 HIGH flags so generation completes in reasonable time.
+        # Trim the result dict before handing to the pack generator.
+        result_capped = dict(result)
+        clause_analyses = result_capped.get("clause_analyses") or []
+        HIGH_FLAG_CAP = 10
+        high_seen = 0
+        capped_clauses = []
+        for ca in clause_analyses:
+            flags = ca.get("risk_flags") or []
+            high_flags_here = [f for f in flags if f.get("severity") == "high"]
+            if high_flags_here and high_seen < HIGH_FLAG_CAP:
+                # Include only up to the cap
+                remaining = HIGH_FLAG_CAP - high_seen
+                trimmed = dict(ca)
+                trimmed["risk_flags"] = high_flags_here[:remaining] + [
+                    f for f in flags if f.get("severity") != "high"
+                ]
+                high_seen += len(high_flags_here[:remaining])
+                capped_clauses.append(trimmed)
+            else:
+                capped_clauses.append(ca)
+        result_capped["clause_analyses"] = capped_clauses
+
+        # Run blocking PDF/ZIP generation off the event loop with a hard timeout.
+        loop = asyncio.get_event_loop()
+        try:
+            zip_path = await asyncio.wait_for(
+                loop.run_in_executor(None, generate_evidence_packs, result_capped, job_id),
+                timeout=90.0,
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Evidence pack timed out for {job_id}")
+            raise HTTPException(status_code=504,
+                                detail="Evidence pack generation timed out. Try again — it may be cached.")
+
         if not zip_path:
             raise HTTPException(status_code=404, detail="No HIGH-severity flags found.")
+
         safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
         filename = f"TenantSentry_DRAFT_EvidencePack_{safe_name}_{job.jurisdiction}.zip"
-        return FileResponse(path=zip_path, media_type="application/zip", filename=filename)
+        return FileResponse(path=zip_path, media_type="application/zip", filename=filename,
+                            headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Admin evidence pack failed for {job_id}: {e}")
-        raise HTTPException(status_code=500, detail="Evidence pack generation failed.")
+        raise HTTPException(status_code=500, detail=f"Evidence pack generation failed: {e}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Admin portal — human-in-loop review gate (G4)
 # ══════════════════════════════════════════════════════════════════════════════
 
+@app.get("/auditor", response_class=HTMLResponse)
+async def auditor_portal(request: Request):
+    """Auditor portal — human-in-loop review gate for audit QA."""
+    return templates.TemplateResponse("auditor.html", {"request": request})
+
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_portal(request: Request):
-    """Auditor portal — auth enforced client-side via cookie/token check."""
+    """Super-admin portal — end-to-end oversight across all portals."""
     return templates.TemplateResponse("admin.html", {"request": request})
 
 
@@ -1234,59 +1311,13 @@ async def admin_active_jobs(_: None = Depends(require_admin)):
             logger.error(f"fetch_recent_failed_brief failed: {e}")
             recent_failed = []
     else:
-        recent_failed = sorted(
-            [_with_elapsed(j.to_dict()) for j in _jobs_fallback.values()
-             if j.status.value in ("failed", "cancelled")],
-            key=lambda x: x.get("completed_at") or "",
-            reverse=True,
-        )[:8]
+        recent_failed = [
+            _with_elapsed(j.to_dict())
+            for j in list(_jobs_fallback.values())
+            if j.status.value in ("failed", "cancelled")
+        ][-8:]
 
-    return JSONResponse({"jobs": active, "recent_failed": recent_failed})
-
-
-class CancelJobRequest(BaseModel):
-    action: str = "fail"   # "fail" | "retry" | "delete"
-
-
-@app.post("/api/admin/cancel/{job_id}")
-async def admin_cancel_job(
-    job_id: str,
-    body: CancelJobRequest,
-    _: None = Depends(require_admin),
-):
-    """
-    Kill switch endpoint.
-
-    action="fail"   → Cancel and mark failed. In-flight thread results are discarded.
-    action="retry"  → Cancel current run, reset to queued, re-dispatch if PDF available.
-    action="delete" → Hard delete — removes from DB and memory entirely.
-    """
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    result = cancel_job(job_id, body.action)
-
-    # For "retry": attempt to re-dispatch the pipeline if we still have the PDF.
-    if body.action == "retry":
-        doc = get_document(job_id)
-        if doc:
-            # Re-dispatch onto the running event loop — same path as the original upload handler.
-            asyncio.ensure_future(
-                _schedule_audit_job(
-                    job_id=job_id,
-                    pdf_bytes=doc["data"],
-                    filename=job.filename,
-                    jurisdiction=job.jurisdiction,
-                    tenant_name=job.tenant_name,
-                    document_hash="",
-                )
-            )
-            result["resubmitted"] = True
-            logger.info(f"[{job_id}] Re-dispatched audit pipeline after retry cancel")
-        else:
-            result["resubmitted"] = False
-            result["message"] = "PDF no longer in memory — please re-upload the lease to retry."
-            logger.warning(f"[{job_id}] Retry requested but PDF not available for re-dispatch")
-
-    return JSONResponse(result)
+    return JSONResponse({
+        "active":        active,
+        "recent_failed": recent_failed,
+    })

@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free Lease Risk Check — TenantSentry</title>
+  <meta name="description" content="Get an instant AI risk score for your commercial lease or Heads of Agreement. Free, anonymous, no account required." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2316A34A'/><path d='M50 15 L80 27 L80 52 C80 68 65 80 50 87 C35 80 20 68 20 52 L20 27 Z' fill='none' stroke='white' stroke-width='5' stroke-linejoin='round'/></svg>" />
+
+  <style>
+    :root {
+      --amber:       #16A34A;
+      --amber-dark:  #0F6B31;
+      --amber-light: #D1FAE5;
+      --gold:        #4ADE80;
+      --cream:       #fdf9f4;
+      --warm-white:  #f7f2eb;
+      --warm-gray:   #78716c;
+      --charcoal:    #1c1917;
+      --card-bg:     #f0fdf4;
+      --border:      #d6cfc7;
+      --text:        #1c1917;
+      --muted:       #57534e;
+      --red:         #DC2626;
+      --red-light:   #FEE2E2;
+      --orange:      #D97706;
+      --orange-light:#FEF3C7;
+    }
+
+    html { scroll-behavior: smooth; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--cream); color: var(--text); line-height: 1.6;
+    }
+
+    /* ── NAV (matches homepage) ─────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(253,249,244,0.94); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 64px;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; font-size: 1.2rem; color: var(--charcoal); text-decoration: none;
+    }
+    .nav-logo .shield {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--amber), var(--amber-dark));
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    }
+    .nav-logo .shield svg { width: 18px; height: 18px; stroke: white; fill: none; stroke-width: 2.5; }
+    .nav-links { display: flex; gap: 24px; list-style: none; }
+    .nav-links a {
+      text-decoration: none; color: var(--muted); font-size: 0.88rem; font-weight: 500;
+      transition: color 0.2s; white-space: nowrap;
+    }
+    .nav-links a:hover { color: var(--amber-dark); }
+    .nav-links a.active { color: var(--amber-dark); font-weight: 700; }
+    .nav-ctas { display: flex; gap: 10px; align-items: center; }
+    .btn-ghost {
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      font-size: 0.88rem; font-weight: 500; padding: 8px 14px; border-radius: 7px;
+      transition: background 0.2s; text-decoration: none; font-family: inherit;
+    }
+    .btn-ghost:hover { background: var(--card-bg); }
+    .btn-primary-nav {
+      background: var(--amber); color: white; border: none; cursor: pointer;
+      font-size: 0.88rem; font-weight: 700; padding: 9px 18px; border-radius: 7px;
+      transition: background 0.2s; text-decoration: none; font-family: inherit;
+    }
+    .btn-primary-nav:hover { background: var(--amber-dark); }
+
+    /* ── PAGE HERO SECTION (slim banner) ───────────────── */
+    .page-hero {
+      background: #f0fdf4;
+      border-bottom: 1px solid #bbf7d0;
+      padding: 0 24px;
+      height: 44px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px;
+    }
+    .hero-left {
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    .hero-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--amber); border-radius: 999px; padding: 3px 10px;
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase;
+      color: white; white-space: nowrap;
+    }
+    .hero-headline {
+      font-size: 0.9rem; font-weight: 700; color: var(--charcoal); white-space: nowrap;
+    }
+    .hero-headline .highlight { color: var(--amber-dark); }
+    .hero-right {
+      display: flex; align-items: center; gap: 0; flex-shrink: 0;
+    }
+    .trust-stat {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 0.78rem; font-weight: 500; color: var(--muted);
+      padding: 0 14px; border-left: 1px solid #bbf7d0; white-space: nowrap;
+    }
+    .trust-stat svg { stroke: var(--amber-dark); flex-shrink: 0; }
+    @media (max-width: 640px) {
+      .hero-right { display: none; }
+      .hero-headline { display: none; }
+    }
+
+    /* ── CALCULATOR SECTION ─────────────────────────────── */
+    .calculator-section {
+      padding: 40px 24px 48px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .main-card {
+      width: 100%; max-width: 760px;
+      background: white; border: 1px solid var(--border); border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(22,163,74,0.1), 0 2px 8px rgba(0,0,0,0.04);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── OUTER STATES ────────────────────────────────────── */
+    /* Wizard + scanning: fixed height card */
+    .main-card.state-wizard,
+    .main-card.state-scanning {
+      height: 500px;
+    }
+    /* Teaser: card grows to content */
+    .main-card.state-teaser { height: auto; }
+
+    .outer-state { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .outer-state.active { display: flex; }
+
+    /* ── WIZARD STEP INDICATOR ───────────────────────────── */
+    .wizard-header {
+      flex-shrink: 0; padding: 14px 28px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .step-indicator { display: flex; align-items: center; margin-bottom: 12px; }
+    .step-dot { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .step-dot-circle {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; color: var(--warm-gray);
+      background: white; transition: all 0.2s; flex-shrink: 0; z-index: 1;
+    }
+    .step-dot.done   .step-dot-circle { background: var(--amber); border-color: var(--amber); color: white; }
+    .step-dot.active .step-dot-circle { border-color: var(--amber); color: var(--amber-dark); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
+    .step-dot-label { font-size: 0.6rem; font-weight: 600; color: var(--warm-gray); text-align: center; letter-spacing: 0.03em; }
+    .step-dot.active .step-dot-label { color: var(--amber-dark); font-weight: 700; }
+    .step-dot.done   .step-dot-label { color: var(--amber); }
+    .step-connector { flex: 1; height: 2px; background: var(--border); margin: 0 4px; margin-bottom: 16px; transition: background 0.3s; }
+    .step-connector.done { background: var(--amber); }
+
+    /* ── WIZARD INNER STEPS ──────────────────────────────── */
+    .wizard-step { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .wizard-step.active { display: flex; }
+    .step-title { flex-shrink: 0; padding: 12px 28px; border-bottom: 1px solid var(--border); }
+    .step-title h2 { font-size: 1rem; font-weight: 800; color: var(--charcoal); margin-bottom: 2px; }
+    .step-title p  { font-size: 0.78rem; color: var(--muted); }
+    .step-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 28px; }
+    .step-body::-webkit-scrollbar { width: 4px; }
+    .step-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    .step-footer {
+      flex-shrink: 0; padding: 12px 28px;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      background: var(--warm-white);
+    }
+    .step-counter { font-size: 0.74rem; color: var(--muted); }
+
+    /* ── CHOICE CARDS ────────────────────────────────────── */
+    .choice-stack { display: flex; flex-direction: column; gap: 10px; }
+    .choice-card {
+      border: 2px solid var(--border); border-radius: 10px;
+      padding: 14px 16px; cursor: pointer;
+      display: flex; align-items: center; gap: 14px;
+      transition: all 0.15s; background: white;
+    }
+    .choice-card:hover    { border-color: var(--amber); background: var(--card-bg); }
+    .choice-card.selected { border-color: var(--amber); background: var(--amber-light); }
+    .choice-icon { width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0; background: var(--card-bg); display: flex; align-items: center; justify-content: center; }
+    .choice-card.selected .choice-icon { background: rgba(22,163,74,0.2); }
+    .choice-icon svg { stroke: var(--amber); width: 18px; height: 18px; }
+    .choice-text { flex: 1; }
+    .choice-text h3 { font-size: 0.92rem; font-weight: 800; color: var(--charcoal); margin-bottom: 2px; }
+    .choice-text p  { font-size: 0.76rem; color: var(--muted); line-height: 1.35; }
+    .choice-tag {
+      flex-shrink: 0; background: rgba(22,163,74,0.1); border-radius: 999px;
+      padding: 3px 10px; font-size: 0.63rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em; color: var(--amber-dark); white-space: nowrap;
+    }
+
+    /* ── JURISDICTION GRID ───────────────────────────────── */
+    .jur-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .jur-btn {
+      padding: 10px 6px; border-radius: 8px; border: 1.5px solid var(--border);
+      background: white; cursor: pointer; font-family: inherit;
+      font-size: 0.8rem; font-weight: 600; color: var(--muted); text-align: center; transition: all 0.15s;
+    }
+    .jur-btn:hover { border-color: var(--amber); color: var(--amber-dark); background: var(--card-bg); }
+    .jur-btn.selected { border-color: var(--amber); background: var(--amber-light); color: var(--amber-dark); }
+    .jur-abbr { font-size: 0.92rem; font-weight: 900; display: block; margin-bottom: 1px; }
+    .jur-name { font-size: 0.62rem; font-weight: 500; opacity: 0.8; }
+
+    /* ── MANUAL FORM ─────────────────────────────────────── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .form-group { display: flex; flex-direction: column; gap: 3px; }
+    .form-group.span2 { grid-column: span 2; }
+    .form-group.span3 { grid-column: 1 / -1; }
+    .form-section { grid-column: 1/-1; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--warm-gray); padding-top: 8px; border-top: 1px solid var(--border); margin-top: 2px; }
+    .form-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .form-label .req { color: var(--red); }
+    .form-input, .form-select {
+      padding: 8px 10px; border-radius: 7px; border: 1.5px solid var(--border);
+      font-family: inherit; font-size: 0.84rem; color: var(--text); background: white;
+      outline: none; transition: border-color 0.2s;
+    }
+    .form-input:focus, .form-select:focus { border-color: var(--amber); }
+    .form-hint { font-size: 0.63rem; color: var(--warm-gray); }
+
+    /* ── UPLOAD DROP ZONE ────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: 12px;
+      padding: 20px 20px; text-align: center; cursor: pointer;
+      transition: all 0.2s; position: relative; background: var(--warm-white);
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--amber); background: var(--amber-light); }
+    .drop-zone.has-file { border-style: solid; border-color: var(--amber); background: var(--card-bg); }
+    .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .drop-icon { width: 40px; height: 40px; margin: 0 auto 10px; background: linear-gradient(135deg, var(--amber-light), white); border: 1.5px solid rgba(22,163,74,0.3); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .drop-icon svg { stroke: var(--amber); width: 18px; height: 18px; }
+    .drop-title { font-size: 0.92rem; font-weight: 700; color: var(--charcoal); margin-bottom: 4px; }
+    .drop-sub { font-size: 0.78rem; color: var(--muted); }
+    .drop-sub strong { color: var(--amber-dark); }
+    .file-chosen { display: none; align-items: center; gap: 7px; justify-content: center; margin-top: 10px; font-size: 0.82rem; font-weight: 600; color: var(--amber-dark); }
+    .file-chosen svg { stroke: var(--amber); }
+    .trust-row { display: flex; align-items: center; justify-content: center; background: rgba(22,163,74,0.06); border: 1px solid rgba(22,163,74,0.2); border-radius: 8px; padding: 7px 12px; margin-top: 10px; flex-wrap: wrap; gap: 10px; }
+    .trust-item { display: flex; align-items: center; gap: 4px; font-size: 0.68rem; font-weight: 600; color: #14532d; }
+    .trust-item svg { stroke: var(--amber); }
+
+    /* ── BUTTONS ─────────────────────────────────────────── */
+    .btn-back { background: none; border: 1.5px solid var(--border); cursor: pointer; color: var(--muted); font-family: inherit; font-size: 0.84rem; font-weight: 600; padding: 9px 18px; border-radius: 7px; transition: all 0.15s; display: flex; align-items: center; gap: 5px; }
+    .btn-back:hover { border-color: var(--charcoal); color: var(--charcoal); }
+    .btn-back svg { stroke: currentColor; }
+    .btn-next, .btn-analyse {
+      background: var(--amber); color: white; border: none; cursor: pointer;
+      font-family: inherit; font-size: 0.88rem; font-weight: 700; padding: 9px 22px; border-radius: 7px;
+      display: flex; align-items: center; gap: 7px; transition: background 0.2s;
+    }
+    .btn-next:hover, .btn-analyse:hover { background: var(--amber-dark); }
+    .btn-next:disabled, .btn-analyse:disabled { background: var(--border); color: var(--warm-gray); cursor: not-allowed; }
+    .btn-next svg, .btn-analyse svg { stroke: white; }
+    .btn-analyse-full {
+      background: var(--amber); color: white; border: none; cursor: pointer;
+      font-family: inherit; font-size: 0.9rem; font-weight: 700; padding: 12px; border-radius: 8px; width: 100%;
+      display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s;
+    }
+    .btn-analyse-full:hover { background: var(--amber-dark); }
+    .btn-analyse-full:disabled { background: var(--border); color: var(--warm-gray); cursor: not-allowed; }
+    .btn-analyse-full svg { stroke: white; }
+    .upload-disclaimer { font-size: 0.7rem; color: var(--warm-gray); text-align: center; margin-top: 6px; }
+
+    /* ── SCANNING STATE ──────────────────────────────────── */
+    .scanning-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 32px; text-align: center; }
+    .scan-shield-inner { width: 56px; height: 56px; background: linear-gradient(135deg, var(--amber), var(--amber-dark)); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; animation: pulse-shield 2s ease-in-out infinite; }
+    .scan-shield-inner svg { stroke: white; width: 24px; height: 24px; }
+    @keyframes pulse-shield { 0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,0.4)} 50%{box-shadow:0 0 0 12px rgba(22,163,74,0)} }
+    .scan-title { font-size: 1.1rem; font-weight: 800; color: var(--charcoal); margin-bottom: 3px; }
+    .scan-filename { font-size: 0.78rem; color: var(--muted); margin-bottom: 16px; }
+    .progress-track { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 4px; width: 100%; max-width: 420px; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--amber), var(--gold)); border-radius: 99px; transition: width 0.6s ease; width: 0%; }
+    .progress-label { font-size: 0.7rem; color: var(--muted); margin-bottom: 16px; text-align: right; width: 100%; max-width: 420px; }
+    .scan-steps { text-align: left; width: 100%; max-width: 420px; }
+    .scan-step { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); opacity: 0.3; transition: opacity 0.4s; }
+    .scan-step:last-child { border-bottom: none; }
+    .scan-step.done, .scan-step.active { opacity: 1; }
+    .scan-step-icon { width: 22px; height: 22px; border-radius: 5px; flex-shrink: 0; background: var(--border); display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
+    .scan-step.done .scan-step-icon, .scan-step.active .scan-step-icon { background: var(--amber-light); }
+    .scan-step-icon svg { width: 11px; height: 11px; stroke: var(--warm-gray); }
+    .scan-step.done .scan-step-icon svg, .scan-step.active .scan-step-icon svg { stroke: var(--amber); }
+    .check-icon { display: none; }
+    .spin-icon  { display: none; }
+    .scan-step.done  .check-icon  { display: inline; }
+    .scan-step.active .spin-icon  { display: inline; animation: spin-svg 1s linear infinite; }
+    @keyframes spin-svg { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    .scan-step-text { font-size: 0.82rem; font-weight: 600; color: var(--charcoal); }
+    .scan-step-sub  { font-size: 0.7rem; color: var(--muted); }
+
+    /* ── TEASER STATE ────────────────────────────────────── */
+    .teaser-header { flex-shrink: 0; padding: 14px 24px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+    .doc-type-pill { display: inline-flex; align-items: center; background: var(--amber-light); border: 1px solid rgba(22,163,74,0.3); border-radius: 999px; padding: 3px 10px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--amber-dark); margin-bottom: 4px; }
+    .teaser-header-left h2 { font-size: 1rem; font-weight: 800; color: var(--charcoal); margin-bottom: 2px; }
+    .teaser-header-left p  { font-size: 0.76rem; color: var(--muted); }
+    .risk-score-badge { display: flex; flex-direction: column; align-items: center; border: 1.5px solid #FCA5A5; background: var(--red-light); border-radius: 9px; padding: 10px 18px; min-width: 110px; flex-shrink: 0; }
+    .risk-score-badge.medium { background: var(--orange-light); border-color: #FCD34D; }
+    .risk-score-badge.low    { background: var(--card-bg); border-color: var(--amber-light); }
+    .risk-score-num   { font-size: 1.8rem; font-weight: 900; color: var(--red); line-height: 1; }
+    .risk-score-badge.medium .risk-score-num { color: var(--orange); }
+    .risk-score-badge.low    .risk-score-num { color: var(--amber); }
+    .risk-score-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--red); margin-top: 2px; }
+    .risk-score-badge.medium .risk-score-label { color: var(--orange); }
+    .risk-score-badge.low    .risk-score-label { color: var(--amber); }
+    .risk-score-sub { font-size: 0.62rem; color: var(--muted); margin-top: 2px; }
+    .teaser-stats { display: flex; border-bottom: 1px solid var(--border); }
+    .teaser-stat { flex: 1; padding: 10px 12px; border-right: 1px solid var(--border); text-align: center; }
+    .teaser-stat:last-child { border-right: none; }
+    .teaser-stat-num { font-size: 1.3rem; font-weight: 900; color: var(--charcoal); letter-spacing: -0.02em; }
+    .teaser-stat-num.red    { color: var(--red); }
+    .teaser-stat-num.orange { color: var(--orange); }
+    .teaser-stat-label { font-size: 0.65rem; color: var(--muted); font-weight: 500; }
+    .flags-section { padding: 14px 24px 8px; }
+    .flags-section h3 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 10px; }
+    .flag-card { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px; }
+    .flag-card.high   { border-color: #FCA5A5; background: #fff8f8; }
+    .flag-card.medium { border-color: #FCD34D; background: #fffef0; }
+    .flag-card.low    { border-color: var(--amber-light); background: var(--card-bg); }
+    .flag-severity { flex-shrink: 0; padding: 3px 8px; border-radius: 4px; margin-top: 1px; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; }
+    .flag-severity.high   { background: var(--red-light); color: var(--red); }
+    .flag-severity.medium { background: var(--orange-light); color: var(--orange); }
+    .flag-severity.low    { background: var(--amber-light); color: var(--amber-dark); }
+    .flag-category { font-size: 0.63rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 2px; }
+    .flag-title    { font-size: 0.85rem; font-weight: 700; color: var(--charcoal); margin-bottom: 3px; }
+    .flag-desc     { font-size: 0.75rem; color: var(--muted); line-height: 1.45; }
+    .flag-benchmark { margin-top: 6px; padding: 4px 10px; background: rgba(22,163,74,0.07); border-left: 3px solid var(--amber); border-radius: 0 4px 4px 0; font-size: 0.72rem; color: var(--amber-dark); font-weight: 600; }
+    .flags-locked { position: relative; }
+    .flags-locked-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.97) 45%); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12px; }
+    .flags-locked-msg { text-align: center; }
+    .flags-locked-msg strong { display: block; font-size: 0.85rem; font-weight: 800; color: var(--charcoal); margin-bottom: 2px; }
+    .flags-locked-msg span   { font-size: 0.74rem; color: var(--muted); }
+    .flag-card.blurred { filter: blur(4px); pointer-events: none; user-select: none; }
+
+    /* ── EMAIL GATE ──────────────────────────────────────── */
+    .email-gate { padding: 16px 24px 18px; border-top: 1px solid var(--border); background: linear-gradient(180deg, white, var(--card-bg)); }
+    .email-gate-headline { font-size: 0.92rem; font-weight: 800; color: var(--charcoal); margin-bottom: 6px; }
+    .tier-chips { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tier-chip { border-radius: 8px; padding: 6px 12px; border: 1px solid var(--border); font-size: 0.7rem; color: var(--muted); line-height: 1.4; }
+    .tier-chip strong { display: block; font-size: 0.63rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+    .tier-chip.free { background: var(--card-bg); border-color: rgba(22,163,74,0.3); }
+    .tier-chip.free strong { color: var(--amber-dark); }
+    .tier-chip.paid { background: #fff8f0; border-color: #FCD34D; }
+    .tier-chip.paid strong { color: var(--orange); }
+    .email-form { display: flex; gap: 8px; }
+    .email-input { flex: 1; min-width: 0; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border); font-family: inherit; font-size: 0.88rem; color: var(--text); background: white; outline: none; transition: border-color 0.2s; }
+    .email-input:focus { border-color: var(--amber); }
+    .btn-email { padding: 10px 20px; border-radius: 8px; background: var(--amber); color: white; border: none; cursor: pointer; font-family: inherit; font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap: 6px; white-space: nowrap; transition: background 0.2s; flex-shrink: 0; }
+    .btn-email:hover { background: var(--amber-dark); }
+    .btn-email svg { stroke: white; }
+    .email-privacy { font-size: 0.68rem; color: var(--warm-gray); margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+    .email-privacy svg { stroke: var(--amber); }
+    .email-success { display: none; }
+    .email-success.show { display: block; background: var(--amber-light); border: 1px solid rgba(22,163,74,0.3); border-radius: 10px; padding: 14px 18px; text-align: center; }
+    .email-success h3 { font-size: 0.92rem; font-weight: 800; color: var(--amber-dark); margin-bottom: 3px; }
+    .email-success p  { font-size: 0.78rem; color: var(--amber-dark); }
+
+    /* ── PAGES BANNER ────────────────────────────────────── */
+    .pages-banner { background: linear-gradient(135deg, #1c1917, #292524); margin: 0 16px 16px; border-radius: 10px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .pages-banner-text strong { font-size: 0.85rem; font-weight: 800; color: white; display: block; }
+    .pages-banner-text span   { font-size: 0.72rem; color: #a8a29e; }
+    .btn-unlock { background: var(--amber); color: white; border: none; cursor: pointer; padding: 8px 16px; border-radius: 7px; font-family: inherit; font-size: 0.82rem; font-weight: 700; white-space: nowrap; text-decoration: none; display: inline-block; transition: background 0.2s; flex-shrink: 0; }
+    .btn-unlock:hover { background: var(--gold); color: var(--charcoal); }
+
+    /* ── SOCIAL PROOF STRIP (below calculator) ───────────── */
+    .social-proof {
+      width: 100%; max-width: 760px; margin-top: 24px;
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    }
+    .proof-chip {
+      display: flex; align-items: center; gap: 7px;
+      background: white; border: 1px solid var(--border); border-radius: 999px;
+      padding: 8px 16px; font-size: 0.8rem; font-weight: 600; color: var(--muted);
+    }
+    .proof-chip svg { stroke: var(--amber); flex-shrink: 0; }
+    .proof-chip strong { color: var(--charcoal); }
+
+    /* ── PAGE FOOTER ─────────────────────────────────────── */
+    .page-footer {
+      border-top: 1px solid var(--border); padding: 20px 24px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+      background: var(--warm-white);
+    }
+    .footer-left { font-size: 0.76rem; color: var(--muted); }
+    .footer-left strong { color: var(--charcoal); }
+    .footer-links { display: flex; gap: 16px; }
+    .footer-links a { font-size: 0.74rem; color: var(--muted); text-decoration: none; }
+    .footer-links a:hover { color: var(--amber-dark); }
+    .footer-disclaimer { width: 100%; font-size: 0.66rem; color: var(--warm-gray); }
+
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .page-hero { height: auto; padding: 10px 16px; }
+      .trust-stat { padding: 0 8px; }
+      .form-grid { grid-template-columns: 1fr 1fr; }
+      .form-group.span2 { grid-column: span 1; }
+      .jur-grid { grid-template-columns: repeat(4,1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ──────────────────────────────────────────────────── -->
+<nav>
+  <a href="index.html" class="nav-logo">
+    <div class="shield">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+        <path d="M12 2L20 6v6c0 5.25-3.5 10.15-8 12C7.5 22.15 4 17.25 4 12V6l8-4z"/>
+      </svg>
+    </div>
+    Tenant Sentry
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html#features">Product</a></li>
+    <li><a href="index.html#how-it-works">How It Works</a></li>
+    <li><a href="index.html#pricing">Pricing</a></li>
+    <li><a href="why-tenantsentry.html">Why TenantSentry</a></li>
+    <li><a href="index.html#testimonials">Customers</a></li>
+    <li><a href="about.html">About</a></li>
+  </ul>
+  <div class="nav-ctas">
+    <a href="#" class="btn-ghost" style="text-decoration:none">Contact Us</a>
+    <a href="free-lease-check.html" class="btn-primary-nav" style="text-decoration:none">Get Free Lease Score →</a>
+  </div>
+</nav>
+
+<!-- ── PAGE HERO (slim banner) ─────────────────────────────── -->
+<section class="page-hero">
+  <div class="hero-left">
+    <div class="hero-tag">FREE · NO ACCOUNT</div>
+    <span class="hero-headline">Get Your <span class="highlight">Instant Risk Score</span> — Lease or HoA</span>
+  </div>
+  <div class="hero-right">
+    <div class="trust-stat">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Encrypted · deleted after processing
+    </div>
+    <div class="trust-stat">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Results in ~60 seconds
+    </div>
+  </div>
+</section>
+
+<!-- ── CALCULATOR SECTION ────────────────────────────────────── -->
+<section class="calculator-section">
+
+  <div class="main-card state-wizard" id="main-card">
+
+    <!-- ══ WIZARD ══════════════════════════════════════════════ -->
+    <div id="outer-wizard" class="outer-state active">
+
+      <div class="wizard-header">
+        <div class="step-indicator">
+          <div class="step-dot active" data-step="1"><div class="step-dot-circle" id="dot-1">1</div><div class="step-dot-label">Document</div></div>
+          <div class="step-connector" id="conn-1"></div>
+          <div class="step-dot" data-step="2"><div class="step-dot-circle" id="dot-2">2</div><div class="step-dot-label">Method</div></div>
+          <div class="step-connector" id="conn-2"></div>
+          <div class="step-dot" data-step="3"><div class="step-dot-circle" id="dot-3">3</div><div class="step-dot-label">State</div></div>
+          <div class="step-connector" id="conn-3"></div>
+          <div class="step-dot" data-step="4"><div class="step-dot-circle" id="dot-4">4</div><div class="step-dot-label">Details</div></div>
+        </div>
+      </div>
+
+      <!-- STEP 1 -->
+      <div class="wizard-step active" id="wizard-step-1">
+        <div class="step-title">
+          <h2>What document are you checking?</h2>
+          <p>Select the type — we apply the right risk framework automatically.</p>
+        </div>
+        <div class="step-body">
+          <div class="choice-stack">
+            <div class="choice-card" data-type="lease">
+              <div class="choice-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+              <div class="choice-text"><h3>Commercial Lease</h3><p>An executed or draft lease agreement for retail, office, or industrial premises.</p></div>
+              <div class="choice-tag">Rent · Outgoings · CPI · Options</div>
+            </div>
+            <div class="choice-card" data-type="hoa">
+              <div class="choice-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+              <div class="choice-text"><h3>Heads of Agreement</h3><p>A pre-lease HoA or term sheet you're reviewing before signing a formal lease.</p></div>
+              <div class="choice-tag">Face Rent · Incentives · Make-Good</div>
+            </div>
+          </div>
+        </div>
+        <div class="step-footer">
+          <span class="step-counter">Step 1 of 4</span>
+          <button class="btn-next" id="step1-next" disabled>Continue <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="wizard-step" id="wizard-step-2">
+        <div class="step-title">
+          <h2>How would you like to provide your document?</h2>
+          <p>Upload for the most accurate analysis. Manual entry if you don't have the file handy.</p>
+        </div>
+        <div class="step-body">
+          <div class="choice-stack">
+            <div class="choice-card" data-method="upload">
+              <div class="choice-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
+              <div class="choice-text"><h3>Upload Document</h3><p>PDF or DOCX. Our AI reads every clause, schedule, and annexure directly.</p></div>
+              <div class="choice-tag">Most Accurate</div>
+            </div>
+            <div class="choice-card" data-method="manual">
+              <div class="choice-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg></div>
+              <div class="choice-text"><h3>Enter Terms Manually</h3><p>Fill in your key lease terms. Useful if you only have a summary or haven't received the doc yet.</p></div>
+              <div class="choice-tag">No File Needed</div>
+            </div>
+          </div>
+        </div>
+        <div class="step-footer">
+          <button class="btn-back" onclick="goToStep(1)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Back</button>
+          <span class="step-counter">Step 2 of 4</span>
+          <button class="btn-next" id="step2-next" disabled>Continue <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="wizard-step" id="wizard-step-3">
+        <div class="step-title">
+          <h2>Which state or territory is the property in?</h2>
+          <p>We apply the correct legislation and benchmarks automatically.</p>
+        </div>
+        <div class="step-body">
+          <div class="jur-grid" id="jur-grid">
+            <button class="jur-btn" data-jur="VIC"><span class="jur-abbr">VIC</span><span class="jur-name">Victoria</span></button>
+            <button class="jur-btn" data-jur="NSW"><span class="jur-abbr">NSW</span><span class="jur-name">New South Wales</span></button>
+            <button class="jur-btn" data-jur="QLD"><span class="jur-abbr">QLD</span><span class="jur-name">Queensland</span></button>
+            <button class="jur-btn" data-jur="WA"><span class="jur-abbr">WA</span><span class="jur-name">West Australia</span></button>
+            <button class="jur-btn" data-jur="SA"><span class="jur-abbr">SA</span><span class="jur-name">South Australia</span></button>
+            <button class="jur-btn" data-jur="ACT"><span class="jur-abbr">ACT</span><span class="jur-name">Capital Territory</span></button>
+            <button class="jur-btn" data-jur="TAS"><span class="jur-abbr">TAS</span><span class="jur-name">Tasmania</span></button>
+            <button class="jur-btn" data-jur="NT"><span class="jur-abbr">NT</span><span class="jur-name">N. Territory</span></button>
+          </div>
+        </div>
+        <div class="step-footer">
+          <button class="btn-back" onclick="goToStep(2)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Back</button>
+          <span class="step-counter">Step 3 of 4</span>
+          <button class="btn-next" id="step3-next" disabled>Continue <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
+
+      <!-- STEP 4 — UPLOAD -->
+      <div class="wizard-step" id="wizard-step-4-upload">
+        <div class="step-title">
+          <h2 id="upload-step-title">Upload your Lease PDF</h2>
+          <p>We analyse your document and return a free risk score with top flags.</p>
+        </div>
+        <div class="step-body">
+          <div class="drop-zone" id="drop-zone">
+            <input type="file" id="file-input" accept=".pdf,.docx" />
+            <div class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></div>
+            <div class="drop-title">Drop your document here</div>
+            <div class="drop-sub">or <strong>browse to upload</strong> · PDF or DOCX · Max 50 MB</div>
+            <div class="file-chosen" id="file-chosen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span id="file-name">document.pdf</span></div>
+          </div>
+          <div class="trust-row">
+            <div class="trust-item"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Encrypted in transit &amp; at rest</div>
+            <div class="trust-item"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>Deleted after processing</div>
+            <div class="trust-item"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><path d="M12 2L20 6v6c0 5.25-3.5 10.15-8 12C7.5 22.15 4 17.25 4 12V6l8-4z"/></svg>SOC 2 infrastructure</div>
+            <div class="trust-item"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Never shared or sold</div>
+          </div>
+        </div>
+        <div class="step-footer" style="flex-direction:column;gap:6px;align-items:stretch;">
+          <button class="btn-analyse-full" id="btn-analyse-upload" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L20 6v6c0 5.25-3.5 10.15-8 12C7.5 22.15 4 17.25 4 12V6l8-4z"/></svg>
+            Analyse My Document — Free
+          </button>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <button class="btn-back" onclick="goToStep(3)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Back</button>
+            <span class="upload-disclaimer">Risk indicators only · Not legal advice · No payment required</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4 — MANUAL -->
+      <div class="wizard-step" id="wizard-step-4-manual">
+        <div class="step-title">
+          <h2 id="manual-step-title">Enter your Lease terms</h2>
+          <p>Fill in what you know — required fields marked with *.</p>
+        </div>
+        <div class="step-body">
+          <div id="manual-fields-lease" class="form-grid">
+            <div class="form-group"><label class="form-label">Annual Base Rent <span class="req">*</span></label><input class="form-input" type="number" id="f-rent" placeholder="e.g. 120000" /><span class="form-hint">Total annual excl. GST ($)</span></div>
+            <div class="form-group"><label class="form-label">Premises Size (sqm) <span class="req">*</span></label><input class="form-input" type="number" id="f-sqm" placeholder="e.g. 250" /></div>
+            <div class="form-group"><label class="form-label">Lease Term (years) <span class="req">*</span></label><input class="form-input" type="number" id="f-term" placeholder="e.g. 5" /></div>
+            <div class="form-group span2"><label class="form-label">Rent Review Type <span class="req">*</span></label><select class="form-select" id="f-review"><option value="">— Select —</option><option value="cpi">CPI</option><option value="fixed">Fixed %</option><option value="market">Market Review</option><option value="ratchet">Ratchet (greater of)</option><option value="hybrid">Hybrid / Other</option></select></div>
+            <div class="form-group"><label class="form-label">Fixed Review %</label><input class="form-input" type="number" id="f-fixed-pct" placeholder="e.g. 4" /></div>
+            <div class="form-group span2"><label class="form-label">Outgoings Structure <span class="req">*</span></label><select class="form-select" id="f-outgoings"><option value="">— Select —</option><option value="gross">Gross (landlord pays)</option><option value="net">Net (tenant pays all)</option><option value="semi">Semi-gross (shared)</option><option value="unknown">Not sure</option></select></div>
+            <div class="form-group"><label class="form-label">Option Periods</label><input class="form-input" type="text" id="f-options" placeholder="e.g. 2 × 5 yrs" /></div>
+            <div class="form-section">Make-Good &amp; Other</div>
+            <div class="form-group span2"><label class="form-label">Make-Good Obligation</label><select class="form-select" id="f-makegood"><option value="">— Not specified —</option><option value="original">Restore to original condition</option><option value="fair">Fair wear &amp; tear excepted</option><option value="schedule">Schedule of condition attached</option><option value="none">None</option></select></div>
+            <div class="form-group"><label class="form-label">Land Tax Recovery</label><select class="form-select" id="f-landtax"><option value="">— Not specified —</option><option value="full">Full pass-through</option><option value="proportional">Proportional / capped</option><option value="none">Landlord bears</option></select></div>
+          </div>
+          <div id="manual-fields-hoa" style="display:none;" class="form-grid">
+            <div class="form-group"><label class="form-label">Face Rent $/sqm/pa <span class="req">*</span></label><input class="form-input" type="number" id="h-face-rent" placeholder="e.g. 480" /></div>
+            <div class="form-group"><label class="form-label">Net Effective $/sqm/pa</label><input class="form-input" type="number" id="h-net-rent" placeholder="e.g. 380" /><span class="form-hint">After incentives</span></div>
+            <div class="form-group"><label class="form-label">Premises Size (sqm) <span class="req">*</span></label><input class="form-input" type="number" id="h-sqm" placeholder="e.g. 250" /></div>
+            <div class="form-group"><label class="form-label">Proposed Term (years) <span class="req">*</span></label><input class="form-input" type="number" id="h-term" placeholder="e.g. 5" /></div>
+            <div class="form-group"><label class="form-label">Rent-Free (months)</label><input class="form-input" type="number" id="h-rentfree" placeholder="e.g. 3" /></div>
+            <div class="form-group"><label class="form-label">Fitout Contribution ($)</label><input class="form-input" type="number" id="h-fitout" placeholder="e.g. 50000" /></div>
+            <div class="form-group span2"><label class="form-label">Rent Review Type <span class="req">*</span></label><select class="form-select" id="h-review"><option value="">— Select —</option><option value="cpi">CPI</option><option value="fixed">Fixed %</option><option value="market">Market Review</option><option value="ratchet">Ratchet</option><option value="hybrid">Hybrid</option></select></div>
+            <div class="form-group"><label class="form-label">Outgoings</label><select class="form-select" id="h-outgoings"><option value="">— Select —</option><option value="gross">Gross</option><option value="net">Net</option><option value="semi">Semi-gross</option></select></div>
+            <div class="form-section">Risk &amp; Obligations</div>
+            <div class="form-group"><label class="form-label">Option Periods</label><input class="form-input" type="text" id="h-options" placeholder="e.g. 1 × 5 yrs" /></div>
+            <div class="form-group span2"><label class="form-label">Make-Good Obligation</label><select class="form-select" id="h-makegood"><option value="">— Not specified —</option><option value="original">Restore to original</option><option value="fair">Fair wear &amp; tear</option><option value="schedule">Schedule of condition</option><option value="none">None</option></select></div>
+            <div class="form-group"><label class="form-label">Personal Guarantee</label><select class="form-select" id="h-guarantee"><option value="">— Not specified —</option><option value="yes-unlimited">Yes — unlimited</option><option value="yes-capped">Yes — capped</option><option value="no">No</option></select></div>
+            <div class="form-group span2"><label class="form-label">Bank Guarantee / Bond ($)</label><input class="form-input" type="number" id="h-bond" placeholder="e.g. 30000" /></div>
+          </div>
+        </div>
+        <div class="step-footer" style="flex-direction:column;gap:6px;align-items:stretch;">
+          <button class="btn-analyse-full" id="btn-analyse-manual" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L20 6v6c0 5.25-3.5 10.15-8 12C7.5 22.15 4 17.25 4 12V6l8-4z"/></svg>
+            Calculate My Risk Score — Free
+          </button>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <button class="btn-back" onclick="goToStep(3)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Back</button>
+            <span class="upload-disclaimer">Risk indicators only · Not legal advice · No payment required</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /outer-wizard -->
+
+    <!-- ══ SCANNING ════════════════════════════════════════════ -->
+    <div id="outer-scanning" class="outer-state">
+      <div class="scanning-wrap">
+        <div class="scan-shield-inner"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L20 6v6c0 5.25-3.5 10.15-8 12C7.5 22.15 4 17.25 4 12V6l8-4z"/></svg></div>
+        <div class="scan-title" id="scan-title">Analysing your document…</div>
+        <div class="scan-filename" id="scan-filename">Loading…</div>
+        <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+        <div class="progress-label" id="progress-label">0%</div>
+        <div class="scan-steps">
+          <div class="scan-step" id="step-0"><div class="scan-step-icon"><svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="scan-step-text" id="scan-text-0">Reading document structure</div><div class="scan-step-sub" id="scan-sub-0">Identifying pages, clauses &amp; schedules</div></div></div>
+          <div class="scan-step" id="step-1"><div class="scan-step-icon"><svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="scan-step-text" id="scan-text-1">Scanning rent review clauses</div><div class="scan-step-sub" id="scan-sub-1">Checking for ratchet mechanisms and CPI caps</div></div></div>
+          <div class="scan-step" id="step-2"><div class="scan-step-icon"><svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="scan-step-text" id="scan-text-2">Analysing outgoings structure</div><div class="scan-step-sub" id="scan-sub-2">Detecting hidden operating expenses</div></div></div>
+          <div class="scan-step" id="step-3"><div class="scan-step-icon"><svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="scan-step-text" id="scan-text-3">Checking option exercise windows</div><div class="scan-step-sub">Mapping critical dates and notice periods</div></div></div>
+          <div class="scan-step" id="step-4"><div class="scan-step-icon"><svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="scan-step-text">Cross-referencing <span id="scan-jur-label">state</span> legislation</div><div class="scan-step-sub">Validating against applicable retail leases act</div></div></div>
+          <div class="scan-step" id="step-5"><div class="scan-step-icon"><svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="scan-step-text">Calculating risk score</div><div class="scan-step-sub">Weighting flags by financial severity</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TEASER ══════════════════════════════════════════════ -->
+    <div id="outer-teaser" class="outer-state">
+      <div class="teaser-header">
+        <div class="teaser-header-left">
+          <div class="doc-type-pill" id="teaser-doc-pill">Lease</div>
+          <h2>Risk Assessment</h2>
+          <p id="teaser-filename-label">document.pdf · VIC legislation applied</p>
+        </div>
+        <div class="risk-score-badge high" id="risk-badge">
+          <div class="risk-score-num" id="risk-score-num">74</div>
+          <div class="risk-score-label" id="risk-score-label-text">HIGH RISK</div>
+          <div class="risk-score-sub">Score / 100</div>
+        </div>
+      </div>
+      <div class="teaser-stats">
+        <div class="teaser-stat"><div class="teaser-stat-num" id="stat-pages">68</div><div class="teaser-stat-label" id="stat-pages-label">Pages analysed</div></div>
+        <div class="teaser-stat"><div class="teaser-stat-num red" id="stat-flags">9</div><div class="teaser-stat-label">Risk flags</div></div>
+        <div class="teaser-stat"><div class="teaser-stat-num orange" id="stat-high">3</div><div class="teaser-stat-label">High severity</div></div>
+        <div class="teaser-stat"><div class="teaser-stat-num" id="stat-clauses">41</div><div class="teaser-stat-label" id="stat-clauses-label">Clauses scanned</div></div>
+      </div>
+      <div class="flags-section">
+        <h3 id="flags-section-title">Top Risk Flags — First 5 Pages</h3>
+        <div id="flags-visible"></div>
+        <div class="flags-locked">
+          <div class="flag-card blurred medium"><div class="flag-severity medium">MED</div><div><div class="flag-category">Land Tax</div><div class="flag-title">Land tax recovery may exceed statutory limits</div><div class="flag-desc">Full pass-through without multi-holding discount.</div></div></div>
+          <div class="flag-card blurred low"><div class="flag-severity low">LOW</div><div><div class="flag-category">Make Good</div><div class="flag-title">Make-good obligations broadly defined</div><div class="flag-desc">No schedule of condition attached.</div></div></div>
+          <div class="flags-locked-overlay">
+            <div class="flags-locked-msg">
+              <strong><span id="remaining-flag-count">6</span> more flags found on the first 5 pages</strong>
+              <span>Enter your email below — free summary of every flag</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="email-gate">
+        <div class="email-gate-headline">Get all <span id="flag-count-label-headline">9</span> flag summaries — free</div>
+        <div class="tier-chips">
+          <div class="tier-chip free"><strong>✉ Free email — first 5 pages</strong>Flag names · Risk rating · Clause reference · Plain-English explanation</div>
+          <div class="tier-chip paid"><strong>🔒 Full audit $399 — all <span id="paid-clause-count">?</span> clauses</strong>Dollar estimates · Remediation steps · Dispute letter · 12-mo monitoring</div>
+        </div>
+        <div id="email-form-wrap">
+          <div class="email-form">
+            <input type="email" class="email-input" id="email-input" placeholder="your@email.com.au" />
+            <button class="btn-email" id="btn-email">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              Send My Report
+            </button>
+          </div>
+          <div class="email-privacy"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>No spam. Unsubscribe anytime. Never sold or shared.</div>
+        </div>
+        <div class="email-success" id="email-success">
+          <h3>✓ Report on its way — check your inbox</h3>
+          <p>We've sent a preview of your report. Full audit available for $399 — see what we found.</p>
+        </div>
+      </div>
+      <div class="pages-banner">
+        <div class="pages-banner-text">
+          <strong id="pages-remaining-label">63 pages left unscanned</strong>
+          <span>Full audit — dollar estimates, remediation &amp; dispute letter.</span>
+        </div>
+        <a href="#" class="btn-unlock">Unlock Full Audit — $399</a>
+      </div>
+    </div>
+
+  </div><!-- /main-card -->
+
+  <!-- ── SOCIAL PROOF BELOW CARD ─────────────────────────────── -->
+  <div class="social-proof" id="social-proof-strip">
+    <div class="proof-chip">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L20 6v6c0 5.25-3.5 10.15-8 12C7.5 22.15 4 17.25 4 12V6l8-4z"/></svg>
+      <span><strong>SOC 2</strong> infrastructure</span>
+    </div>
+    <div class="proof-chip">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Results in <strong>~60 seconds</strong></span>
+    </div>
+    <div class="proof-chip">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span>Deleted <strong>after processing</strong></span>
+    </div>
+    <div class="proof-chip">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>Covers <strong>all 8 states &amp; territories</strong></span>
+    </div>
+  </div>
+
+</section>
+
+<!-- ── FOOTER ─────────────────────────────────────────────────── -->
+<footer class="page-footer">
+  <div class="footer-left"><strong>TenantSentry</strong> · AI Lease Auditing for Australian Commercial Tenants</div>
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+    <a href="#">Contact</a>
+  </div>
+  <div class="footer-disclaimer">Risk indicators only. Not legal advice. Consult a qualified solicitor before acting on any lease matter.</div>
+</footer>
+
+<script>
+// ── API base — empty string = same-origin (backend template).
+//              Set to 'http://localhost:8000' for the static website version.
+const API_BASE = '';
+
+const app = { docType: null, method: null, jur: null, file: null, jobId: null };
+const card = document.getElementById('main-card');
+
+function showOuter(name) {
+  ['wizard','scanning','teaser'].forEach(s =>
+    document.getElementById(`outer-${s}`).classList.toggle('active', s === name));
+  // Card height: fixed for wizard/scanning, auto for teaser
+  card.className = `main-card state-${name}`;
+  if (name === 'teaser') {
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function updateStepIndicator(n) {
+  for (let i = 1; i <= 4; i++) {
+    const dot  = document.querySelector(`.step-dot[data-step="${i}"]`);
+    const circ = document.getElementById(`dot-${i}`);
+    dot.classList.remove('active','done');
+    if (i < n) {
+      dot.classList.add('done');
+      circ.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    } else if (i === n) {
+      dot.classList.add('active'); circ.textContent = i;
+    } else { circ.textContent = i; }
+    if (i < 4) document.getElementById(`conn-${i}`).classList.toggle('done', i < n);
+  }
+}
+
+function goToStep(n) {
+  document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+  const id = n === 4 ? `wizard-step-4-${app.method}` : `wizard-step-${n}`;
+  document.getElementById(id).classList.add('active');
+  updateStepIndicator(n);
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Step 1
+document.querySelectorAll('#wizard-step-1 .choice-card').forEach(c =>
+  c.addEventListener('click', () => {
+    document.querySelectorAll('#wizard-step-1 .choice-card').forEach(x => x.classList.remove('selected'));
+    c.classList.add('selected'); app.docType = c.dataset.type;
+    document.getElementById('step1-next').disabled = false;
+  }));
+document.getElementById('step1-next').addEventListener('click', () => goToStep(2));
+
+// Step 2
+document.querySelectorAll('#wizard-step-2 .choice-card').forEach(c =>
+  c.addEventListener('click', () => {
+    document.querySelectorAll('#wizard-step-2 .choice-card').forEach(x => x.classList.remove('selected'));
+    c.classList.add('selected'); app.method = c.dataset.method;
+    document.getElementById('step2-next').disabled = false;
+  }));
+document.getElementById('step2-next').addEventListener('click', () => goToStep(3));
+
+// Step 3
+document.getElementById('jur-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.jur-btn'); if (!btn) return;
+  document.querySelectorAll('.jur-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected'); app.jur = btn.dataset.jur;
+  document.getElementById('step3-next').disabled = false;
+});
+document.getElementById('step3-next').addEventListener('click', () => {
+  if (app.docType === 'hoa') {
+    document.getElementById('upload-step-title').textContent = 'Upload your Heads of Agreement';
+    document.getElementById('manual-step-title').textContent = 'Enter your HoA terms';
+    document.getElementById('manual-fields-lease').style.display = 'none';
+    document.getElementById('manual-fields-hoa').style.display = '';
+  } else {
+    document.getElementById('upload-step-title').textContent = 'Upload your Lease PDF';
+    document.getElementById('manual-step-title').textContent = 'Enter your Lease terms';
+    document.getElementById('manual-fields-lease').style.display = '';
+    document.getElementById('manual-fields-hoa').style.display = 'none';
+  }
+  goToStep(4);
+});
+
+// Step 4 upload
+const dropZone = document.getElementById('drop-zone');
+document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+function setFile(f) {
+  app.file = f;
+  document.getElementById('file-name').textContent = f.name;
+  document.getElementById('file-chosen').style.display = 'flex';
+  dropZone.classList.add('has-file');
+  document.getElementById('btn-analyse-upload').disabled = false;
+}
+document.getElementById('btn-analyse-upload').addEventListener('click', startScanning);
+
+// Step 4 manual
+const leaseReq = ['f-rent','f-sqm','f-review','f-outgoings','f-term'];
+const hoaReq   = ['h-face-rent','h-sqm','h-term','h-review'];
+function checkManualReady() {
+  const ids = app.docType === 'hoa' ? hoaReq : leaseReq;
+  document.getElementById('btn-analyse-manual').disabled =
+    !ids.every(id => { const el = document.getElementById(id); return el && el.value.trim(); });
+}
+document.getElementById('wizard-step-4-manual').addEventListener('input',  checkManualReady);
+document.getElementById('wizard-step-4-manual').addEventListener('change', checkManualReady);
+document.getElementById('btn-analyse-manual').addEventListener('click', startScanning);
+
+// Scanning
+const STEPS_LEASE = [
+  { t:'Reading document structure',       s:'Identifying pages, clauses, schedules & annexures' },
+  { t:'Scanning rent review clauses',     s:'Checking for ratchet mechanisms and CPI caps' },
+  { t:'Analysing outgoings structure',    s:'Detecting hidden operating expenses and admin fees' },
+  { t:'Checking option exercise windows', s:'Mapping critical dates and notice periods' },
+  { t:'Cross-referencing legislation',    s:'Validating against applicable retail leases act' },
+  { t:'Calculating risk score',           s:'Weighting flags by financial severity' },
+];
+const STEPS_HOA = [
+  { t:'Reading HoA structure',             s:'Identifying terms, schedules & incentive clauses' },
+  { t:'Evaluating face vs effective rent', s:'Calculating net effective rent after incentives' },
+  { t:'Checking incentive adequacy',       s:'Comparing rent-free period and fitout to market' },
+  { t:'Reviewing rent review mechanism',   s:'Flagging ratchet clauses and uncapped CPI' },
+  { t:'Assessing make-good & bond risk',   s:'Checking personal guarantee scope and obligations' },
+  { t:'Calculating risk score',            s:'Weighting flags by financial severity' },
+];
+
+// ── Fallback flags (shown when API is unavailable) ────────────────────────────
+const FALLBACK_LEASE_FLAGS = [
+  { severity:'high', category:'Rent Review', title:'Ratchet clause detected — rent cannot decrease',
+    description:'Clause 12.3 contains a "greater of" mechanic — rent can only move upward at each review, even if market rents fall.',
+    benchmark:'📊 Ratchet clauses produce 15–25% above-market rent by Year 3' },
+  { severity:'high', category:'Outgoings', title:'Capital works incorrectly classified as outgoings',
+    description:'Schedule B includes items (roof, HVAC) that appear to be capital improvements classified as recoverable outgoings.',
+    benchmark:'📊 Avg. misclassification = $8,400–$22,000/year overcharge' },
+  { severity:'medium', category:'Option to Renew', title:'Option notice window is unusually short — 3 months',
+    description:'Clause 31.1 requires notice no later than 3 months before expiry. Standard practice is 6 months. Missing this forfeits renewal entirely.',
+    benchmark: null },
+];
+const FALLBACK_HOA_FLAGS = [
+  { severity:'high', category:'Effective Rent', title:'Face-to-effective rent gap signals above-market positioning',
+    description:'The net effective rent after incentives is significantly below face rent — the gap will compound at each review.',
+    benchmark:'📊 A 20%+ gap typically means 8–12% above-market rent by Year 3' },
+  { severity:'high', category:'Rent Review', title:'Ratchet clause present — rent cannot fall at market review',
+    description:'The HoA includes a "greater of market or current" mechanic — locks you in for the full lease term in a softening market.',
+    benchmark:'📊 Market review + ratchet adds avg. $18,000–$45,000 over a 5yr term' },
+  { severity:'medium', category:'Make-Good', title:'Make-good references "original condition" without a condition schedule',
+    description:'Without a photographic schedule at commencement, "original condition" is subjective and exposes you to costly claims at lease end.',
+    benchmark: null },
+];
+
+function _buildFallbackResult() {
+  const isHoa = app.docType === 'hoa';
+  const pageCount = app.method === 'upload' ? Math.floor(Math.random() * 45 + 40) : null;
+  return {
+    risk_score:      74,
+    risk_level:      'high',
+    pages_analysed:  pageCount,
+    clauses_scanned: app.method === 'upload' ? Math.floor(Math.random() * 20 + 32) : null,
+    total_flags:     9,
+    high_flags:      3,
+    doc_type:        app.docType,
+    jurisdiction:    app.jur,
+    top_flags:       isHoa ? FALLBACK_HOA_FLAGS : FALLBACK_LEASE_FLAGS,
+    source:          'fallback',
+  };
+}
+
+// ── Animation helper — returns Promise that resolves with pageCount after animation ─
+function runAnimation() {
+  const isHoa = app.docType === 'hoa';
+  const steps = isHoa ? STEPS_HOA : STEPS_LEASE;
+  steps.forEach((s, i) => {
+    const t = document.getElementById(`scan-text-${i}`); if (t) t.textContent = s.t;
+    const u = document.getElementById(`scan-sub-${i}`);  if (u) u.textContent = s.s;
+  });
+  const pageCount = app.method === 'upload' ? Math.floor(Math.random() * 45 + 40) : null;
+  document.getElementById('scan-title').textContent    = isHoa ? 'Analysing your HoA…' : 'Analysing your lease…';
+  document.getElementById('scan-filename').textContent = app.method === 'upload'
+    ? `${app.file.name} · ${pageCount} pages detected`
+    : `Manual entry · ${app.jur} · ${isHoa ? 'Heads of Agreement' : 'Lease'}`;
+  document.getElementById('scan-jur-label').textContent = app.jur;
+
+  const bar     = document.getElementById('progress-bar');
+  const lbl     = document.getElementById('progress-label');
+  const stepEls = [0,1,2,3,4,5].map(i => document.getElementById(`step-${i}`));
+  const prog    = [8,25,42,60,78,92];
+  const dur     = [900,1200,1100,1000,1300,900];
+  let cur = 0;
+  stepEls.forEach(el => el.classList.remove('done','active'));
+  bar.style.width = '5%'; lbl.textContent = '5%';
+  stepEls[0].classList.add('active');
+
+  return new Promise(resolve => {
+    function advance() {
+      if (cur >= 6) {
+        bar.style.width='100%'; lbl.textContent='100%';
+        setTimeout(() => resolve(pageCount), 400);
+        return;
+      }
+      stepEls[cur].classList.remove('active'); stepEls[cur].classList.add('done');
+      bar.style.width = prog[cur]+'%'; lbl.textContent = prog[cur]+'%';
+      cur++;
+      if (cur < 6) { stepEls[cur].classList.add('active'); setTimeout(advance, dur[cur]); }
+      else setTimeout(advance, 400);
+    }
+    setTimeout(advance, dur[0]);
+  });
+}
+
+// ── Poll /api/audit/status/{jobId} until complete or timeout ──────────────────
+async function pollJobResult(jobId, timeoutMs = 120000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const res  = await fetch(`${API_BASE}/api/audit/status/${jobId}`);
+      const json = await res.json();
+      if (json.status === 'complete') {
+        const rRes   = await fetch(`${API_BASE}/api/free-check/result/${jobId}`);
+        const result = await rRes.json();
+        return result;
+      }
+      if (json.status === 'failed') throw new Error('Job failed: ' + (json.error || 'unknown'));
+    } catch (e) {
+      if (e.message.startsWith('Job failed')) throw e;
+      // Network error — keep polling until timeout
+    }
+  }
+  throw new Error('Polling timed out');
+}
+
+// ── Build manual payload from form fields ─────────────────────────────────────
+function buildManualPayload() {
+  const base = { doc_type: app.docType, jurisdiction: app.jur };
+  if (app.docType === 'hoa') {
+    return { ...base,
+      face_rent:   document.getElementById('h-face-rent')?.value,
+      net_rent:    document.getElementById('h-net-rent')?.value,
+      sqm:         document.getElementById('h-sqm')?.value,
+      term:        document.getElementById('h-term')?.value,
+      rentfree:    document.getElementById('h-rentfree')?.value,
+      fitout:      document.getElementById('h-fitout')?.value,
+      review_type: document.getElementById('h-review')?.value,
+      outgoings:   document.getElementById('h-outgoings')?.value,
+      options:     document.getElementById('h-options')?.value,
+      makegood:    document.getElementById('h-makegood')?.value,
+      guarantee:   document.getElementById('h-guarantee')?.value,
+      bond:        document.getElementById('h-bond')?.value,
+    };
+  }
+  return { ...base,
+    rent:        document.getElementById('f-rent')?.value,
+    sqm:         document.getElementById('f-sqm')?.value,
+    term:        document.getElementById('f-term')?.value,
+    review_type: document.getElementById('f-review')?.value,
+    fixed_pct:   document.getElementById('f-fixed-pct')?.value,
+    outgoings:   document.getElementById('f-outgoings')?.value,
+    options:     document.getElementById('f-options')?.value,
+    makegood:    document.getElementById('f-makegood')?.value,
+    landtax:     document.ge
