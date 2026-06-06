@@ -197,13 +197,21 @@ def analyse_clause(
                 timeout=60.0,
             )
             raw = response.content[0].text.strip()
+            usage = response.usage  # always present on a successful response
             try:
                 result = json.loads(raw)
-                result["_model"] = model   # carry model name into per-clause log
+                result["_model"] = model
+                result["_input_tokens"]  = usage.input_tokens
+                result["_output_tokens"] = usage.output_tokens
                 return result
             except json.JSONDecodeError:
                 logger.error(f"LLM returned non-JSON: {raw[:200]}")
-                return {"error": "Failed to parse LLM response", "raw": raw[:500], "_model": model}
+                return {
+                    "error": "Failed to parse LLM response", "raw": raw[:500],
+                    "_model": model,
+                    "_input_tokens": usage.input_tokens,
+                    "_output_tokens": usage.output_tokens,
+                }
         except Exception as exc:
             last_exc = exc
             err_str = str(exc)
@@ -226,12 +234,14 @@ def triage_clauses(
     chunks: list,
     batch_offset: int,
     jurisdiction: str,
-) -> list[int]:
+) -> tuple[list[int], dict]:
     """
     Pass 1: Haiku triage — identify clause indices that need full Sonnet/Opus analysis.
 
-    Takes a batch of chunks (slice of the full chunk list) and returns a list of
-    *absolute* indices (i.e. batch_offset + local_idx) that need deep analysis.
+    Takes a batch of chunks (slice of the full chunk list) and returns a tuple of:
+      - list of *absolute* indices (batch_offset + local_idx) to flag for deep analysis
+      - usage dict: {"input_tokens": int, "output_tokens": int} for cost tracking
+        (zeros on fallback so accumulation is always safe)
 
     Falls back to flagging all clauses in the batch if the model returns non-JSON,
     so a triage failure degrades gracefully to the original sequential behaviour.
@@ -240,9 +250,6 @@ def triage_clauses(
         chunks:        Slice of DocumentChunk objects for this batch.
         batch_offset:  Index of chunks[0] in the full clause list.
         jurisdiction:  State code — used for model context.
-
-    Returns:
-        List of absolute clause indices to flag for deep analysis.
     """
     client = get_client()
 
@@ -290,18 +297,20 @@ def triage_clauses(
             messages=[{"role": "user", "content": prompt}],
             timeout=30.0,
         )
+        usage = response.usage
         raw = response.content[0].text.strip()
         indices = json.loads(raw)
         valid = [int(i) for i in indices if isinstance(i, (int, float))]
         flag_pct = round(100 * len(valid) / len(chunks)) if chunks else 0
         logger.info(
             f"Haiku triage batch offset={batch_offset} size={len(chunks)}: "
-            f"{len(valid)} flagged ({flag_pct}%) → {valid}"
+            f"{len(valid)} flagged ({flag_pct}%) → {valid} "
+            f"[in={usage.input_tokens} out={usage.output_tokens}]"
         )
-        return valid
+        return valid, {"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}
     except Exception as e:
         logger.warning(
             f"Haiku triage FALLBACK (batch_offset={batch_offset}): {e} "
             f"— flagging all {len(chunks)} clauses (may inflate triage rate)"
         )
-        return list(range(batch_offset, batch_offset + len(chunks)))
+        return list(range(batch_offset, batch_offset + len(chunks))), {"input_tokens": 0, "output_tokens": 0}

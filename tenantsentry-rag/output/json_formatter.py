@@ -52,7 +52,11 @@ class AuditResult(BaseModel):
     jurisdiction: str
     filename: str
     audit_date: datetime = Field(default_factory=lambda: datetime.now(_SYDNEY_TZ))
-    total_clauses: int
+    raw_clause_count: int = 0       # Total clauses extracted from the document by the chunker (OCR)
+    haiku_triage_count: int = 0     # Clauses sent to Haiku for triage screening
+    sonnet_analysed_count: int = 0  # Clauses deep-analysed by Sonnet
+    opus_escalated_count: int = 0   # Clauses escalated to Opus (complex/high-risk keywords)
+    total_clauses: int              # Total clause_analyses records in result (flagged + stubs)
     risk_score: int             # 0-100
     clause_analyses: list[ClauseAnalysis]
     all_risk_flags: list[dict]
@@ -63,6 +67,9 @@ class AuditResult(BaseModel):
     # Pipeline performance instrumentation — per-stage durations in ms.
     # Stored in audit_run.stage_timings (separate column); excluded from reports.
     stage_timings: dict = Field(default_factory=dict)
+    # Per-model token counts and USD costs from utils/cost_tracker.CostAccumulator.
+    # Stored in audit_run.stage_costs (separate column); excluded from reports.
+    stage_costs: dict = Field(default_factory=dict)
     # Multi-doc: reconciliation results for each outgoings/invoice doc uploaded.
     # Each entry is a serialised ReconciliationResult dict from outgoings_engine.
     reconciliation_results: list[dict] = Field(default_factory=list)
@@ -94,6 +101,10 @@ class AuditResult(BaseModel):
             "audit_date": self.audit_date.isoformat(),
             "risk_level": self.risk_level,
             "risk_score": self.risk_score,
+            "raw_clause_count": self.raw_clause_count,
+            "haiku_triage_count": self.haiku_triage_count,
+            "sonnet_analysed_count": self.sonnet_analysed_count,
+            "opus_escalated_count": self.opus_escalated_count,
             "total_clauses_reviewed": self.total_clauses,
             "total_flags": len(self.all_risk_flags),
             "high_risk_flags": len(self.high_risk_flags),

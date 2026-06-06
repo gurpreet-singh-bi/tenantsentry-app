@@ -235,8 +235,9 @@ def _strip_clause_text(result: dict) -> dict:
         the JSONB payload manageable (~252 KB max for a 168-clause lease vs.
         ~2-5 MB for the full text).
       - stage_timings removed (stored in its own column, not in findings JSONB)
+      - stage_costs removed (stored in its own column, not in findings JSONB)
     """
-    stripped = {k: v for k, v in result.items() if k != "stage_timings"}
+    stripped = {k: v for k, v in result.items() if k not in ("stage_timings", "stage_costs")}
     if "clause_analyses" in stripped and isinstance(stripped["clause_analyses"], list):
         truncated = []
         for ca in stripped["clause_analyses"]:
@@ -264,8 +265,9 @@ def complete_job(job_id: str, result: dict) -> None:
     if _supabase_ok():
         try:
             stage_timings = result.get("stage_timings") if isinstance(result, dict) else None
+            stage_costs   = result.get("stage_costs")   if isinstance(result, dict) else None
             findings = _strip_clause_text(result) if isinstance(result, dict) else result
-            _store.mark_complete(job_id, findings, stage_timings=stage_timings)
+            _store.mark_complete(job_id, findings, stage_timings=stage_timings, stage_costs=stage_costs)
         except Exception as e:
             logger.error(f"[{job_id}] Supabase complete failed: {e}")
             # Fallback: write status+progress without findings so the DB row

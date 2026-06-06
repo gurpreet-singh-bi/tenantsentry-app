@@ -74,8 +74,13 @@ def update_progress(job_id: str, progress: int, stage: str) -> None:
     }).eq("job_id", job_id).execute()
 
 
-def mark_complete(job_id: str, findings: dict, stage_timings: Optional[dict] = None) -> None:
-    """UPDATE job to complete with findings JSON and optional timing data."""
+def mark_complete(
+    job_id: str,
+    findings: dict,
+    stage_timings: Optional[dict] = None,
+    stage_costs: Optional[dict] = None,
+) -> None:
+    """UPDATE job to complete with findings JSON, optional timing data, and optional cost data."""
     payload = {
         "status": "complete",
         "progress": 100,
@@ -85,6 +90,8 @@ def mark_complete(job_id: str, findings: dict, stage_timings: Optional[dict] = N
     }
     if stage_timings:
         payload["stage_timings"] = stage_timings
+    if stage_costs:
+        payload["stage_costs"] = stage_costs
     _get_client().table("audit_run").update(payload).eq("job_id", job_id).execute()
     logger.info(f"[{job_id}] audit_run marked complete")
 
