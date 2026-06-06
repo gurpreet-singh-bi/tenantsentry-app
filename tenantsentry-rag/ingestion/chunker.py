@@ -122,4 +122,38 @@ def _split_on_clause_headings(text: str) -> list[tuple[str, str]]:
             heading_text = match.group().split("\n")[0].strip()
             heading_positions.append((match.start(), heading_text))
 
-  
+    if not heading_positions:
+        # No headings found — fall back to paragraph splitting
+        logger.warning("No clause headings detected, falling back to paragraph split")
+        return _paragraph_fallback(text)
+
+    # Sort by position and deduplicate overlapping matches
+    heading_positions.sort(key=lambda x: x[0])
+    heading_positions = _deduplicate_headings(heading_positions)
+
+    # Build chunks
+    chunks = []
+    for i, (pos, heading) in enumerate(heading_positions):
+        start = pos + len(heading)
+        end = heading_positions[i + 1][0] if i + 1 < len(heading_positions) else len(text)
+        body = text[start:end].strip()
+        chunks.append((heading, body))
+
+    return chunks
+
+
+def _deduplicate_headings(positions: list[tuple]) -> list[tuple]:
+    """Remove headings that overlap with previous match."""
+    result = []
+    last_end = -1
+    for pos, heading in positions:
+        if pos > last_end:
+            result.append((pos, heading))
+            last_end = pos + len(heading)
+    return result
+
+
+def _paragraph_fallback(text: str) -> list[tuple[str, str]]:
+    """Split by double newline when no clause headings are found."""
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    return [("", p) for p in paragraphs]
