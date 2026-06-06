@@ -1,0 +1,17 @@
+# Enforce LF line endings for all text files in this repo.
+# Prevents Windows git from converting LF→CRLF on checkout,
+# which causes spurious diffs and mixed line endings when
+# files are written by the Linux sandbox and committed from Windows.
+
+* text=auto eol=lf
+
+# Binaries — no line ending conversion
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
