@@ -556,4 +556,58 @@ def run_audit(
                 parsed_out = parse_outgoings_pdf(doc_path)
 
                 def _recon_cb(stage: str):
-      
+                    _progress(cb, base_pct + 1, stage)
+
+                recon = run_outgoings_reconciliation(
+                    parsed_outgoings=parsed_out,
+                    doc_filename=doc_filename,
+                    clause_analyses=clause_analyses_dicts,
+                    jurisdiction=jur,
+                    progress_callback=_recon_cb,
+                )
+                reconciliation_results.append(reconciliation_result_to_dict(recon))
+
+            except Exception as e:
+                logger.error(f"Outgoings engine failed for {doc_filename}: {e}")
+                reconciliation_results.append({
+                    "doc_filename": doc_filename,
+                    "doc_type": doc_type,
+                    "engine_status": "failed",
+                    "warnings": [f"Processing failed: {e}. This document was not reconciled."],
+                    "findings": [],
+                    "total_claimed_cents": 0,
+                    "total_disputed_cents": 0,
+                })
+
+    _timings["total_ms"] = _ms(_t0)
+
+    result = AuditResult(
+        tenant_name=tenant_name or "Unknown",
+        jurisdiction=jur,
+        filename=parsed.metadata["filename"],
+        raw_clause_count=len(chunks),
+        haiku_triage_count=n,
+        sonnet_analysed_count=_sonnet_count,
+        opus_escalated_count=_opus_count,
+        total_clauses=len(clause_analyses),
+        stage_costs=_costs.to_dict(),
+        risk_score=risk_score,
+        clause_analyses=clause_analyses,
+        all_risk_flags=all_flags,
+        lease_dates=lease_dates,
+        extracted_rules=extracted_rules,
+        stage_timings=_timings,
+        reconciliation_results=reconciliation_results,
+        pipeline_warnings=pipeline_warnings,
+    )
+
+    logger.info(
+        f"Audit complete — {len(clause_analyses)} clauses, "
+        f"{len(all_flags)} flags ({len(high_flags)} high), "
+        f"risk={risk_score}/100, dates={len(lease_dates)} | "
+        f"recon_docs={len(reconciliation_results)} | "
+        f"triage={_timings.get('triage_ms')}ms "
+        f"analysis={_timings.get('analysis_ms')}ms "
+        f"total={_timings.get('total_ms')}ms"
+    )
+    return result

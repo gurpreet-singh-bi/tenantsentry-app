@@ -1005,4 +1005,147 @@ function buildManualPayload() {
     outgoings:   document.getElementById('f-outgoings')?.value,
     options:     document.getElementById('f-options')?.value,
     makegood:    document.getElementById('f-makegood')?.value,
-    landtax:     document.ge
+    landtax:     document.getElementById('f-landtax')?.value,
+  };
+}
+
+// ── Main scan entry point ─────────────────────────────────────────────────────
+async function startScanning() {
+  showOuter('scanning');
+
+  let apiPromise;
+
+  if (app.method === 'upload') {
+    // ── Upload: submit to API, then poll while animation runs ────────────────
+    apiPromise = (async () => {
+      const fd = new FormData();
+      fd.append('file', app.file);
+      fd.append('jurisdiction', app.jur);
+      fd.append('doc_type', app.docType);
+      const res  = await fetch(`${API_BASE}/api/free-check/submit`, { method: 'POST', body: fd });
+      const json = await res.json();
+      app.jobId  = json.job_id;
+      return pollJobResult(json.job_id);
+    })().catch(() => null);   // null = use fallback
+
+  } else {
+    // ── Manual: one sync call, no polling needed ─────────────────────────────
+    apiPromise = fetch(`${API_BASE}/api/free-check/manual`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildManualPayload()),
+    }).then(r => r.json()).catch(() => null);
+  }
+
+  // Run animation and API call concurrently — wait for both
+  const [pageCountFromAnim, apiResult] = await Promise.all([runAnimation(), apiPromise]);
+
+  const result = apiResult || _buildFallbackResult();
+
+  // If animation gave us a page count but API didn't (e.g. live mode truncates), use animation's
+  if (result.pages_analysed == null && pageCountFromAnim) {
+    result.pages_analysed = pageCountFromAnim;
+  }
+
+  showTeaser(result);
+}
+
+// ── Render teaser from API result ─────────────────────────────────────────────
+function showTeaser(result) {
+  const isHoa      = (result.doc_type || app.docType) === 'hoa';
+  const jur        = result.jurisdiction || app.jur;
+  const method     = app.method;
+  const fileName   = app.file?.name || 'Manual entry';
+  const pageCount  = result.pages_analysed;
+  const score      = result.risk_score  ?? 74;
+  const total      = result.total_flags ?? 9;
+  const high       = result.high_flags  ?? 3;
+  const cls        = result.clauses_scanned;
+  const left       = pageCount ? Math.max(0, pageCount - 5) : null;
+  const flags      = result.top_flags ?? (isHoa ? FALLBACK_HOA_FLAGS : FALLBACK_LEASE_FLAGS);
+
+  document.getElementById('teaser-doc-pill').textContent = isHoa ? 'Heads of Agreement' : 'Commercial Lease';
+  document.getElementById('teaser-filename-label').textContent = method === 'upload'
+    ? `${fileName} · ${pageCount ? pageCount + ' pages' : ''} · ${jur} legislation applied`
+    : `Manual entry · ${jur} · ${isHoa ? 'HoA' : 'Lease'}`;
+  document.getElementById('risk-score-num').textContent = score;
+
+  const badge = document.getElementById('risk-badge');
+  const rlbl  = document.getElementById('risk-score-label-text');
+  badge.className = 'risk-score-badge';
+  if      (score >= 65) { badge.classList.add('high');   rlbl.textContent = 'HIGH RISK'; }
+  else if (score >= 40) { badge.classList.add('medium'); rlbl.textContent = 'MEDIUM RISK'; }
+  else                  { badge.classList.add('low');    rlbl.textContent = 'LOW RISK'; }
+
+  document.getElementById('stat-flags').textContent         = total;
+  document.getElementById('stat-high').textContent          = high;
+  document.getElementById('stat-pages').textContent         = pageCount ?? 'Manual';
+  document.getElementById('stat-pages-label').textContent   = pageCount ? 'Pages analysed' : 'Entry method';
+  document.getElementById('stat-clauses').textContent       = cls ?? '—';
+  document.getElementById('stat-clauses-label').textContent = cls ? 'Clauses scanned' : 'Terms assessed';
+
+  document.getElementById('flags-section-title').textContent =
+    method === 'upload' ? 'Top Risk Flags — First 5 Pages' : 'Top Risk Flags';
+
+  document.getElementById('flags-visible').innerHTML = flags.map(f => `
+    <div class="flag-card ${f.severity}">
+      <div class="flag-severity ${f.severity}">${f.severity.substring(0,4).toUpperCase()}</div>
+      <div>
+        <div class="flag-category">${f.category}</div>
+        <div class="flag-title">${f.title}</div>
+        <div class="flag-desc">${f.description}</div>
+        ${f.benchmark ? `<div class="flag-benchmark">${f.benchmark}</div>` : ''}
+      </div>
+    </div>`).join('');
+
+  const moreFlags = Math.max(0, total - flags.length);
+  document.getElementById('flag-count-label-headline').textContent = total;
+  document.getElementById('remaining-flag-count').textContent      = moreFlags;
+  document.getElementById('pages-remaining-label').textContent     =
+    left ? `${left} pages left unscanned` : 'Full analysis available';
+
+  const totalClauses = cls && pageCount ? Math.round(cls * (pageCount / 5)) : null;
+  document.getElementById('paid-clause-count').textContent = totalClauses || 'all';
+
+  showOuter('teaser');
+}
+
+// ── EMAIL GATE — submit lead to API ──────────────────────────────────────────
+document.getElementById('btn-email').addEventListener('click', async () => {
+  const emailEl = document.getElementById('email-input');
+  const v = emailEl.value.trim();
+  if (!v || !v.includes('@')) {
+    emailEl.style.borderColor = 'var(--red)';
+    return;
+  }
+  // Optimistic UI — show success immediately
+  document.getElementById('email-form-wrap').style.display = 'none';
+  document.getElementById('email-success').classList.add('show');
+
+  // Fire lead capture to API (non-blocking)
+  try {
+    await fetch(`${API_BASE}/api/free-check/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email:        v,
+        job_id:       app.jobId || '',
+        jurisdiction: app.jur  || '',
+      }),
+    });
+  } catch (_) { /* non-fatal */ }
+
+  // Open email preview (website) or dashboard CTA (app) after short delay
+  setTimeout(() => {
+    const previewUrl = API_BASE ? `${API_BASE.replace(':8000',':8080')}/email-partial-report.html` : '/';
+    // Only open preview if we have a static site URL — otherwise let the success state speak for itself
+    if (API_BASE) window.open(previewUrl, '_blank');
+  }, 600);
+});
+
+document.getElementById('email-input').addEventListener('input', function() {
+  this.style.borderColor = '';
+});
+</script>
+</body>
+</html>

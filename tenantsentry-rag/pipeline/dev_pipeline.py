@@ -386,4 +386,14 @@ def run_dev_audit(
     return AuditResult(
         tenant_name=tenant_name or DEV_FIXTURE_TENANT,
         jurisdiction=jurisdiction or DEV_FIXTURE_JURISDICTION,
-        filename=
+        filename=filename,
+        raw_clause_count=len(MOCK_CLAUSES) * 2,  # DEV: simulate ~2x raw chunks vs analysed
+        total_clauses=len(MOCK_CLAUSES),
+        risk_score=risk_score,
+        clause_analyses=MOCK_CLAUSES,
+        all_risk_flags=all_flags,
+    )
+
+
+# Backward-compatibility alias — use run_dev_audit in new code
+run_mock_audit = run_dev_audit

@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+/* Theme: apply before paint to avoid flash */
+(function(){
+  var t = localStorage.getItem('ts-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TenantSentry.ai — Auditor Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+/* ═══════════════════════════════════════
+   THEME CUSTOM PROPERTIES
+═══════════════════════════════════════ */
+:root {
+  --ts-bg0:       #080f1c;
+  --ts-bg1:       #0f1e36;
+  --ts-bg1i:      #111c30;
+  --ts-bg2:       #162844;
+  --ts-bginput:   #0d1a2e;
+  --ts-border-s:  #1e2a3a;
+  --ts-text0:     #e0e6f0;
+  --ts-text1:     #cbd5e8;
+  --ts-text2:     #4a6a8a;
+  --ts-text3:     #8fa3bf;
+  --ts-text4:     #2a4a68;
+  /* rgba border helpers */
+  --ts-border-rgba:   rgba(255,255,255,0.07);
+  --ts-border-subtle: rgba(255,255,255,0.04);
+  --ts-border-def:    rgba(255,255,255,0.10);
+  --ts-border-strong: rgba(255,255,255,0.18);
+  --ts-raised:        rgba(255,255,255,0.035);
+  --ts-scrollbar:     #1e2a3a;
+  --ts-scrollbar-bg:  #080f1c;
+}
+
+/* ── LIGHT THEME OVERRIDES ── */
+html[data-theme="light"] {
+  --ts-bg0:       #f0f4f8;
+  --ts-bg1:       #ffffff;
+  --ts-bg1i:      #f4f7fa;
+  --ts-bg2:       #eef2f7;
+  --ts-bginput:   #f4f7fa;
+  --ts-border-s:  #d1dae6;
+  --ts-text0:     #0f172a;
+  --ts-text1:     #1e293b;
+  --ts-text2:     #5a7394;
+  --ts-text3:     #64748b;
+  --ts-text4:     #94a3b8;
+  --ts-border-rgba:   rgba(0,0,0,0.08);
+  --ts-border-subtle: rgba(0,0,0,0.04);
+  --ts-border-def:    rgba(0,0,0,0.09);
+  --ts-border-strong: rgba(0,0,0,0.14);
+  --ts-raised:        rgba(0,0,0,0.02);
+  --ts-scrollbar:     #c2cdd9;
+  --ts-scrollbar-bg:  #f0f4f8;
+}
+
+/* ── LIGHT: High-specificity overrides for components ── */
+html[data-theme="light"] body { background: var(--ts-bg0) !important; color: var(--ts-text0) !important; }
+html[data-theme="light"] nav,
+html[data-theme="light"] .topbar { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .card-inner { background: #f4f7fa !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .stat-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .dk-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .clause-card { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+html[data-theme="light"] .clause-card.confirmed { border-color: rgba(34,197,94,0.35) !important; }
+html[data-theme="light"] .clause-card.flagged-card { border-color: rgba(245,158,11,0.4) !important; }
+html[data-theme="light"] .clause-card.rejected { border-color: rgba(239,68,68,0.4) !important; background: rgba(239,68,68,0.03) !important; }
+html[data-theme="light"] .clause-card.active-doc { border-color: #0d9488 !important; }
+html[data-theme="light"] .clause-card-body { border-color: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .clause-card-header:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .clause-action-bar { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .clause-note-input { background: #f8fafc !important; border-color: rgba(0,194,168,0.3) !important; color: #0f172a !important; }
+html[data-theme="light"] .doc-row { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .nav-link { color: #5a7394 !important; }
+html[data-theme="light"] .nav-link:hover { color: #00b89f !important; background: rgba(0,194,168,0.08) !important; }
+html[data-theme="light"] .nav-link.active { color: #009e88 !important; background: rgba(0,194,168,0.10) !important; }
+html[data-theme="light"] .audit-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .audit-row:hover { background: rgba(0,0,0,0.02) !important; }
+html[data-theme="light"] .report-row { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .report-row:hover { background: rgba(0,0,0,0.025) !important; }
+html[data-theme="light"] .notif-item { border-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .upload-cta { background: linear-gradient(135deg, rgba(0,194,168,0.07) 0%, rgba(59,130,246,0.04) 100%) !important; border-color: rgba(0,194,168,0.2) !important; }
+html[data-theme="light"] .drop-zone { border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .drop-zone:hover,
+html[data-theme="light"] .drop-zone.dragging { border-color: #00c2a8 !important; background: rgba(0,194,168,0.04) !important; }
+html[data-theme="light"] .dk-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .dk-input:focus { border-color: rgba(0,194,168,0.5) !important; }
+html[data-theme="light"] .dk-input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .input::placeholder { color: #94a3b8 !important; }
+html[data-theme="light"] .input:focus { border-color: #00c2a8 !important; }
+html[data-theme="light"] select.input option { background: #f4f7fa !important; color: #0f172a !important; }
+html[data-theme="light"] .brand-panel { background: #1a2744 !important; }
+html[data-theme="light"] .form-panel { background: #f8fafc !important; }
+html[data-theme="light"] .sso-btn { background: #f4f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: #0f172a !important; }
+html[data-theme="light"] .sso-btn:hover { background: #eef2f7 !important; }
+html[data-theme="light"] .checkbox-input { background: #f4f7fa !important; border-color: rgba(0,0,0,0.2) !important; }
+html[data-theme="light"] .checkbox-label { color: #1e293b !important; }
+html[data-theme="light"] .divider::before,
+html[data-theme="light"] .divider::after { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .divider span { color: #94a3b8 !important; }
+html[data-theme="light"] .form-title { color: #0f172a !important; }
+html[data-theme="light"] .form-subtitle { color: #64748b !important; }
+html[data-theme="light"] .field-label { color: #334155 !important; }
+html[data-theme="light"] .bp-logo-tag,
+html[data-theme="light"] .bp-sub,
+html[data-theme="light"] .bp-stat-label { color: rgba(255,255,255,0.55) !important; }
+html[data-theme="light"] .bp-stat-value { color: #5ef0d8 !important; }
+html[data-theme="light"] .bp-stat { background: rgba(255,255,255,0.06) !important; }
+html[data-theme="light"] .bp-stats { background: rgba(255,255,255,0.04) !important; }
+html[data-theme="light"] .bp-badge { color: #e0e6f0 !important; }
+html[data-theme="light"] .bp-badge-icon { background: rgba(0,194,168,0.15) !important; border-color: rgba(0,194,168,0.3) !important; }
+html[data-theme="light"] .bp-footer { color: rgba(255,255,255,0.4) !important; border-color: rgba(255,255,255,0.1) !important; }
+html[data-theme="light"] .signup-row { color: #64748b !important; border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .form-footer { color: #94a3b8 !important; }
+html[data-theme="light"] .form-footer a { color: #64748b !important; }
+html[data-theme="light"] .back-link { color: #64748b !important; }
+html[data-theme="light"] .tab-inactive { color: #64748b !important; }
+html[data-theme="light"] .tab-active { color: #0d9488 !important; }
+html[data-theme="light"] .sidebar-tab.active { background: #eef2f7 !important; color: #0f172a !important; border-color: rgba(0,0,0,0.1) !important; }
+html[data-theme="light"] .sidebar-tab.inactive { color: #64748b !important; }
+html[data-theme="light"] .quota-bar-track { background: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .notif-dot { border-color: #f0f4f8 !important; }
+html[data-theme="light"] .plan-badge-bundle,
+html[data-theme="light"] .plan-badge-pay,
+html[data-theme="light"] .plan-badge-monitor { /* keep as-is — colored badges */ }
+html[data-theme="light"] .btn-ghost { color: #009e88 !important; border-color: rgba(0,158,136,0.3) !important; }
+html[data-theme="light"] .btn-ghost:hover { background: rgba(0,194,168,0.07) !important; }
+html[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-track { background: #f0f4f8 !important; }
+html[data-theme="light"] .scrollbar::-webkit-scrollbar-thumb { background: #c2cdd9 !important; }
+/* Stepper (audit page) */
+html[data-theme="light"] .step-circle { border-color: rgba(0,0,0,0.1) !important; color: #64748b !important; }
+html[data-theme="light"] .step-label { color: #64748b !important; }
+html[data-theme="light"] .step-line { background: rgba(0,0,0,0.1) !important; }
+/* Step pills (signup) */
+html[data-theme="light"] .step-pill { color: #94a3b8 !important; }
+html[data-theme="light"] .step-pill-num { background: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .step-pill.active { color: #009e88 !important; background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.25) !important; }
+html[data-theme="light"] .step-pill.active .step-pill-num { background: #00c2a8 !important; color: #fff !important; }
+html[data-theme="light"] .step-pill.done .step-pill-num { background: rgba(0,194,168,0.12) !important; color: #009e88 !important; }
+html[data-theme="light"] .progress-track { background: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .progress-label,
+html[data-theme="light"] .progress-fraction { color: #64748b !important; }
+html[data-theme="light"] .topbar-right { color: #64748b !important; }
+/* Alert banners */
+html[data-theme="light"] .alert-error { background: rgba(239,68,68,0.06) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .alert-success { background: rgba(34,197,94,0.06) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Severity badges — keep accent colors */
+html[data-theme="light"] .sev-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .sev-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .sev-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .badge-high { background: rgba(239,68,68,0.10) !important; border-color: rgba(239,68,68,0.2) !important; }
+html[data-theme="light"] .badge-medium { background: rgba(245,158,11,0.10) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .badge-low { background: rgba(34,197,94,0.10) !important; border-color: rgba(34,197,94,0.2) !important; }
+/* Status badges */
+html[data-theme="light"] .status-pending  { background: rgba(245,158,11,0.08) !important; border-color: rgba(245,158,11,0.2) !important; }
+html[data-theme="light"] .status-review   { background: rgba(59,130,246,0.08) !important; border-color: rgba(59,130,246,0.2) !important; }
+html[data-theme="light"] .status-released { background: rgba(34,197,94,0.08) !important; border-color: rgba(34,197,94,0.2) !important; }
+html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !important; border-color: rgba(0,194,168,0.2) !important; }
+
+    [x-cloak] { display: none !important; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--ts-bg0); color: var(--ts-text0); margin: 0; }
+
+    /* ── SCROLLBAR ── */
+    .scrollbar::-webkit-scrollbar { width: 4px; }
+    .scrollbar::-webkit-scrollbar-track { background: var(--ts-bg0); }
+    .scrollbar::-webkit-scrollbar-thumb { background: var(--ts-border-s); border-radius: 4px; }
+
+    /* ── CARDS & BASE ── */
+    .card { background: var(--ts-bg1); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; }
+
+    /* ── BUTTONS ── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: none; padding: 7px 14px; }
+    .btn-teal  { background: #0d9488; color: #fff; }
+    .btn-teal:hover  { background: #0f766e; }
+    .btn-blue  { background: #1d4ed8; color: #fff; }
+    .btn-blue:hover  { background: #1e40af; }
+    .btn-ghost { background: transparent; color: var(--ts-text2); border: 1px solid var(--ts-border-s); }
+    .btn-ghost:hover { border-color: #0d9488; color: #5ef0d8; }
+    .btn-red   { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+    .btn-red:hover   { background: rgba(239,68,68,0.2); }
+    .btn-amber { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+    .btn-amber:hover { background: rgba(245,158,11,0.2); }
+    .btn-green { background: rgba(34,197,94,0.1); color: #6fdb7a; border: 1px solid rgba(34,197,94,0.25); }
+    .btn-green:hover { background: rgba(34,197,94,0.18); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── TABS ── */
+    .tab-active   { border-bottom: 2px solid #0d9488; color: #5ef0d8; }
+    .tab-inactive { color: var(--ts-text2); border-bottom: 2px solid transparent; }
+
+    /* ── SEVERITY BADGES ── */
+    .sev-high   { background: #3d1515; color: #f87171; border: 1px solid #7f1d1d; }
+    .sev-medium { background: #3d2e10; color: #fbbf24; border: 1px solid #78350f; }
+    .sev-low    { background: #1a2e1a; color: #6fdb7a; border: 1px solid #14532d; }
+
+    /* ── CLAUSE CARDS ── */
+    .clause-card {
+      background: var(--ts-bg1);
+      border: 1px solid var(--ts-border-s);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .clause-card.confirmed    { border-color: rgba(34,197,94,0.3); }
+    .clause-card.flagged-card { border-color: rgba(245,158,11,0.35); }
+    .clause-card.rejected     { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.03); }
+    .clause-card.active-doc   { border-color: #0d9488; box-shadow: 0 0 0 2px rgba(13,148,136,0.15); }
+
+    /* ── DOCUMENT VIEWER ── */
+    .doc-viewer {
+      background: #f7f4ee; border-radius: 8px;
+      padding: 24px 20px; font-family: Georgia, 'Times New Roman', serif;
+      font-size: 13px; line-height: 1.8; color: #1a1a1a;
+    }
+    .doc-viewer-heading {
+      font-size: 11px; font-weight: 700; color: #0d9488;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      margin-bottom: 10px; font-family: system-ui, sans-serif;
+    }
+    .doc-viewer mark {
+      background: #ffe066; color: #1a1a1a;
+      border-radius: 2px; padding: 0 2px;
+    }
+    .doc-viewer mark.flag-high   { background: #ffd0d0; }
+    .doc-viewer mark.flag-medium { background: #ffe5b0; }
+    .doc-viewer .clause-excerpt {
+      position: relative; padding-left: 12px;
+      border-left: 3px solid #0d9488; margin-bottom: 12px;
+    }
+    .doc-flag-inline {
+      display: flex; gap: 8px; align-items: flex-start;
+      padding: 8px 10px; border-radius: 6px; margin-top: 6px;
+      font-family: system-ui, sans-serif; font-size: 11px; line-height: 1.5;
+    }
+    .doc-flag-high   { background: rgba(239,68,68,0.08); border-left: 3px solid #f87171; }
+    .doc-flag-medium { background: rgba(245,158,11,0.08); border-left: 3px solid #fbbf24; }
+    .doc-flag-low    { background: rgba(34,197,94,0.07);  border-left: 3px solid #6fdb7a; }
+    .doc-flag-label  { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0; margin-top: 1px; }
+    .sidebar-tab { font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; transition: all 0.12s; }
+    .sidebar-tab.active   { background: var(--ts-border-s); color: var(--ts-text0); border-color: #2e3a4a; }
+    .sidebar-tab.inactive { color: var(--ts-text2); }
+    .sidebar-tab.inactive:hover { color: var(--ts-text3); }
+    .clause-card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 13px 16px; gap: 10px; cursor: pointer;
+    }
+    .clause-card-header:hover { background: rgba(255,255,255,0.015); }
+    .clause-card-body { padding: 0 16px 14px; border-top: 1px solid var(--ts-border-s); }
+    .clause-action-bar {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      padding: 10px 16px; background: rgba(0,0,0,0.15);
+      border-top: 1px solid var(--ts-border-s);
+    }
+    .clause-note-input {
+      background: var(--ts-bg0); border: 1px solid rgba(0,194,168,0.3);
+      border-radius: 6px; color: var(--ts-text0); font-size: 12px;
+      padding: 8px 10px; width: 100%; font-family: inherit;
+      resize: none; outline: none; margin-top: 8px;
+    }
+    .clause-note-input:focus { border-color: #0d9488; }
+
+    /* ── CLAUSE SECTIONS (4-part layout) ── */
+    .clause-section { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .clause-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .clause-section-header {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--ts-text2); margin-bottom: 7px;
+    }
+    .clause-original-text {
+      font-size: 11px; line-height: 1.7; color: var(--ts-text3);
+      font-family: Georgia, 'Times New Roman', serif;
+      background: var(--ts-bg0); padding: 8px 12px; border-radius: 6px;
+      border: 1px solid var(--ts-border-subtle); white-space: pre-wrap; word-break: break-word;
+    }
+
+    /* ── DOCUMENT ROW ── */
+    .doc-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 6px;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--ts-border-s);
+      margin-bottom: 6px;
+    }
+
+    /* ── SEARCH ── */
+    .search-input {
+      background: var(--ts-bg1); border: 1px solid var(--ts-border-s); border-radius: 6px;
+      color: var(--ts-text0); padding: 7px 12px 7px 32px; font-size: 12px;
+      outline: none; width: 220px;
+    }
+    .search-input:focus { border-color: #0d9488; }
+    .filter-chip {
+      font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 10px;
+      cursor: pointer; border: 1px solid transparent; transition: all 0.12s;
+    }
+    .filter-chip.active-all    { background: var(--ts-border-s); color: var(--ts-text0); }
+    .filter-chip.active-high   { background: #3d1515; color: #f87171; border-color: #7f1d1d; }
+    .filter-chip.active-medium { background: #3d2e10; color: #fbbf24; border-color: #78350f; }
+    .filter-chip.active-low    { background: #1a2e1a; color: #6fdb7a; border-color: #14532d; }
+    .filter-chip.inactive      { background: transparent; color: var(--ts-text2); border-color: var(--ts-border-s); }
+    .filter-chip.inactive:hover { border-color: #2e3a4a; color: var(--ts-text3); }
+
+    /* ── INPUT ── */
+    .input-field { background: var(--ts-bg1); border: 1px solid var(--ts-border-s); border-radius: 6px; color: var(--ts-text0); padding: 9px 12px; width: 100%; font-size: 13px; font-family: inherit; }
+    .input-field:focus { outline: none; border-color: #0d9488; }
+    textarea.input-field { resize: vertical; min-height: 70px; }
+  </style>
+</head>
+<body x-data="adminPortal()" x-init="init()" x-cloak>
+
+<!-- ── LOGIN ──────────────────────────────────────────────────────────── -->
+<div x-show="!authed" class="min-h-screen flex items-center justify-center px-4">
+  <div class="card p-8 w-full max-w-sm">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:#0d9488">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="text-sm font-bold" style="color:#5ef0d8">TenantSentry.ai</div>
+        <div class="text-xs" style="color:var(--ts-text2)">Auditor Portal</div>
+      </div>
+    </div>
+    <h1 class="text-lg font-semibold mb-1">Sign in</h1>
+    <p class="text-xs mb-5" style="color:var(--ts-text2)">Internal access only. Not for client use.</p>
+    <input type="password" x-model="loginToken" @keydown.enter="login()" placeholder="Admin token" class="input-field mb-3" />
+    <div x-show="loginError" class="text-xs text-red-400 mb-3" x-text="loginError"></div>
+    <button @click="login()" class="btn btn-teal w-full justify-center" :disabled="loggingIn">
+      <span x-text="loggingIn ? 'Verifying…' : 'Continue'"></span>
+    </button>
+  </div>
+</div>
+
+<!-- ── MAIN ───────────────────────────────────────────────────────────── -->
+<div x-show="authed" class="flex flex-col" style="height:100vh">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between px-6 py-2.5 border-b shrink-0" style="background:var(--ts-bg0);border-color:rgba(255,255,255,0.06);height:56px;">
+    <div class="flex items-center gap-3">
+      <a href="/dashboard" class="flex items-center gap-2" style="text-decoration:none;">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white" style="background:linear-gradient(135deg,#00c2a8,#009e88);">TS</div>
+        <span class="text-sm font-semibold" style="color:var(--ts-text0);">TenantSentry<span style="color:#00c2a8;">.ai</span></span>
+      </a>
+      <span class="text-xs" style="color:var(--ts-text4);">/ Auditor Portal</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/admin" class="btn btn-ghost py-1.5 px-3 text-xs" style="color:var(--ts-text2);">⚙ Admin</a>
+      <button @click="loadQueue()" class="btn btn-ghost py-1.5 px-3">↺ Refresh</button>
+      <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
+  style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid var(--ts-border-rgba,rgba(255,255,255,0.07));background:var(--ts-raised,rgba(255,255,255,0.035));">
+  <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+      <button @click="logout()" class="btn btn-ghost py-1.5 px-3">Sign out</button>
+    </div>
+  </header>
+
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- ── LEFT: QUEUE ──────────────────────────────────────────── -->
+    <aside class="flex flex-col overflow-hidden border-r shrink-0" style="width:280px;border-color:rgba(255,255,255,0.07)">
+
+      <!-- Tabs -->
+      <div class="flex border-b px-4 pt-3" style="border-color:rgba(255,255,255,0.07)">
+        <button @click="switchTab('pending')" :class="activeTab==='pending'?'tab-active':'tab-inactive'" class="text-xs font-semibold pb-2 mr-4 transition-colors">
+          Pending
+          <span x-show="pending.length>0" class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full" style="background:#3d1515;color:#f87171" x-text="pending.length"></span>
+        </button>
+        <button @click="switchTab('reviewed')" :class="activeTab==='reviewed'?'tab-active':'tab-inactive'" class="text-xs font-semibold pb-2 mr-4 transition-colors">
+          Reviewed
+          <span x-show="reviewed.length>0" class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full" style="background:#1a2e1a;color:#6fdb7a" x-text="reviewed.length"></span>
+        </button>
+        <button @click="switchTab('active')" :class="activeTab==='active'?'tab-active':'tab-inactive'" class="text-xs font-semibold pb-2 transition-colors flex items-center gap-1">
+          Active
+          <!-- Pulsing red dot when jobs are running -->
+          <span x-show="activeJobs.length>0" class="relative flex h-2 w-2 ml-0.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style="background:#f87171"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2" style="background:#ef4444"></span>
+          </span>
+          <span x-show="activeJobs.length>0" class="ml-1 text-xs px-1.5 py-0.5 rounded-full" style="background:#3d1515;color:#f87171" x-text="activeJobs.length"></span>
+        </button>
+      </div>
+
+      <!-- List -->
+      <div class="flex-1 overflow-y-auto scrollbar p-2.5 space-y-1.5">
+        <div x-show="loading" class="text-xs text-center py-8" style="color:#2a3a4a">Loading…</div>
+
+        <template x-if="activeTab==='pending'">
+          <div>
+            <div x-show="!pending.length && !loading" class="text-xs text-center py-8" style="color:#2a3a4a">No audits awaiting review</div>
+            <template x-for="job in pending" :key="job.job_id">
+              <div @click="selectJob(job)"
+                :class="selectedJob?.job_id===job.job_id ? 'border-teal-700 bg-teal-900/10' : 'hover:border-slate-700'"
+                class="card p-3 cursor-pointer transition-colors">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold truncate" x-text="job.tenant_name"></div>
+                    <div class="text-xs truncate mt-0.5" style="color:var(--ts-text2)" x-text="job.filename"></div>
+                  </div>
+                  <span class="text-xs px-1.5 py-0.5 rounded font-mono shrink-0" style="background:var(--ts-border-s);color:#6ab4ff" x-text="job.jurisdiction"></span>
+                </div>
+                <div class="text-xs mt-1.5" style="color:#2a3a4a" x-text="fmtDate(job.completed_at)"></div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <template x-if="activeTab==='reviewed'">
+          <div>
+            <div x-show="!reviewed.length && !loading" class="text-xs text-center py-8" style="color:#2a3a4a">No reviewed audits yet</div>
+            <template x-for="job in reviewed" :key="job.job_id">
+              <div @click="selectJob(job)"
+                :class="selectedJob?.job_id===job.job_id ? 'border-teal-700 bg-teal-900/10' : 'hover:border-slate-700'"
+                class="card p-3 cursor-pointer transition-colors">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold truncate" x-text="job.tenant_name"></div>
+                    <div class="text-xs truncate mt-0.5" style="color:var(--ts-text2)" x-text="job.filename"></div>
+                  </div>
+                  <span class="text-xs px-1.5 py-0.5 rounded font-semibold shrink-0"
+                    :class="job.released ? 'bg-green-900/40 text-green-400' : 'bg-yellow-900/30 text-yellow-400'"
+                    x-text="job.released ? 'Released' : 'Approved'"></span>
+                </div>
+                <div class="text-xs mt-1.5" style="color:#2a3a4a" x-text="fmtDate(job.reviewed_at)"></div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- ── ACTIVE JOBS (kill switch) ── -->
+        <template x-if="activeTab==='active'">
+          <div>
+            <div x-show="activeLoading && !activeJobs.length" class="text-xs text-center py-8" style="color:#2a3a4a">Loading…</div>
+            <div x-show="!activeLoading && !activeJobs.length" class="text-xs text-center py-8" style="color:#2a3a4a">
+              <div class="text-2xl mb-2">✓</div>
+              No active jobs — pipeline is idle
+            </div>
+
+            <template x-for="job in activeJobs" :key="job.job_id">
+              <div class="card p-3 mb-2" style="border-color:rgba(239,68,68,0.2)">
+
+                <!-- Job header -->
+                <div class="flex items-start justify-between gap-2 mb-2">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold truncate" x-text="job.tenant_name || '—'"></div>
+                    <div class="text-xs truncate mt-0.5" style="color:var(--ts-text2)" x-text="job.filename"></div>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-xs px-1.5 py-0.5 rounded font-mono" style="background:var(--ts-border-s);color:#6ab4ff" x-text="job.jurisdiction"></span>
+                    <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                      :class="job.status==='processing' ? 'bg-teal-900/40 text-teal-400' : 'bg-slate-800 text-slate-400'"
+                      x-text="job.status === 'processing' ? '⚙ Running' : '⏳ Queued'"></span>
+                  </div>
+                </div>
+
+                <!-- Stage + elapsed -->
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs" style="color:var(--ts-text3)" x-text="job.stage || 'Waiting…'"></span>
+                  <span class="text-xs font-mono" style="color:#2a4a68" x-text="fmtElapsed(job.elapsed_seconds)"></span>
+                </div>
+
+                <!-- Progress bar -->
+                <div class="w-full h-1.5 rounded-full mb-3 overflow-hidden" style="background:var(--ts-border-s)">
+                  <div class="h-1.5 rounded-full transition-all duration-500"
+                    :style="'width:' + (job.progress || 0) + '%;background:' + (job.status==='processing' ? '#0d9488' : '#2a4a68')"
+                  ></div>
+                </div>
+
+                <!-- Kill switch buttons -->
+                <div class="flex gap-1.5 flex-wrap">
+                  <button
+                    @click="killJob(job.job_id, 'fail')"
+                    :disabled="cancellingJob[job.job_id]"
+                    class="btn btn-red flex-1 justify-center py-1 px-2 text-xs"
+                    title="Stop immediately and mark as failed">
+                    <span x-text="cancellingJob[job.job_id]==='fail' ? '…' : '🛑 Kill'"></span>
+                  </button>
+                  <button
+                    @click="killJob(job.job_id, 'retry')"
+                    :disabled="cancellingJob[job.job_id]"
+                    class="btn btn-amber flex-1 justify-center py-1 px-2 text-xs"
+                    title="Cancel and re-queue for a fresh run">
+                    <span x-text="cancellingJob[job.job_id]==='retry' ? '…' : '🔄 Reset'"></span>
+                  </button>
+                  <button
+                    @click="killJob(job.job_id, 'delete')"
+                    :disabled="cancellingJob[job.job_id]"
+                    class="btn btn-ghost flex-1 justify-center py-1 px-2 text-xs"
+                    style="color:#f87171;border-color:rgba(239,68,68,0.2)"
+                    title="Hard delete — removes all data for this job">
+                    <span x-text="cancellingJob[job.job_id]==='delete' ? '…' : '🗑 Remove'"></span>
+                  </button>
+                </div>
+
+                <!-- Result message after action -->
+                <div x-show="killResult[job.job_id]" class="mt-2 text-xs p-2 rounded"
+                  :style="killResult[job.job_id]?.ok ? 'background:#1a2e1a;color:#6fdb7a;border:1px solid rgba(34,197,94,0.2)' : 'background:#3d1515;color:#f87171;border:1px solid rgba(239,68,68,0.2)'"
+                  x-text="killResult[job.job_id]?.message || (killResult[job.job_id]?.ok ? '✓ Done' : '✗ Failed')">
+                </div>
+              </div>
+            </template>
+
+            <!-- ── Recent Failures section ── -->
+            <template x-if="recentFailed.length > 0">
+              <div class="mt-3">
+                <div class="text-xs font-bold uppercase tracking-wider mb-2 px-1 flex items-center gap-2" style="color:#f87171;letter-spacing:0.7px">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                  Recent Failures
+                </div>
+
+                <template x-for="job in recentFailed" :key="job.job_id">
+                  <div class="card mb-2" style="border-color:rgba(239,68,68,0.25)">
+
+                    <!-- Clickable header — click to select job and expand error -->
+                    <div class="p-3 cursor-pointer select-none"
+                         @click="selectJob(job); expandedError[job.job_id] = !expandedError[job.job_id]">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                          <div class="text-xs font-semibold truncate" x-text="job.tenant_name || '—'"></div>
+                          <div class="text-xs truncate mt-0.5" style="color:var(--ts-text2)" x-text="job.filename"></div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                          <span class="text-xs px-1.5 py-0.5 rounded font-mono" style="background:var(--ts-border-s);color:#6ab4ff" x-text="job.jurisdiction"></span>
+                          <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                            :class="job.status === 'cancelled' ? 'text-amber-400' : 'text-red-400'"
+                            :style="job.status === 'cancelled' ? 'background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)' : 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)'"
+                            x-text="job.status === 'cancelled' ? '⊘ Cancelled' : '✗ Failed'"></span>
+                          <!-- Expand chevron -->
+                          <svg class="w-3.5 h-3.5 shrink-0 transition-transform" style="color:var(--ts-text2)"
+                            :style="expandedError[job.job_id] ? 'transform:rotate(180deg)' : ''"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                          </svg>
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between mt-1.5">
+                        <div class="flex items-center gap-3">
+                          <span class="text-xs" style="color:#4a3a3a" x-text="job.stage || 'Failed'"></span>
+                          <span class="text-xs" style="color:#2a2a3a" x-text="fmtDate(job.completed_at)"></span>
+                        </div>
+                        <!-- Always-visible action buttons -->
+                        <div class="flex gap-1" x-show="job.status !== 'cancelled'" @click.stop>
+                          <button
+                            @click="killJob(job.job_id, 'retry')"
+                            :disabled="cancellingJob[job.job_id]"
+                            class="btn btn-amber text-xs py-0.5 px-2"
+                            style="font-size:10px"
+                            title="Reset and re-queue">
+                            <span x-text="cancellingJob[job.job_id] ? '…' : '🔄 Retry'"></span>
+                          </button>
+                          <button
+                            @click="killJob(job.job_id, 'delete')"
+                            :disabled="cancellingJob[job.job_id]"
+                            class="btn btn-ghost text-xs py-0.5 px-2"
+                            style="font-size:10px;color:#f87171;border-color:rgba(239,68,68,0.2)"
+                            title="Hard delete">
+                            🗑
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Expandable error body -->
+                    <div x-show="expandedError[job.job_id]"
+                         style="border-top:1px solid rgba(239,68,68,0.15)">
+                      <div class="p-3">
+                        <div class="text-xs font-semibold mb-1.5" style="color:#f87171">Error detail</div>
+                        <template x-if="job.error">
+                          <pre class="text-xs rounded p-2.5 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed"
+                               style="background:#1a0a0a;border:1px solid rgba(239,68,68,0.15);color:#f4a0a0;font-family:ui-monospace,monospace;max-height:180px;overflow-y:auto"
+                               x-text="job.error"></pre>
+                        </template>
+                        <div x-show="!job.error" class="text-xs italic" style="color:#4a3a3a">No error message recorded.</div>
+                        <!-- Retry/Remove are now in the card header row -->
+                        <div x-show="killResult[job.job_id]" class="mt-2 text-xs p-2 rounded"
+                          :style="killResult[job.job_id]?.ok ? 'background:#1a2e1a;color:#6fdb7a' : 'background:#3d1515;color:#f87171'"
+                          x-text="killResult[job.job_id]?.message">
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- Last refreshed indicator -->
+            <div x-show="lastActiveRefresh" class="text-xs text-center mt-2" style="color:#1e2a3a" x-text="'Refreshed ' + lastActiveRefresh"></div>
+          </div>
+        </template>
+      </div>
+    </aside>
+
+    <!-- ── RIGHT: AUDIT DETAIL ──────────────────────────────────── -->
+    <main class="flex-1 overflow-y-auto scrollbar">
+
+      <!-- Dashboard home (shown when no job selected) -->
+      <div x-show="!selectedJob" class="overflow-y-auto scrollbar h-full p-6">
+        <div class="max-w-3xl">
+
+          <!-- Welcome -->
+          <div class="mb-6">
+            <h2 class="text-lg font-bold mb-0.5">Good day, Auditor 👋</h2>
+            <p class="text-xs" style="color:var(--ts-text2)">Review pending audits, check findings, and release reports to tenants.</p>
+          </div>
+
+          <!-- Stats strip -->
+          <div class="grid grid-cols-3 gap-4 mb-6" style="grid-template-columns:repeat(3,1fr)">
+            <div class="card p-4 text-center">
+              <div class="text-2xl font-bold text-red-400" x-text="dashStats?.pending_count ?? '—'"></div>
+              <div class="text-xs mt-1" style="color:var(--ts-text2)">Pending review</div>
+            </div>
+            <div class="card p-4 text-center">
+              <div class="text-2xl font-bold text-green-400" x-text="dashStats?.reviewed_today ?? '—'"></div>
+              <div class="text-xs mt-1" style="color:var(--ts-text2)">Reviewed today</div>
+            </div>
+            <div class="card p-4 text-center">
+              <div class="text-2xl font-bold text-blue-400" x-text="dashStats?.released_today ?? '—'"></div>
+              <div class="text-xs mt-1" style="color:var(--ts-text2)">Released today</div>
+            </div>
+          </div>
+
+          <div class="grid gap-4" style="grid-template-columns:1fr 1fr">
+
+            <!-- Recent activity -->
+            <div class="card p-4">
+              <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--ts-text2);letter-spacing:0.7px">Recent Activity</div>
+              <div x-show="!dashStats?.recent_activity?.length" class="text-xs" style="color:#2a3a4a">No activity yet.</div>
+              <template x-for="job in (dashStats?.recent_activity ?? [])" :key="job.job_id">
+                <div @click="selectJobById(job.job_id)" class="flex items-center gap-3 py-2 border-b cursor-pointer hover:opacity-80 transition-opacity" style="border-color:rgba(255,255,255,0.07)">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold truncate" x-text="job.tenant_name"></div>
+                    <div class="text-xs truncate" style="color:var(--ts-text2)" x-text="job.filename"></div>
+                  </div>
+                  <span class="text-xs px-1.5 py-0.5 rounded font-mono shrink-0" style="background:var(--ts-border-s);color:#6ab4ff" x-text="job.jurisdiction"></span>
+                  <span class="text-xs px-1.5 py-0.5 rounded font-semibold shrink-0"
+                    :class="job.released ? 'bg-green-900/40 text-green-400' : job.reviewed_by_human ? 'bg-yellow-900/30 text-yellow-400' : 'bg-red-900/30 text-red-400'"
+                    x-text="job.released ? 'Released' : job.reviewed_by_human ? 'Approved' : 'Pending'"></span>
+                </div>
+              </template>
+            </div>
+
+            <!-- Audit health + quick actions -->
+            <div class="flex flex-col gap-4">
+
+              <div class="card p-4">
+                <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--ts-text2);letter-spacing:0.7px">Audit Health</div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <div class="text-xl font-bold" :style="dashStats?.avg_risk_score >= 70 ? 'color:#f87171' : dashStats?.avg_risk_score >= 40 ? 'color:#fbbf24' : 'color:#6fdb7a'" x-text="dashStats?.avg_risk_score ?? '—'"></div>
+                    <div class="text-xs mt-0.5" style="color:var(--ts-text2)">Avg risk score</div>
+                  </div>
+                  <div>
+                    <div class="text-xl font-bold text-red-400" x-text="dashStats?.total_high_flags ?? '—'"></div>
+                    <div class="text-xs mt-0.5" style="color:var(--ts-text2)">Total high flags</div>
+                  </div>
+                  <div>
+                    <div class="text-xl font-bold" style="color:var(--ts-text0)" x-text="dashStats?.total_reviewed ?? '—'"></div>
+                    <div class="text-xs mt-0.5" style="color:var(--ts-text2)">All-time reviewed</div>
+                  </div>
+                  <div>
+                    <div class="text-xl font-bold" style="color:#6ab4ff" x-text="((dashStats?.total_reviewed ?? 0) - (dashStats?.pending_count ?? 0))"></div>
+                    <div class="text-xs mt-0.5" style="color:var(--ts-text2)">Released total</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card p-4">
+                <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--ts-text2);letter-spacing:0.7px">Quick Actions</div>
+                <div class="flex flex-col gap-2">
+                  <button @click="activeTab='pending'; $nextTick(() => document.querySelector('.card.cursor-pointer')?.click())"
+                    class="btn btn-ghost w-full justify-start text-xs">
+                    ⚠ Review next pending audit
+                    <span x-show="dashStats?.pending_count > 0" class="ml-auto text-red-400 font-bold" x-text="dashStats?.pending_count + ' waiting'"></span>
+                  </button>
+                  <button @click="loadDashboard()" class="btn btn-ghost w-full justify-start text-xs">
+                    ↺ Refresh dashboard
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div x-show="selectedJob" class="flex flex-col h-full">
+
+        <!-- ── TOP ACTION BAR ── -->
+        <div class="flex items-center justify-between px-5 py-3 border-b shrink-0 flex-wrap gap-3" style="background:var(--ts-bg0);border-color:rgba(255,255,255,0.07)">
+          <div>
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <span class="text-sm font-bold" x-text="selectedJob?.tenant_name"></span>
+              <span class="text-xs px-2 py-0.5 rounded font-mono" style="background:var(--ts-border-s);color:#6ab4ff" x-text="selectedJob?.jurisdiction"></span>
+              <span x-show="selectedJob?.released" class="text-xs px-2 py-0.5 rounded-full font-semibold bg-green-900/40 text-green-400">✓ Released</span>
+              <span x-show="selectedJob?.reviewed_by_human && !selectedJob?.released" class="text-xs px-2 py-0.5 rounded-full font-semibold bg-yellow-900/30 text-yellow-400">✓ Approved</span>
+              <span x-show="!selectedJob?.reviewed_by_human" class="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-900/30 text-red-400">⚠ Pending review</span>
+            </div>
+            <div class="text-xs mt-1" style="color:var(--ts-text2)">
+              <span x-text="selectedJob?.filename"></span>
+              <span class="mx-1.5">·</span>
+              <span x-text="'Submitted ' + fmtDate(selectedJob?.completed_at)"></span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Download PDF -->
+            <a :href="`/api/admin/report/${selectedJob?.job_id}`"
+               target="_blank"
+               class="btn btn-ghost"
+               x-show="selectedJob?.job_id">
+              ⬇ Download PDF
+            </a>
+            <!-- G6: Evidence pack — all HIGH flags -->
+            <a :href="`/api/admin/evidence/${selectedJob?.job_id}`"
+               target="_blank"
+               class="btn btn-red"
+               x-show="selectedJob?.job_id"
+               title="Download evidence pack — clause excerpts, legislation, CPI math, dispute letter drafts for all HIGH flags">
+              📁 Evidence Pack
+            </a>
+            <!-- Contact tenant -->
+            <a :href="`mailto:?subject=TenantSentry Audit — ${encodeURIComponent(selectedJob?.tenant_name || '')} (${selectedJob?.jurisdiction})&body=Dear ${encodeURIComponent(selectedJob?.tenant_name || 'Tenant')},%0A%0AYour lease audit is complete. Please log in to TenantSentry.ai to view your report.%0A%0ARef: ${selectedJob?.job_id || ''}`"
+               class="btn btn-ghost">
+              ✉ Contact Tenant
+            </a>
+          </div>
+        </div>
+
+        <div class="flex flex-1 overflow-hidden">
+
+          <!-- ── CENTRE: FINDINGS ── -->
+          <div class="flex-1 overflow-y-auto scrollbar p-5">
+
+            <!-- Risk summary strip (grouped) -->
+            <div x-show="resultData" class="rounded-xl mb-4 overflow-hidden" style="background:#111520;border:1px solid var(--ts-border-s)">
+              <div class="flex divide-x" style="divide-color:var(--ts-border-s)">
+
+                <!-- Group 1: Risk Rating -->
+                <div class="flex flex-col items-center px-5 py-3 min-w-0 shrink-0">
+                  <div class="text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--ts-text2);letter-spacing:0.7px">Risk Rating</div>
+                  <div class="flex items-end gap-2">
+                    <div class="text-center">
+                      <div class="text-3xl font-bold leading-none" :style="riskColor(resultData?.risk_score)" x-text="resultData?.risk_score ?? '—'"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">Score</div>
+                    </div>
+                    <div class="text-center mb-0.5">
+                      <div class="text-sm font-bold px-2 py-0.5 rounded"
+                        :style="resultData?.risk_score >= 60 ? 'background:rgba(239,68,68,0.12);color:#f87171' : resultData?.risk_score >= 30 ? 'background:rgba(245,158,11,0.12);color:#fbbf24' : 'background:rgba(34,197,94,0.12);color:#6fdb7a'"
+                        x-text="resultData?.risk_score >= 60 ? 'HIGH' : resultData?.risk_score >= 30 ? 'MEDIUM' : 'LOW'"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">Level</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Group 2: Risk Flags -->
+                <div class="flex flex-col items-center px-5 py-3 flex-1 min-w-0">
+                  <div class="text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--ts-text2);letter-spacing:0.7px">Risk Flags</div>
+                  <div class="flex gap-4">
+                    <div class="text-center">
+                      <div class="text-2xl font-bold text-red-400" x-text="highCount"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">High</div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-2xl font-bold text-yellow-400" x-text="medCount"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">Medium</div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-2xl font-bold text-green-400" x-text="lowCount"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">Low</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Group 3: Document Clauses -->
+                <div class="flex flex-col items-center px-5 py-3 flex-1 min-w-0">
+                  <div class="text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--ts-text2);letter-spacing:0.7px">Document</div>
+                  <div class="flex gap-4">
+                    <div class="text-center">
+                      <div class="text-2xl font-bold" style="color:var(--ts-text0)" x-text="resultData?.raw_clause_count || resultData?.total_clauses || '—'"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">In Lease</div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-2xl font-bold" style="color:#5ef0d8" x-text="resultData?.total_clauses ?? '—'"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">Analysed</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Group 4: Review Status -->
+                <div class="flex flex-col items-center px-5 py-3 flex-1 min-w-0">
+                  <div class="text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--ts-text2);letter-spacing:0.7px">Review</div>
+                  <div class="flex gap-4">
+                    <div class="text-center">
+                      <div class="text-2xl font-bold" style="color:#6fdb7a" x-text="confirmedCount"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">Confirmed</div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-2xl font-bold" style="color:#fbbf24" x-text="flaggedCount"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">Flagged</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Search + filter bar -->
+            <div x-show="resultData" class="flex items-center gap-3 mb-4 flex-wrap">
+              <div class="relative">
+                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">🔍</span>
+                <input type="text" x-model="searchQuery" placeholder="Search clauses…" class="search-input" />
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button @click="filterSev='all'" :class="filterSev==='all' ? 'filter-chip active-all' : 'filter-chip inactive'">All</button>
+                <button @click="filterSev='high'" :class="filterSev==='high' ? 'filter-chip active-high' : 'filter-chip inactive'">High</button>
+                <button @click="filterSev='medium'" :class="filterSev==='medium' ? 'filter-chip active-medium' : 'filter-chip inactive'">Medium</button>
+                <button @click="filterSev='low'" :class="filterSev==='low' ? 'filter-chip active-low' : 'filter-chip inactive'">Low</button>
+                <button @click="filterSev='clean'" :class="filterSev==='clean' ? 'filter-chip active-all' : 'filter-chip inactive'">Clean</button>
+              </div>
+              <span class="text-xs ml-auto" style="color:var(--ts-text2)" x-text="filteredClauses.length + ' of ' + (resultData?.clause_analyses?.length ?? 0) + ' clauses'"></span>
+            </div>
+
+            <!-- Loading -->
+            <div x-show="loadingResult" class="text-xs text-center py-10" style="color:var(--ts-text2)">Loading findings…</div>
+
+            <!-- No findings persisted (mark_complete failed — re-submit the lease) -->
+            <div x-show="!loadingResult && resultData && !resultData.clause_analyses?.length && !resultData.total_clauses"
+                 class="p-4 rounded-xl text-sm text-center"
+                 style="background:#1a1010;border:1px solid #7f1d1d;color:#f87171">
+              <div class="font-semibold mb-1">⚠ Audit findings not saved</div>
+              <div style="color:#c07070;font-size:12px">The findings were lost — likely a serialisation error when writing to the database. Please re-submit this lease to run the audit again.</div>
+            </div>
+
+            <!-- Clause cards -->
+            <template x-for="clause in filteredClauses" :key="clause.clause_heading">
+              <div class="clause-card"
+                :class="{
+                  'confirmed':   clauseState[clause.clause_heading]?.status === 'confirmed',
+                  'flagged-card':clauseState[clause.clause_heading]?.status === 'flagged',
+                  'rejected':    clauseState[clause.clause_heading]?.status === 'rejected',
+                  'active-doc':  activeDocClause?.clause_heading === clause.clause_heading
+                }">
+
+                <!-- Card header (click to expand + open doc viewer) -->
+                <div class="clause-card-header" @click="openDocViewer(clause); toggleClause(clause.clause_heading)">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                      <!-- Clause status dot -->
+                      <span x-show="clauseState[clause.clause_heading]?.status === 'confirmed'" class="text-green-400 text-xs font-bold">✓</span>
+                      <span x-show="clauseState[clause.clause_heading]?.status === 'flagged'"  class="text-yellow-400 text-xs font-bold">⚑</span>
+                      <span x-show="clauseState[clause.clause_heading]?.status === 'rejected'" class="text-red-400 text-xs font-bold">✗</span>
+                      <span class="text-sm font-semibold" x-text="clause.clause_heading"></span>
+                      <span class="text-xs" style="color:var(--ts-text2)" x-text="clause.clause_type ? '· ' + clause.clause_type : ''"></span>
+                    </div>
+                    <p class="text-xs leading-relaxed line-clamp-2" style="color:#4a7a8a" x-text="clause.plain_english_summary"></p>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0 ml-3 flex-wrap justify-end" style="max-width:160px">
+                    <template x-for="flag in clause.risk_flags ?? []" :key="flag.flag_id">
+                      <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                        :class="flag.severity==='high'?'sev-high':flag.severity==='medium'?'sev-medium':'sev-low'"
+                        x-text="flag.severity.toUpperCase()"></span>
+                    </template>
+                    <span x-show="(clause.risk_flags?.length ?? 0) > 1" class="text-xs px-1.5 py-0.5 rounded font-semibold" style="background:rgba(255,255,255,0.06);color:var(--ts-text3)" x-text="clause.risk_flags.length + ' flags'"></span>
+                    <span x-show="!(clause.risk_flags?.length)" class="text-xs px-1.5 py-0.5 rounded" style="background:var(--ts-border-s);color:var(--ts-text2)">CLEAN</span>
+                    <svg class="w-3.5 h-3.5 transition-transform shrink-0" style="color:var(--ts-text2)"
+                      :style="expandedClauses[clause.clause_heading] ? 'transform:rotate(180deg)' : ''"
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Expanded body -->
+                <div x-show="expandedClauses[clause.clause_heading]" class="clause-card-body pt-3">
+
+                  <!-- ① Original Clause -->
+                  <div class="clause-section" x-show="clause.clause_text">
+                    <div class="clause-section-header">📄 Original Clause</div>
+                    <div class="clause-original-text" x-text="clause.clause_text"></div>
+                  </div>
+
+                  <!-- ② Meaning -->
+                  <div class="clause-section">
+                    <div class="clause-section-header">💬 Meaning</div>
+                    <p class="text-sm leading-relaxed" style="color:var(--ts-text1)" x-text="clause.plain_english_summary || 'No summary available.'"></p>
+                  </div>
+
+                  <!-- ③ Risks -->
+                  <div class="clause-section" x-show="clause.risk_flags?.length">
+                    <div class="clause-section-header">
+                      ⚠ Risks
+                      <span class="ml-auto text-xs font-normal normal-case tracking-normal" style="color:var(--ts-text3)" x-text="clause.risk_flags?.length + ' flag' + (clause.risk_flags?.length !== 1 ? 's' : '') + ' found'"></span>
+                    </div>
+                    <template x-for="flag in clause.risk_flags ?? []" :key="flag.flag_id + '_d'">
+                      <div class="mb-2.5 pl-3" :class="flag.severity==='high'?'border-l-2 border-red-700':flag.severity==='medium'?'border-l-2 border-yellow-700':'border-l-2 border-green-700'">
+                        <div class="flex items-center gap-2 mb-1">
+                          <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                            :class="flag.severity==='high'?'sev-high':flag.severity==='medium'?'sev-medium':'sev-low'"
+                            x-text="flag.severity.toUpperCase()"></span>
+                        </div>
+                        <p class="text-sm leading-relaxed" style="color:#c0cfe0" x-text="flag.description"></p>
+                        <div x-show="flag.legislation_ref" class="mt-1 text-xs font-mono" style="color:#0d9488" x-text="flag.legislation_ref"></div>
+                      </div>
+                    </template>
+                  </div>
+
+                  <!-- ④ Recommendations -->
+                  <div class="clause-section" x-show="clause.recommended_action">
+                    <div class="clause-section-header">✅ Recommendations</div>
+                    <p class="text-sm leading-relaxed" style="color:var(--ts-text1)" x-text="clause.recommended_action"></p>
+                  </div>
+
+                  <!-- Auditor note (if any) -->
+                  <div x-show="clauseState[clause.clause_heading]?.note" class="mt-2 p-2.5 rounded text-xs" style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.18)">
+                    <span class="font-semibold" style="color:#fbbf24">Auditor note: </span>
+                    <span style="color:#c0a060" x-text="clauseState[clause.clause_heading]?.note"></span>
+                  </div>
+
+                  <!-- Note input (when adding note) -->
+                  <div x-show="clauseState[clause.clause_heading]?.addingNote">
+                    <textarea class="clause-note-input" placeholder="Add auditor note for this clause…"
+                      @blur="saveClauseNote(clause.clause_heading, $event.target.value)"
+                      :value="clauseState[clause.clause_heading]?.note || ''"
+                      rows="2"></textarea>
+                    <div class="flex gap-2 mt-1.5">
+                      <button class="btn btn-teal text-xs py-1 px-3" @click="saveClauseNote(clause.clause_heading, $el.previousElementSibling.previousElementSibling.value)">Save note</button>
+                      <button class="btn btn-ghost text-xs py-1 px-3" @click="clauseState[clause.clause_heading].addingNote = false; $dispatch('refresh')">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Per-clause action bar -->
+                <div class="clause-action-bar">
+                  <button class="btn btn-green text-xs py-1 px-3"
+                    @click="setClauseStatus(clause.clause_heading, 'confirmed')"
+                    :style="clauseState[clause.clause_heading]?.status==='confirmed' ? 'opacity:1;font-weight:800' : ''">
+                    ✓ Confirm
+                  </button>
+                  <button class="btn btn-amber text-xs py-1 px-3"
+                    @click="setClauseStatus(clause.clause_heading, 'flagged')"
+                    :style="clauseState[clause.clause_heading]?.status==='flagged' ? 'opacity:1;font-weight:800' : ''">
+                    ⚑ Flag
+                  </button>
+                  <button class="btn btn-red text-xs py-1 px-3"
+                    @click="setClauseStatus(clause.clause_heading, 'rejected')"
+                    :style="clauseState[clause.clause_heading]?.status==='rejected' ? 'opacity:1;font-weight:800' : ''">
+                    ✗ Reject
+                  </button>
+                  <button class="btn btn-ghost text-xs py-1 px-3"
+                    @click="toggleClauseNote(clause.clause_heading)">
+                    ✏ Note
+                  </button>
+                  <button class="btn btn-ghost text-xs py-1 px-3"
+                    x-show="clauseState[clause.clause_heading]?.status"
+                    @click="setClauseStatus(clause.clause_heading, null)">
+                    ✕ Clear
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <div x-show="resultData && !loadingResult && filteredClauses.length === 0" class="text-xs text-center py-10" style="color:var(--ts-text2)">No clauses match your filter</div>
+
+          </div>
+
+          <!-- ── RIGHT SIDEBAR: TABBED ── -->
+          <div class="flex flex-col overflow-hidden shrink-0 border-l" style="width:320px;border-color:rgba(255,255,255,0.07)">
+
+            <!-- Sidebar tab bar -->
+            <div class="flex items-center gap-1.5 px-3 py-2.5 border-b shrink-0" style="border-color:rgba(255,255,255,0.07);background:var(--ts-bg0)">
+              <button @click="sidebarTab='doc'" :class="sidebarTab==='doc'?'sidebar-tab active':'sidebar-tab inactive'">
+                📄 Clause
+              </button>
+              <button @click="sidebarTab='docs'" :class="sidebarTab==='docs'?'sidebar-tab active':'sidebar-tab inactive'">
+                📁 Documents
+              </button>
+              <button @click="sidebarTab='review'" :class="sidebarTab==='review'?'sidebar-tab active':'sidebar-tab inactive'">
+                ✓ Review
+              </button>
+            </div>
+
+            <!-- ── TAB: DOCUMENT VIEWER ── -->
+            <div x-show="sidebarTab==='doc'" class="flex-1 overflow-y-auto scrollbar p-4">
+              <!-- No clause selected yet -->
+              <div x-show="!activeDocClause" class="flex flex-col items-center justify-center h-full text-center py-16">
+                <div class="text-3xl mb-3">📄</div>
+                <div class="text-xs font-semibold" style="color:var(--ts-text2)">Click any clause to view the document excerpt</div>
+              </div>
+
+              <!-- Clause document view -->
+              <div x-show="activeDocClause">
+                <!-- Clause heading + type -->
+                <div class="flex items-center justify-between mb-3 gap-2">
+                  <div>
+                    <div class="text-xs font-bold" style="color:var(--ts-text0)" x-text="activeDocClause?.clause_heading"></div>
+                    <div class="text-xs mt-0.5" style="color:var(--ts-text2)" x-text="activeDocClause?.clause_type"></div>
+                  </div>
+                  <div class="flex gap-1 flex-wrap justify-end" style="max-width:140px">
+                    <template x-for="flag in activeDocClause?.risk_flags ?? []" :key="flag.flag_id">
+                      <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                        :class="flag.severity==='high'?'sev-high':flag.severity==='medium'?'sev-medium':'sev-low'"
+                        x-text="flag.severity.toUpperCase()"></span>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- ① Original Clause -->
+                <div class="clause-section" x-show="activeDocClause?.clause_text">
+                  <div class="clause-section-header">📄 Original Clause</div>
+                  <div class="doc-viewer" style="padding:12px 14px;font-size:11px;line-height:1.7">
+                    <div class="clause-excerpt" x-html="highlightedClauseText"></div>
+                  </div>
+                </div>
+
+                <!-- ② Meaning -->
+                <div class="clause-section">
+                  <div class="clause-section-header">💬 Meaning</div>
+                  <p class="text-xs leading-relaxed" style="color:var(--ts-text1)" x-text="activeDocClause?.plain_english_summary || '—'"></p>
+                </div>
+
+                <!-- ③ Risks -->
+                <div class="clause-section">
+                  <div class="clause-section-header">
+                    ⚠ Risks
+                    <span class="ml-auto text-xs font-normal normal-case tracking-normal" style="color:var(--ts-text3)"
+                      x-text="(activeDocClause?.risk_flags?.length ?? 0) + ' flag' + ((activeDocClause?.risk_flags?.length ?? 0) !== 1 ? 's' : '')"></span>
+                  </div>
+                  <template x-for="flag in activeDocClause?.risk_flags ?? []" :key="flag.flag_id">
+                    <div class="doc-flag-inline" :class="'doc-flag-' + flag.severity">
+                      <span class="doc-flag-label"
+                        :style="flag.severity==='high'?'color:#f87171':flag.severity==='medium'?'color:#fbbf24':'color:#6fdb7a'"
+                        x-text="flag.severity.toUpperCase()"></span>
+                      <div>
+                        <div class="text-xs leading-relaxed" style="color:#c0cfe0" x-text="flag.description"></div>
+                        <div x-show="flag.legislation_ref" class="mt-1 text-xs font-mono" style="color:#0d9488" x-text="flag.legislation_ref"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <div x-show="!(activeDocClause?.risk_flags?.length)" class="text-xs" style="color:var(--ts-text2)">No flags — clause appears compliant.</div>
+                </div>
+
+                <!-- ④ Recommendations + Key terms -->
+                <div class="clause-section" x-show="activeDocClause?.recommended_action">
+                  <div class="clause-section-header">✅ Recommendations</div>
+                  <p class="text-xs leading-relaxed" style="color:var(--ts-text1)" x-text="activeDocClause?.recommended_action"></p>
+                </div>
+
+                <!-- Key terms -->
+                <div x-show="activeDocClause?.key_terms?.length" class="mt-2">
+                  <div class="text-xs font-bold uppercase tracking-wider mb-1.5" style="color:var(--ts-text2);letter-spacing:0.6px">Key terms</div>
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="term in activeDocClause?.key_terms ?? []" :key="term">
+                      <span class="text-xs px-2 py-0.5 rounded" style="background:var(--ts-border-s);color:var(--ts-text3)" x-text="term"></span>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── TAB: DOCUMENTS LIST ── -->
+            <div x-show="sidebarTab==='docs'" class="flex-1 overflow-y-auto scrollbar p-4">
+              <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--ts-text2);letter-spacing:0.7px">Submitted Documents</div>
+
+              <!-- Original lease PDF -->
+              <div class="doc-row mb-2">
+                <span style="font-size:18px">📋</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold truncate" x-text="selectedJob?.filename || '—'"></div>
+                  <div class="text-xs mt-0.5" style="color:var(--ts-text2)">Original lease · <span x-text="selectedJob?.jurisdiction"></span></div>
+                </div>
+                <a :href="`/api/admin/document/${selectedJob?.job_id}`"
+                   target="_blank"
+                   class="btn btn-ghost shrink-0 py-1 px-2.5 text-xs">
+                  ⬇
+                </a>
+              </div>
+
+              <!-- Generated audit report -->
+              <div class="doc-row">
+                <span style="font-size:18px">📊</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold">Audit Report (PDF)</div>
+                  <div class="text-xs mt-0.5" style="color:var(--ts-text2)">AI-generated · draft</div>
+                </div>
+                <a :href="`/api/admin/report/${selectedJob?.job_id}`"
+                   target="_blank"
+                   class="btn btn-ghost shrink-0 py-1 px-2.5 text-xs">
+                  ⬇
+                </a>
+              </div>
+
+              <!-- G6: Evidence pack row -->
+              <div class="doc-row">
+                <span style="font-size:18px">📁</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold">Evidence Pack (ZIP)</div>
+                  <div class="text-xs mt-0.5" style="color:var(--ts-text2)">Clause excerpts · Legislation · CPI math · Dispute letters</div>
+                </div>
+                <a :href="`/api/admin/evidence/${selectedJob?.job_id}`"
+                   target="_blank"
+                   class="btn btn-red shrink-0 py-1 px-2.5 text-xs">
+                  ⬇
+                </a>
+              </div>
+
+              <!-- ── Additional uploaded documents (multi-doc) ── -->
+              <div class="text-xs font-bold uppercase tracking-wider mt-4 mb-2" style="color:var(--ts-text2);letter-spacing:0.7px">Additional Uploaded Documents</div>
+
+              <!-- Loading state -->
+              <div x-show="loadingUploadedDocs" class="text-xs py-3 text-center" style="color:var(--ts-text2)">Loading…</div>
+
+              <!-- No additional docs -->
+              <div x-show="!loadingUploadedDocs && uploadedDocs.filter(d => d.doc_type !== 'lease').length === 0"
+                   class="text-xs p-2.5 rounded" style="background:var(--ts-bg1);border:1px solid var(--ts-border-s);color:var(--ts-text2)">
+                No additional documents were submitted with this job. Tenants can upload outgoings schedules and invoices alongside the lease.
+              </div>
+
+              <!-- Doc list -->
+              <template x-for="doc in uploadedDocs.filter(d => d.doc_type !== 'lease')" :key="doc.filename">
+                <div class="doc-row mb-2">
+                  <span style="font-size:16px" x-text="doc.doc_type === 'outgoings' ? '📊' : doc.doc_type === 'invoice' ? '🧾' : doc.doc_type === 'amendment' ? '📝' : '📄'"></span>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold truncate" x-text="doc.filename"></div>
+                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                        :style="doc.doc_type === 'outgoings'  ? 'background:rgba(139,92,246,0.15);color:#a78bfa' :
+                                doc.doc_type === 'invoice'    ? 'background:rgba(245,158,11,0.12);color:#fbbf24' :
+                                doc.doc_type === 'amendment'  ? 'background:rgba(20,184,166,0.12);color:#2dd4bf' :
+                                                                'background:rgba(255,255,255,0.06);color:var(--ts-text2)'"
+                        x-text="doc.doc_type"></span>
+                      <span class="text-xs" style="color:var(--ts-text2)" x-text="(doc.size_bytes / 1024).toFixed(0) + ' KB'"></span>
+                      <span class="text-xs px-1.5 py-0.5 rounded font-semibold"
+                        :style="doc.status === 'complete' ? 'background:rgba(34,197,94,0.12);color:#6fdb7a' :
+                                doc.status === 'failed'   ? 'background:rgba(239,68,68,0.12);color:#f87171' :
+                                doc.status === 'partial'  ? 'background:rgba(245,158,11,0.12);color:#fbbf24' :
+                                                            'background:rgba(255,255,255,0.06);color:var(--ts-text2)'"
+                        x-text="doc.status"></span>
+                    </div>
+                    <!-- Per-doc warnings -->
+                    <template x-for="(w, wi) in (doc.warnings || [])" :key="wi">
+                      <div class="mt-1 text-xs leading-relaxed" style="color:#fbbf24" x-text="'⚠ ' + w"></div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Reconciliation summary (if outgoings docs present) -->
+              <template x-for="recon in (resultData?.reconciliation_results ?? [])" :key="recon.doc_filename">
+                <div class="mt-3 p-3 rounded-lg text-xs" style="background:var(--ts-bg1);border:1px solid var(--ts-border-s)">
+                  <div class="font-bold mb-1" style="color:var(--ts-text0)" x-text="recon.doc_filename"></div>
+                  <div class="flex gap-3 mb-2">
+                    <div><span style="color:var(--ts-text2)">Claimed: </span><span class="font-semibold" x-text="'$' + ((recon.total_claimed_cents || 0) / 100).toLocaleString('en-AU', {minimumFractionDigits:2})"></span></div>
+                    <div><span style="color:var(--ts-text2)">Disputed: </span><span class="font-semibold" :style="recon.total_disputed_cents > 0 ? 'color:#f87171' : 'color:#6fdb7a'" x-text="'$' + ((recon.total_disputed_cents || 0) / 100).toLocaleString('en-AU', {minimumFractionDigits:2})"></span></div>
+                  </div>
+                  <div class="flex items-center gap-1.5 mb-2">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold"
+                      :style="recon.engine_status === 'complete' ? 'background:rgba(34,197,94,0.12);color:#6fdb7a' : recon.engine_status === 'failed' ? 'background:rgba(239,68,68,0.12);color:#f87171' : 'background:rgba(245,158,11,0.12);color:#fbbf24'"
+                      x-text="recon.engine_status"></span>
+                    <span style="color:var(--ts-text2)" x-text="(recon.findings?.length ?? 0) + ' findings'"></span>
+                  </div>
+                  <!-- Finding breakdown -->
+                  <template x-for="(finding, fi) in (recon.findings ?? []).slice(0, 4)" :key="fi">
+                    <div class="py-1 border-t" style="border-color:rgba(255,255,255,0.05)">
+                      <div class="flex items-start gap-1.5">
+                        <span class="mt-0.5 text-xs font-semibold"
+                          :style="finding.finding_type === 'compliant' ? 'color:#6fdb7a' : finding.finding_type === 'unclear' ? 'color:var(--ts-text2)' : 'color:#f87171'"
+                          x-text="finding.finding_type.toUpperCase()"></span>
+                        <div class="flex-1">
+                          <div x-text="finding.line_item_description" style="color:var(--ts-text0)"></div>
+                          <div x-text="finding.explanation" style="color:var(--ts-text2)"></div>
+                          <div x-show="finding.legislation_ref" x-text="finding.legislation_ref" style="color:#0d9488;font-family:monospace"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                  <div x-show="(recon.findings?.length ?? 0) > 4" class="text-xs text-center pt-1" style="color:var(--ts-text2)" x-text="'+' + ((recon.findings?.length ?? 0) - 4) + ' more in full report'"></div>
+                  <!-- Recon warnings -->
+                  <template x-for="(w, wi) in (recon.warnings || [])" :key="wi">
+                    <div class="mt-1 text-xs" style="color:#fbbf24" x-text="'⚠ ' + w"></div>
+                  </template>
+                </div>
+              </template>
+            </div>
+
+            <!-- ── TAB: REVIEW DECISION ── -->
+            <div x-show="sidebarTab==='review'" class="flex-1 overflow-y-auto scrollbar p-4">
+              <div x-show="resultData && !loadingResult">
+                <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--ts-text2);letter-spacing:0.7px">Review Decision</div>
+
+                <!-- Clause action progress -->
+                <div class="mb-4 p-3 rounded-lg text-xs" style="background:var(--ts-bg1);border:1px solid var(--ts-border-s)">
+                  <div class="grid grid-cols-2 gap-y-1.5 mb-2">
+                    <span style="color:var(--ts-text3)">Confirmed</span><span class="font-bold text-green-400 text-right" x-text="confirmedCount"></span>
+                    <span style="color:var(--ts-text3)">Flagged</span><span class="font-bold text-yellow-400 text-right" x-text="flaggedCount"></span>
+                    <span style="color:var(--ts-text3)">Rejected</span><span class="font-bold text-red-400 text-right" x-text="rejectedCount"></span>
+                    <span style="color:var(--ts-text3)">Total</span><span class="font-bold text-right" style="color:var(--ts-text0)" x-text="resultData?.clause_analyses?.length ?? 0"></span>
+                  </div>
+                  <div class="w-full h-1.5 rounded-full overflow-hidden" style="background:var(--ts-border-s)">
+                    <div class="h-1.5 rounded-full transition-all" style="background:#0d9488"
+                      :style="'width:' + Math.round(((confirmedCount+flaggedCount+rejectedCount)/(resultData?.clause_analyses?.length||1))*100) + '%'"></div>
+                  </div>
+                </div>
+
+                <!-- Not yet reviewed -->
+                <div x-show="!selectedJob?.reviewed_by_human">
+                  <label class="text-xs font-semibold block mb-1" style="color:var(--ts-text3)">Overall notes</label>
+                  <textarea x-model="reviewNotes" placeholder="Overall audit notes…" class="input-field mb-3" rows="3"></textarea>
+                  <button @click="approveAudit()" class="btn btn-teal w-full justify-center mb-2" :disabled="reviewing">
+                    <span x-text="reviewing ? 'Approving…' : '✓ Approve All Findings'"></span>
+                  </button>
+                </div>
+
+                <!-- Approved -->
+                <div x-show="selectedJob?.reviewed_by_human && !selectedJob?.released">
+                  <div class="p-3 rounded-lg mb-3 text-xs" style="background:#1a2e1a">
+                    <div class="font-semibold text-green-400 mb-1">✓ Approved</div>
+                    <div x-show="selectedJob?.reviewer_notes" style="color:#6a8a6a" x-text="selectedJob?.reviewer_notes"></div>
+                    <div class="mt-1" style="color:#2a4a2a" x-text="fmtDate(selectedJob?.reviewed_at)"></div>
+                  </div>
+                  <button @click="releaseReport()" class="btn btn-blue w-full justify-center" :disabled="releasing">
+                    <span x-text="releasing ? 'Releasing…' : '🚀 Release to Tenant'"></span>
+                  </button>
+                </div>
+
+                <!-- Released -->
+                <div x-show="selectedJob?.released">
+                  <div class="p-3 rounded-lg text-xs" style="background:var(--ts-border-s)">
+                    <div class="font-semibold text-blue-400 mb-1">✓ Released to tenant</div>
+                    <div style="color:var(--ts-text2)" x-text="fmtDate(selectedJob?.released_at)"></div>
+                    <div x-show="selectedJob?.reviewer_notes" class="mt-1" style="color:var(--ts-text2)" x-text="selectedJob?.reviewer_notes"></div>
+                  </div>
+                </div>
+
+                <div x-show="actionError" class="mt-2 text-xs text-red-400" x-text="actionError"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+function adminPortal() {
+  return {
+    authed: false,
+    loginToken: '',
+    loginError: '',
+    loggingIn: false,
+    loading: false,
+    activeTab: 'pending',
+    pending: [],
+    reviewed: [],
+    selectedJob: null,
+    resultData: null,
+    loadingResult: false,
+    uploadedDocs: [],
+    loadingUploadedDocs: false,
+    reviewNotes: '',
+    reviewing: false,
+    releasing: false,
+    actionError: '',
+    searchQuery: '',
+    filterSev: 'all',
+    expandedClauses: {},
+    clauseState: {},
+    sidebarTab: 'doc',
+    activeDocClause: null,
+    dashStats: null,
+    // ── Kill switch ──
+    activeJobs: [],
+    recentFailed: [],
+    activeLoading: false,
+    activeRefreshTimer: null,
+    cancellingJob: {},      // job_id → action string while in flight
+    killResult: {},         // job_id → { ok, message }
+    expandedError: {},      // job_id → bool (error section expanded)
+    lastActiveRefresh: '',
+
+    async init() {
+      const res = await fetch('/api/admin/queue', { credentials: 'include' });
+      if (res.ok) {
+        this.authed = true;
+        const data = await res.json();
+        this.pending = data.pending;
+        this.reviewed = data.reviewed;
+        await this.loadDashboard();
+        await this.loadActiveJobs();
+      }
+    },
+
+    switchTab(tab) {
+      this.activeTab = tab;
+      if (tab === 'active') {
+        this.loadActiveJobs();
+        this._startActiveRefresh();
+      } else {
+        this._stopActiveRefresh();
+      }
+    },
+
+    _startActiveRefresh() {
+      this._stopActiveRefresh();
+      this.activeRefreshTimer = setInterval(() => this.loadActiveJobs(), 5000);
+    },
+
+    _stopActiveRefresh() {
+      if (this.activeRefreshTimer) {
+        clearInterval(this.activeRefreshTimer);
+        this.activeRefreshTimer = null;
+      }
+    },
+
+    async loadActiveJobs() {
+      this.activeLoading = true;
+      try {
+        const res = await fetch('/api/admin/active', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          this.activeJobs = data.jobs || [];
+          this.recentFailed = data.recent_failed || [];
+          const now = new Date();
+          this.lastActiveRefresh = now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+      } catch (_) {}
+      finally { this.activeLoading = false; }
+    },
+
+    async killJob(jobId, action) {
+      if (this.cancellingJob[jobId]) return;   // debounce
+      const labels = { fail: 'Kill', retry: 'Reset', delete: 'Remove' };
+      const warnings = {
+        fail:   'Kill this audit and mark it failed?',
+        retry:  'Cancel and re-queue this audit for a fresh run?',
+        delete: '⚠ Hard delete this job and all its data? This cannot be undone.',
+      };
+      if (!confirm(warnings[action] || 'Are you sure?')) return;
+
+      this.cancellingJob = { ...this.cancellingJob, [jobId]: action };
+      this.killResult = { ...this.killResult, [jobId]: null };
+
+      try {
+        const res = await fetch(`/api/admin/cancel/${jobId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ action }),
+        });
+        const data = await res.json();
+        let msg = '';
+        if (data.ok) {
+          if (action === 'fail')   msg = '🛑 Killed — marked failed';
+          if (action === 'delete') msg = '🗑 Deleted';
+          if (action === 'retry')  msg = data.resubmitted ? '🔄 Re-queued for fresh run' : '🔄 Reset (re-upload PDF to retry)';
+        } else {
+          msg = data.detail || 'Action failed';
+        }
+        this.killResult = { ...this.killResult, [jobId]: { ok: data.ok, message: msg } };
+        // Refresh active list and queue after action
+        await this.loadActiveJobs();
+        await this.loadQueue();
+      } catch(e) {
+        this.killResult = { ...this.killResult, [jobId]: { ok: false, message: 'Connection error' } };
+      } finally {
+        this.cancellingJob = { ...this.cancellingJob, [jobId]: null };
+      }
+    },
+
+    fmtElapsed(seconds) {
+      if (seconds == null) return '';
+      if (seconds < 60)  return seconds + 's';
+      if (seconds < 3600) {
+        const m = Math.floor(seconds / 60), s = seconds % 60;
+        return m + 'm ' + s + 's';
+      }
+      const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
+      return h + 'h ' + m + 'm';
+    },
+
+    async loadDashboard() {
+      try {
+        const res = await fetch('/api/admin/stats', { credentials: 'include' });
+        if (res.ok) this.dashStats = await res.json();
+      } catch (_) {}
+    },
+
+    async selectJobById(jobId) {
+      const all = [...this.pending, ...this.reviewed];
+      const job = all.find(j => j.job_id === jobId);
+      if (job) await this.selectJob(job);
+    },
+
+    async login() {
+      this.loginError = '';
+      this.loggingIn = true;
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: this.loginToken }),
+          credentials: 'include',
+        });
+        if (res.ok) {
+          this.authed = true;
+          this.loginToken = '';
+          await this.loadQueue();
+        } else {
+          this.loginError = 'Invalid token. Try again.';
+        }
+      } catch {
+        this.loginError = 'Connection error.';
+      } finally {
+        this.loggingIn = false;
+      }
+    },
+
+    async logout() {
+      this._stopActiveRefresh();
+      await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+      this.authed = false;
+      this.selectedJob = null;
+      this.pending = [];
+      this.reviewed = [];
+      this.activeJobs = [];
+    },
+
+    async loadQueue() {
+      this.loading = true;
+      try {
+        const res = await fetch('/api/admin/queue', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          this.pending = data.pending;
+          this.reviewed = data.reviewed;
+          if (this.selectedJob) {
+            const all = [...data.pending, ...data.reviewed];
+            this.selectedJob = all.find(j => j.job_id === this.selectedJob.job_id) || this.selectedJob;
+          }
+        }
+        await this.loadDashboard();
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async selectJob(job) {
+      this.selectedJob = job;
+      this.resultData = null;
+      this.uploadedDocs = [];
+      this.reviewNotes = job.reviewer_notes || '';
+      this.actionError = '';
+      this.searchQuery = '';
+      this.filterSev = 'all';
+      this.expandedClauses = {};
+      this.clauseState = {};
+      this.activeDocClause = null;
+      this.sidebarTab = 'doc';
+      this.loadingResult = true;
+      this.loadingUploadedDocs = true;
+
+      // Fetch audit result and uploaded docs in parallel
+      const [resultRes, docsRes] = await Promise.allSettled([
+        fetch(`/api/admin/result/${job.job_id}`, { credentials: 'include' }),
+        fetch(`/api/jobs/${job.job_id}/documents`, { credentials: 'include' }),
+      ]);
+
+      if (resultRes.status === 'fulfilled' && resultRes.value.ok) {
+        this.resultData = await resultRes.value.json();
+        (this.resultData.clause_analyses || []).forEach(c => {
+          this.clauseState[c.clause_heading] = { status: null, note: '', addingNote: false };
+        });
+      }
+      this.loadingResult = false;
+
+      if (docsRes.status === 'fulfilled' && docsRes.value.ok) {
+        const docsPayload = await docsRes.value.json();
+        this.uploadedDocs = docsPayload.documents ?? [];
+      }
+      this.loadingUploadedDocs = false;
+    },
+
+    toggleClause(heading) {
+      this.expandedClauses[heading] = !this.expandedClauses[heading];
+    },
+
+    setClauseStatus(heading, status) {
+      if (!this.clauseState[heading]) this.clauseState[heading] = { status: null, note: '', addingNote: false };
+      this.clauseState[heading].status = status;
+      // Auto-expand on flag
+      if (status === 'flagged') this.expandedClauses[heading] = true;
+    },
+
+    toggleClauseNote(heading) {
+      if (!this.clauseState[heading]) this.clauseState[heading] = { status: null, note: '', addingNote: false };
+      this.clauseState[heading].addingNote = !this.clauseState[heading].addingNote;
+      if (this.clauseState[heading].addingNote) this.expandedClauses[heading] = true;
+    },
+
+    saveClauseNote(heading, val) {
+      if (!this.clauseState[heading]) this.clauseState[heading] = { status: null, note: '', addingNote: false };
+      this.clauseState[heading].note = val?.trim() || '';
+      this.clauseState[heading].addingNote = false;
+    },
+
+    fmtDate(ts) {
+      if (!ts) return '—';
+      const d = new Date(ts);
+      return isNaN(d) ? ts : d.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    },
+
+    riskColor(score) {
+      if (score == null) return 'color:var(--ts-text0)';
+      if (score >= 60) return 'color:#f87171';
+      if (score >= 30) return 'color:#fbbf24';
+      return 'color:#6fdb7a';
+    },
+
+    get highlightedClauseText() {
+      const text = this.activeDocClause?.clause_text || '';
+      if (!this.searchQuery || !text) return text;
+      const q = this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return text.replace(new RegExp(q, 'gi'), m => `<mark style="background:rgba(94,240,216,0.25);color:inherit">${m}</mark>`);
+    },
+
+    openDocViewer(clause) {
+      this.activeDocClause = clause;
+    },
+
+    get highCount() {
+      return (this.resultData?.clause_analyses || []).reduce((n, c) =>
+        n + (c.risk_flags?.some(f => f.severity === 'high') ? 1 : 0), 0);
+    },
+
+    get medCount() {
+      return (this.resultData?.clause_analyses || []).reduce((n, c) =>
+        n + (!c.risk_flags?.some(f => f.severity === 'high') && c.risk_flags?.some(f => f.severity === 'medium') ? 1 : 0), 0);
+    },
+
+    get lowCount() {
+      return (this.resultData?.clause_analyses || []).reduce((n, c) =>
+        n + (c.risk_flags?.length && !c.risk_flags.some(f => f.severity === 'high') && !c.risk_flags.some(f => f.severity === 'medium') ? 1 : 0), 0);
+    },
+
+    get confirmedCount() {
+      return Object.values(this.clauseState).filter(s => s.status === 'confirmed').length;
+    },
+
+    get flaggedCount() {
+      return Object.values(this.clauseState).filter(s => s.status === 'flagged').length;
+    },
+
+    get rejectedCount() {
+      return Object.values(this.clauseState).filter(s => s.status === 'rejected').length;
+    },
+
+    get filteredClauses() {
+      if (!this.resultData?.clause_analyses) return [];
+      return this.resultData.clause_analyses.filter(c => {
+        const maxSev = c.risk_flags?.length
+          ? (c.risk_flags.some(f => f.severity === 'high') ? 'high'
+            : c.risk_flags.some(f => f.severity === 'medium') ? 'medium' : 'low')
+          : 'clean';
+        const sevMatch = this.filterSev === 'all' || maxSev === this.filterSev;
+        const q = this.searchQuery.toLowerCase();
+        const searchMatch = !q ||
+          (c.clause_heading || '').toLowerCase().includes(q) ||
+          (c.plain_english_summary || '').toLowerCase().includes(q) ||
+          (c.summary || '').toLowerCase().includes(q);
+        return sevMatch && searchMatch;
+      });
+    },
+  };
+}
+</script>
+</body>
+</html>
