@@ -20,6 +20,7 @@ Progress stages:
 """
 
 import os
+import re
 import time
 import yaml
 from pathlib import Path
@@ -146,6 +147,187 @@ def _progress(callback: ProgressCallback, pct: int, stage: str) -> None:
     logger.debug(f"[{pct}%] {stage}")
 
 
+# ── AQ2: Schedule cross-reference index ──────────────────────────────────────
+
+# Matches "Schedule 1, Item 6" / "Item 14" / "Schedule 1 Item 6" / "Item 6 of Schedule 1"
+_SCHEDULE_REF_RE = re.compile(
+    r"""
+    (?:Schedule\s*(\d+)[,\s]+)?   # optional "Schedule N" prefix
+    Item\s*(\d+)                   # "Item N"
+    |
+    Item\s*(\d+)\s+of\s+Schedule\s*(\d+)  # "Item N of Schedule M"
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+# Matches item lines inside a schedule chunk, e.g. "Item 6" or "6." at start of line
+_ITEM_LINE_RE = re.compile(r"^\s*(?:Item\s*)?(\d+)[.\s]", re.IGNORECASE | re.MULTILINE)
+
+
+def _build_schedule_index(chunks) -> dict[tuple[int, int], str]:
+    """
+    AQ2: Parse schedule chunks and build a lookup from (schedule_num, item_num)
+    to the item's text content.
+
+    For each chunk whose heading contains "SCHEDULE N", we split its body on
+    item boundaries and index each item. Items without an explicit schedule
+    number are stored under schedule_num=1 as a fallback.
+
+    Returns:
+        dict keyed by (schedule_num, item_num) → item text
+    """
+    index: dict[tuple[int, int], str] = {}
+
+    for chunk in chunks:
+        heading = chunk.metadata.get("clause_heading", "")
+        # Only process chunks that are schedule pages
+        sched_match = re.search(r"SCHEDULE\s*(\d+)", heading, re.IGNORECASE)
+        if not sched_match:
+            continue
+        sched_num = int(sched_match.group(1))
+
+        body = chunk.content
+        # Find all item positions in the body
+        item_positions = list(_ITEM_LINE_RE.finditer(body))
+        if not item_positions:
+            continue
+
+        for i, m in enumerate(item_positions):
+            item_num = int(m.group(1))
+            start = m.start()
+            end = item_positions[i + 1].start() if i + 1 < len(item_positions) else len(body)
+            item_text = body[start:end].strip()
+            if item_text:
+                index[(sched_num, item_num)] = item_text
+                logger.debug(f"[AQ2] Indexed Schedule {sched_num} Item {item_num}: {item_text[:60]!r}")
+
+    logger.info(f"[AQ2] Schedule index built: {len(index)} items across {len({k[0] for k in index})} schedule(s)")
+    return index
+
+
+def _get_schedule_context(clause_text: str, schedule_index: dict[tuple[int, int], str]) -> str:
+    """
+    AQ2: Detect Schedule/Item references in a clause and return the relevant
+    schedule item texts as an injected context block.
+
+    Returns empty string if no references are found or index is empty.
+    """
+    if not schedule_index:
+        return ""
+
+    found: list[str] = []
+    seen: set[tuple[int, int]] = set()
+
+    for m in _SCHEDULE_REF_RE.finditer(clause_text):
+        # Pattern branch 1: "Schedule N, Item M" or plain "Item M"
+        if m.group(2) is not None:
+            sched_num = int(m.group(1)) if m.group(1) else 1
+            item_num  = int(m.group(2))
+        # Pattern branch 2: "Item M of Schedule N"
+        elif m.group(3) is not None:
+            item_num  = int(m.group(3))
+            sched_num = int(m.group(4)) if m.group(4) else 1
+        else:
+            continue
+
+        key = (sched_num, item_num)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        item_text = schedule_index.get(key)
+        if item_text:
+            found.append(f"Schedule {sched_num}, Item {item_num}:\n{item_text}")
+            logger.debug(f"[AQ2] Injecting Schedule {sched_num} Item {item_num} into clause context")
+        else:
+            # Item referenced but not in index — flag absence so Claude knows to be cautious
+            found.append(
+                f"Schedule {sched_num}, Item {item_num}: "
+                "[Not extracted — check the original document before flagging a risk on this item]"
+            )
+            logger.debug(f"[AQ2] Schedule {sched_num} Item {item_num} referenced but not in index")
+
+    return "\n\n".join(found)
+
+
+# ── AQ4: Clause coverage completeness check ──────────────────────────────────
+
+# Matches top-level and sub-clause numbers: "5.1", "26.16", "7", etc.
+_CLAUSE_NUM_RE = re.compile(r"^\s*(\d+(?:\.\d+)*)\s+[A-Z]", re.MULTILINE)
+
+
+def _extract_clause_numbers(chunks) -> set[str]:
+    """
+    AQ4: Extract the set of clause numbers actually extracted by the chunker.
+    Each chunk's heading is parsed for a leading clause number.
+    """
+    numbers: set[str] = set()
+    num_re = re.compile(r"^(\d+(?:\.\d+)*)")
+    for chunk in chunks:
+        heading = chunk.metadata.get("clause_heading", "").strip()
+        m = num_re.match(heading)
+        if m:
+            numbers.add(m.group(1))
+    return numbers
+
+
+def _check_clause_coverage(chunks, full_text: str) -> list[str]:
+    """
+    AQ4: Compare the clause numbers found in the full document text against
+    those actually extracted into chunks. Return a list of warning strings
+    for any clause numbers present in the document but missing from chunks.
+
+    Only checks top-level clauses (e.g. "26") and their direct sub-clauses
+    (e.g. "26.16") to avoid noise from deep sub-sub-clauses.
+    """
+    # Numbers from document text
+    doc_numbers: set[str] = set()
+    for m in _CLAUSE_NUM_RE.finditer(full_text):
+        num = m.group(1)
+        # Only track top-level (e.g. "26") and one-level-deep (e.g. "26.16")
+        parts = num.split(".")
+        if len(parts) <= 2:
+            doc_numbers.add(num)
+
+    # Numbers from extracted chunks
+    extracted = _extract_clause_numbers(chunks)
+
+    missing = doc_numbers - extracted
+    if not missing:
+        return []
+
+    sorted_missing = sorted(missing, key=lambda x: [int(p) for p in x.split(".")])
+    warnings = [
+        f"[AQ4] Clause coverage gap: clause {n} appears in the document text but was not "
+        f"extracted as a chunk — it may have been missed during chunking. "
+        f"Review this clause manually."
+        for n in sorted_missing
+        if _is_meaningful_gap(n, extracted)
+    ]
+    if warnings:
+        logger.warning(
+            f"[AQ4] {len(warnings)} clause coverage gap(s) detected: "
+            f"{sorted_missing[:10]}"
+        )
+    return warnings
+
+
+def _is_meaningful_gap(clause_num: str, extracted: set[str]) -> bool:
+    """
+    Filter out spurious gaps: a sub-clause like "26.16" is only a real gap
+    if its parent section ("26") exists in this lease, i.e. at least one
+    sibling clause ("26.1", "26.2", ...) was successfully extracted.
+    Top-level clauses are always considered meaningful.
+    """
+    parts = clause_num.split(".")
+    if len(parts) == 1:
+        return True  # top-level always meaningful
+    parent = parts[0]
+    # Parent section is present if any extracted clause starts with "parent."
+    prefix = parent + "."
+    return any(e.startswith(prefix) for e in extracted)
+
+
 def run_audit(
     pdf_path: str,
     jurisdiction: str,
@@ -249,6 +431,9 @@ def run_audit(
 
     logger.info(f"Found {len(chunks)} clauses")
     _timings["chunking_ms"] = _ms(_t_chunk)
+
+    # AQ2: Build schedule index for cross-reference injection
+    _schedule_index = _build_schedule_index(chunks)
 
     # 4. Optional: embed + store (production only)
     # skip_vector_store=True bypasses this for anonymous free checks — we don't want
@@ -393,8 +578,10 @@ def run_audit(
         else:
             legislation_context = ""
 
-        cpi_ctx = _get_cpi_context(chunk, series_override=_cpi_series_used)
-        lt_ctx  = _land_tax_context if _is_land_tax_clause(chunk) else ""
+        cpi_ctx      = _get_cpi_context(chunk, series_override=_cpi_series_used)
+        lt_ctx       = _land_tax_context if _is_land_tax_clause(chunk) else ""
+        # AQ2: Inject schedule items referenced by this clause
+        sched_ctx    = _get_schedule_context(clause_text, _schedule_index)
 
         analysis = analyse_clause(
             clause_text=clause_text,
@@ -403,6 +590,7 @@ def run_audit(
             jurisdiction=jur,
             cpi_context=cpi_ctx,
             land_tax_context=lt_ctx,
+            schedule_context=sched_ctx,
         )
         _clause_ms = int((time.perf_counter() - _t_clause) * 1000)
         n_flags = len(analysis.get("risk_flags") or [])
@@ -476,11 +664,18 @@ def run_audit(
     # 7. Extract critical dates
     _t_dates = time.perf_counter()
     _progress(cb, 92, "Extracting critical dates and deadlines...")
+    # Assemble full_text here so it's available for AQ4 coverage check and
+    # metadata extraction below regardless of date extraction success.
+    full_text = "\n\n".join(p.get("text", "") for p in parsed.pages)
+
+    # AQ4: Clause coverage completeness check — runs after all analysis,
+    # before assembling the result. Warnings are surfaced in pipeline_warnings.
+    _coverage_warnings = _check_clause_coverage(chunks, full_text)
+
     lease_dates: list[LeaseDate] = []
     try:
         from services.date_extractor import extract_dates
-        full_text = "\n\n".join(p.get("text", "") for p in parsed.pages)
-        raw_dates = extract_dates(
+        raw_dates = extract_dates(  # full_text already set above
             lease_text=full_text,
             jurisdiction=jur,
             job_id=job_id,
@@ -494,7 +689,7 @@ def run_audit(
     _timings["dates_ms"] = _ms(_t_dates)
 
     # 8a. Extract key lease metadata (landlord, rent, area) from cover pages — Haiku, fast
-    _t_meta = _now()
+    _t_meta = time.perf_counter()
     lease_metadata: dict = {}
     try:
         from services.lease_metadata_extractor import extract_lease_metadata
@@ -506,6 +701,30 @@ def run_audit(
     except Exception as e:
         logger.error(f"Lease metadata extraction failed (non-fatal): {e}")
     _timings["metadata_ms"] = _ms(_t_meta)
+
+    # 8b. AQ3: Planning rules engine — fires cross-clause statutory requirements.
+    # Runs after metadata extraction so term/area data is available.
+    _t_planning = time.perf_counter()
+    _planning_findings: list[dict] = []
+    try:
+        from services.planning_rules_engine import (
+            evaluate_planning_rules,
+            format_planning_finding_as_warning,
+        )
+        _planning_findings = evaluate_planning_rules(
+            jurisdiction=jur,
+            lease_metadata=lease_metadata,
+            lease_text=full_text,
+        )
+        for finding in _planning_findings:
+            pipeline_warnings.insert(0, format_planning_finding_as_warning(finding))
+        if _planning_findings:
+            logger.warning(
+                f"[AQ3] {len(_planning_findings)} planning rule finding(s) added to pipeline_warnings"
+            )
+    except Exception as e:
+        logger.error(f"[AQ3] Planning rules engine failed (non-fatal): {e}")
+    _timings["planning_ms"] = int((time.perf_counter() - _t_planning) * 1000)
 
     # 8. Assemble result
     _progress(cb, 95, "Assembling audit report...")
@@ -530,7 +749,7 @@ def run_audit(
     # 8b. Optional: outgoings / invoice reconciliation
     # Runs after lease analysis so we have clause_analyses available for context.
     reconciliation_results: list[dict] = []
-    pipeline_warnings: list[str] = []
+    pipeline_warnings: list[str] = list(_coverage_warnings)  # AQ4: seed with coverage gaps
 
     if additional_docs:
         from ingestion.outgoings_parser import parse_outgoings_pdf

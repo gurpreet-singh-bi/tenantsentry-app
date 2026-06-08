@@ -22,7 +22,7 @@ _RETRY_BASE_DELAY = 5.0  # seconds; doubles each attempt (5, 10, 20)
 
 load_dotenv()
 
-# Model identifiers — override via .env: OPUS_MODEL, SONNET_MODEL, HAIKU_MODEL
+# Model identifiers -- override via .env: OPUS_MODEL, SONNET_MODEL, HAIKU_MODEL
 OPUS_MODEL   = os.environ.get("OPUS_MODEL",   "claude-opus-4-6")
 SONNET_MODEL = os.environ.get("SONNET_MODEL", "claude-sonnet-4-6")
 HAIKU_MODEL  = os.environ.get("HAIKU_MODEL",  "claude-haiku-4-5-20251001")
@@ -34,6 +34,169 @@ if not _api_key or _api_key.startswith("sk-ant-your"):
         "ANTHROPIC_API_KEY is not set or is still a placeholder. "
         "Real audits will fail. Set MOCK_MODE=true for local dev."
     )
+
+# AQ1: Jurisdiction-specific statute map.
+# Used to (a) tell Claude which acts to cite and (b) list acts it must NOT cite.
+# Keyed by state code -- values are (primary_acts, prohibited_acts).
+_JURISDICTION_STATUTES: dict[str, tuple[list[str], list[str]]] = {
+    "WA": (
+        [
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
+            "Property Law Act 1969 (WA)",
+            "Transfer of Land Act 1893 (WA)",
+            "Planning and Development Act 2005 (WA)",
+            "Land Administration Act 1997 (WA)",
+            "Land Tax Assessment Act 2002 (WA)",
+            "Work Health and Safety Act 2020 (WA)",
+            "Fair Trading Act 2010 (WA)",
+            "Contaminated Sites Act 2003 (WA)",
+            "Liquor Control Act 1988 (WA)",
+        ],
+        [
+            "Retail Leases Act 2003 (VIC)",
+            "Retail Leases Act 1994 (NSW)",
+            "Retail Shop Leases Act 1994 (QLD)",
+            "Retail and Commercial Leases Act 1995 (SA)",
+            "Leases (Commercial and Retail) Act 2001 (ACT)",
+        ],
+    ),
+    "VIC": (
+        [
+            "Retail Leases Act 2003 (VIC)",
+            "Property Law Act 1958 (VIC)",
+            "Transfer of Land Act 1958 (VIC)",
+            "Planning and Environment Act 1987 (VIC)",
+            "Land Tax Act 2005 (VIC)",
+            "Workplace Safety Legislation Amendment Act 2021 (VIC)",
+            "Australian Consumer Law and Fair Trading Act 2012 (VIC)",
+        ],
+        [
+            "Retail Leases Act 1994 (NSW)",
+            "Retail Shop Leases Act 1994 (QLD)",
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
+            "Retail and Commercial Leases Act 1995 (SA)",
+        ],
+    ),
+    "NSW": (
+        [
+            "Retail Leases Act 1994 (NSW)",
+            "Conveyancing Act 1919 (NSW)",
+            "Real Property Act 1900 (NSW)",
+            "Environmental Planning and Assessment Act 1979 (NSW)",
+            "Land Tax Management Act 1956 (NSW)",
+            "Work Health and Safety Act 2011 (NSW)",
+            "Fair Trading Act 1987 (NSW)",
+        ],
+        [
+            "Retail Leases Act 2003 (VIC)",
+            "Retail Shop Leases Act 1994 (QLD)",
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
+            "Retail and Commercial Leases Act 1995 (SA)",
+        ],
+    ),
+    "QLD": (
+        [
+            "Retail Shop Leases Act 1994 (QLD)",
+            "Property Law Act 1974 (QLD)",
+            "Land Title Act 1994 (QLD)",
+            "Planning Act 2016 (QLD)",
+            "Land Tax Act 2010 (QLD)",
+            "Work Health and Safety Act 2011 (QLD)",
+            "Fair Trading Act 1989 (QLD)",
+        ],
+        [
+            "Retail Leases Act 1994 (NSW)",
+            "Retail Leases Act 2003 (VIC)",
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
+            "Retail and Commercial Leases Act 1995 (SA)",
+        ],
+    ),
+    "SA": (
+        [
+            "Retail and Commercial Leases Act 1995 (SA)",
+            "Law of Property Act 1936 (SA)",
+            "Real Property Act 1886 (SA)",
+            "Work Health and Safety Act 2012 (SA)",
+            "Fair Trading Act 1987 (SA)",
+        ],
+        [
+            "Retail Leases Act 1994 (NSW)",
+            "Retail Leases Act 2003 (VIC)",
+            "Retail Shop Leases Act 1994 (QLD)",
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
+        ],
+    ),
+    "ACT": (
+        [
+            "Leases (Commercial and Retail) Act 2001 (ACT)",
+            "Civil Law (Property) Act 2006 (ACT)",
+            "Land Titles Act 1925 (ACT)",
+            "Work Health and Safety Act 2011 (ACT)",
+        ],
+        [
+            "Retail Leases Act 1994 (NSW)",
+            "Retail Leases Act 2003 (VIC)",
+            "Retail Shop Leases Act 1994 (QLD)",
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
+        ],
+    ),
+    "TAS": (
+        [
+            "Fair Trading (Code of Practice for Retail Tenancies) Regulations 1998 (TAS)",
+            "Conveyancing and Law of Property Act 1884 (TAS)",
+            "Land Titles Act 1980 (TAS)",
+            "Work Health and Safety Act 2012 (TAS)",
+        ],
+        [
+            "Retail Leases Act 1994 (NSW)",
+            "Retail Leases Act 2003 (VIC)",
+            "Retail Shop Leases Act 1994 (QLD)",
+        ],
+    ),
+    "NT": (
+        [
+            "Business Tenancies (Fair Dealings) Act 2003 (NT)",
+            "Law of Property Act 2000 (NT)",
+            "Land Title Act 2000 (NT)",
+            "Work Health and Safety (National Uniform Legislation) Act 2011 (NT)",
+        ],
+        [
+            "Retail Leases Act 1994 (NSW)",
+            "Retail Leases Act 2003 (VIC)",
+            "Retail Shop Leases Act 1994 (QLD)",
+        ],
+    ),
+}
+
+
+def _build_jurisdiction_constraint(jurisdiction: str) -> str:
+    """
+    AQ1: Return a hard constraint block that forces the LLM to cite only
+    the correct jurisdiction's statutes and never cite other states' laws.
+    """
+    jur = jurisdiction.upper()
+    entry = _JURISDICTION_STATUTES.get(jur)
+    if not entry:
+        return (
+            f"JURISDICTION: {jur}. Cite only {jur} legislation. "
+            "Do NOT cite interstate acts (VIC, NSW, QLD, SA, WA, ACT, TAS, NT) "
+            "unless they are Commonwealth Acts that apply nationally."
+        )
+    primary, prohibited = entry
+    primary_list  = "\n".join(f"    + {act}" for act in primary)
+    blocked_list  = "\n".join(f"    - {act}" for act in prohibited)
+    return "\n".join([
+        f"JURISDICTION ENFORCEMENT -- {jur}",
+        f"  This lease is governed by {jur} law.",
+        "  You MUST ONLY cite the following acts (or Commonwealth acts that apply nationally):",
+        primary_list,
+        "",
+        "  You are STRICTLY PROHIBITED from citing:",
+        blocked_list,
+        f"  Citing a prohibited act in a {jur} audit is a professional error.",
+        f"  If a principle from another state applies, cite the equivalent {jur} provision instead.",
+    ])
+
 
 # Keywords that trigger deep reasoning (Opus)
 COMPLEX_CLAUSE_KEYWORDS = [
@@ -79,6 +242,7 @@ def analyse_clause(
     jurisdiction: str,
     cpi_context: str = "",
     land_tax_context: str = "",
+    schedule_context: str = "",  # AQ2: injected schedule item content
 ) -> dict:
     """
     Analyse a single lease clause with grounded RAG context.
@@ -88,8 +252,13 @@ def analyse_clause(
     model = select_model(clause_text)
     client = get_client()
 
+    # AQ1: Build the jurisdiction enforcement block once per call.
+    _jur_constraint = _build_jurisdiction_constraint(jurisdiction)
+
     system_prompt = "\n".join([
         f"You are an expert Australian commercial lease auditor specialising in {jurisdiction} tenancy law.",
+        "",
+        _jur_constraint,
         "",
         "You will be given:",
         "1. A clause from a commercial lease",
@@ -164,10 +333,21 @@ def analyse_clause(
         ]
 
     # F5: Inject definitive jurisdiction-specific land tax position.
-    # Claude applies the correct statutory rule — no guesswork.
+    # Claude applies the correct statutory rule -- no guesswork.
     if land_tax_context:
         user_prompt_parts += [
             land_tax_context,
+            "",
+        ]
+
+    # AQ2: Inject referenced Schedule items so Claude can cross-check
+    # what the lease actually says (e.g. Item 6 = no rent, Item 14 = N/A).
+    if schedule_context:
+        user_prompt_parts += [
+            "REFERENCED SCHEDULE ITEMS (from this lease Schedule -- treat as authoritative):",
+            schedule_context,
+            "IMPORTANT: Check the schedule items above before flagging any risk in this clause.",
+            "If a schedule item shows Not Applicable or overrides the clause default, adjust your finding accordingly.",
             "",
         ]
 
@@ -220,7 +400,7 @@ def analyse_clause(
                 delay = _RETRY_BASE_DELAY * (2 ** attempt)
                 logger.warning(
                     f"Claude API retryable error (attempt {attempt + 1}/{_MAX_RETRIES}): "
-                    f"{err_str[:120]} — retrying in {delay:.0f}s"
+                    f"{err_str[:120]} -- retrying in {delay:.0f}s"
                 )
                 time.sleep(delay)
             else:
@@ -236,7 +416,7 @@ def triage_clauses(
     jurisdiction: str,
 ) -> tuple[list[int], dict]:
     """
-    Pass 1: Haiku triage — identify clause indices that need full Sonnet/Opus analysis.
+    Pass 1: Haiku triage -- identify clause indices that need full Sonnet/Opus analysis.
 
     Takes a batch of chunks (slice of the full chunk list) and returns a tuple of:
       - list of *absolute* indices (batch_offset + local_idx) to flag for deep analysis
@@ -249,7 +429,7 @@ def triage_clauses(
     Args:
         chunks:        Slice of DocumentChunk objects for this batch.
         batch_offset:  Index of chunks[0] in the full clause list.
-        jurisdiction:  State code — used for model context.
+        jurisdiction:  State code -- used for model context.
     """
     client = get_client()
 
@@ -280,10 +460,10 @@ def triage_clauses(
         "- General repair and maintenance (standard obligations only)\n"
         "- Insurance obligations (standard only, no unusual liability)\n"
         "- Confidentiality (standard)\n\n"
-        "TARGET: Flag roughly 20-35% of clauses (5-9 per 25-clause batch). Be selective — most leases "
+        "TARGET: Flag roughly 20-35% of clauses (5-9 per 25-clause batch). Be selective -- most leases "
         "have 60-70% boilerplate. If you are flagging more than 40%, re-read the DO NOT FLAG list and "
         "reconsider. A missed important clause is worse than a missed boilerplate clause, so when in "
-        "doubt on a HIGH-VALUE topic, flag it — but do not flag clauses that clearly belong in DO NOT FLAG.\n\n"
+        "doubt on a HIGH-VALUE topic, flag it -- but do not flag clauses that clearly belong in DO NOT FLAG.\n\n"
         "Return ONLY a JSON array of the clause numbers (integers) that need deep analysis. "
         "Example: [0, 3, 7]\n\n"
         f"CLAUSES:\n{clause_list}\n\n"
@@ -304,13 +484,13 @@ def triage_clauses(
         flag_pct = round(100 * len(valid) / len(chunks)) if chunks else 0
         logger.info(
             f"Haiku triage batch offset={batch_offset} size={len(chunks)}: "
-            f"{len(valid)} flagged ({flag_pct}%) → {valid} "
+            f"{len(valid)} flagged ({flag_pct}%) -> {valid} "
             f"[in={usage.input_tokens} out={usage.output_tokens}]"
         )
         return valid, {"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}
     except Exception as e:
         logger.warning(
             f"Haiku triage FALLBACK (batch_offset={batch_offset}): {e} "
-            f"— flagging all {len(chunks)} clauses (may inflate triage rate)"
+            f"-- flagging all {len(chunks)} clauses (may inflate triage rate)"
         )
         return list(range(batch_offset, batch_offset + len(chunks))), {"input_tokens": 0, "output_tokens": 0}
