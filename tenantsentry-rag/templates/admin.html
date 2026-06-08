@@ -693,6 +693,7 @@ function adminPortal() {
     activeUsers: { tenant: null, partner: null },
     health: { lastChecked: null },
     healthItems: [],
+    dbHealthOk: false,
     partnerStats: [],
 
     // live tracking
@@ -823,6 +824,7 @@ function adminPortal() {
         }
 
         this._maybeStartPoll();
+        this.dbHealthOk = true;
       } catch (e) { console.error('loadAudits', e); }
     },
 
@@ -841,15 +843,30 @@ function adminPortal() {
           const d = await r.json();
           items[0].status = d.status === 'ok' ? 'ok' : 'err';
           items[0].label2 = d.status === 'ok' ? 'Healthy' : 'Degraded';
-          items[2].status = d.supabase === 'connected' ? 'ok' : (d.supabase === 'mock' ? 'warn' : 'err');
-          items[2].label2 = d.supabase === 'connected' ? 'Connected' : (d.supabase === 'mock' ? 'Mock' : 'Error');
-          items[3].status = d.pipeline_mode ? 'ok' : 'warn';
-          items[3].label2 = d.pipeline_mode || 'unknown';
+          if (d.supabase) {
+            items[2].status = d.supabase === 'connected' ? 'ok' : (d.supabase === 'mock' ? 'warn' : 'err');
+            items[2].label2 = d.supabase === 'connected' ? 'Connected' : (d.supabase === 'mock' ? 'Mock' : 'Error');
+          }
+          if (d.pipeline_mode) { items[3].status = 'ok'; items[3].label2 = d.pipeline_mode; }
         } else {
           items[0].status = 'err'; items[0].label2 = 'Error';
         }
       } catch {
         items[0].status = 'err'; items[0].label2 = 'Unreachable';
+      }
+
+      // Database — infer from queue load success (set by loadAudits)
+      if (!items[2].label2 || items[2].label2 === '…') {
+        items[2].status = this.dbHealthOk ? 'ok' : 'warn';
+        items[2].label2 = this.dbHealthOk ? 'Connected' : 'Checking…';
+      }
+
+      // Pipeline mode — /api/mode is always authoritative
+      if (!items[3].label2 || items[3].label2 === '…') {
+        try {
+          const mr = await fetch('/api/mode', { credentials: 'include' });
+          if (mr.ok) { const md = await mr.json(); items[3].status = 'ok'; items[3].label2 = (md.mode||'live').toLowerCase(); }
+        } catch {}
       }
 
       // Website — no-cors HEAD, treat opaque as ok
