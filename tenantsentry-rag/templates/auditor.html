@@ -1300,6 +1300,8 @@ function adminPortal() {
         this.reviewed = data.reviewed;
         await this.loadDashboard();
         await this.loadActiveJobs();
+        // Always poll active jobs — drives badge, auto-transition, and kill switch
+        this._startActiveRefresh();
         // Re-fetch all data when DEV/LIVE mode is toggled
         document.addEventListener('click', (e) => {
           if (e.target.closest('#ts-mode-pill')) {
@@ -1337,8 +1339,13 @@ function adminPortal() {
         const res = await fetch('/api/admin/active', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          this.activeJobs = data.jobs || [];
+          const prevCount = this.activeJobs.length;
+          this.activeJobs = data.active || [];
           this.recentFailed = data.recent_failed || [];
+          // Auto-refresh pending queue when a job transitions from active → complete
+          if (prevCount > 0 && this.activeJobs.length < prevCount) {
+            await this.loadQueue();
+          }
           const now = new Date();
           this.lastActiveRefresh = now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }

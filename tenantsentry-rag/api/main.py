@@ -1740,11 +1740,13 @@ async def admin_queue(_: None = Depends(require_admin)):
 
 @app.get("/api/admin/jobs/recent")
 async def admin_recent_jobs(_: None = Depends(require_admin)):
-    """Last 20 jobs regardless of status — for debugging pipeline failures."""
+    """Last 20 jobs for the current mode's source (dev/live) — for debugging pipeline failures."""
     from db.audit_run_store import fetch_all_recent
+    source = "dev" if is_dev() else "live"
     if _USE_SUPABASE:
-        return JSONResponse({"jobs": fetch_all_recent(20)})
-    return JSONResponse({"jobs": [j.to_dict() for j in list(_jobs_fallback.values())[-20:]]})
+        return JSONResponse({"jobs": fetch_all_recent(20, source=source)})
+    fallback = [j.to_dict() for j in _jobs_fallback.values() if j.source == source]
+    return JSONResponse({"jobs": list(reversed(fallback))[-20:]})
 
 
 @app.get("/api/admin/result/{job_id}")

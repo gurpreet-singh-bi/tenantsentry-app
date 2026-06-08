@@ -104,6 +104,8 @@ class Job:
         released_at: Optional[str] = None,
         result: Optional[dict] = None,
         source: str = "live",
+        stage_costs: Optional[dict] = None,
+        stage_timings: Optional[dict] = None,
     ):
         self.job_id = job_id
         self.filename = filename
@@ -122,6 +124,8 @@ class Job:
         self.released_at = released_at
         self.result = result  # populated only when needed (complete_job / get_job with result)
         self.source = source
+        self.stage_costs = stage_costs    # small dict — included in to_dict() for admin panel
+        self.stage_timings = stage_timings
 
     @classmethod
     def from_row(cls, row: dict, result: Optional[dict] = None) -> "Job":
@@ -144,6 +148,8 @@ class Job:
             released_at=row.get("released_at"),
             result=result or row.get("findings"),
             source=row.get("source", "live"),
+            stage_costs=row.get("stage_costs"),
+            stage_timings=row.get("stage_timings"),
         )
 
     def to_dict(self) -> dict:
@@ -164,7 +170,9 @@ class Job:
             "released": self.released,
             "released_at": self.released_at,
             "source": self.source,
-            # result is large — only included in dedicated result endpoint
+            "stage_costs": self.stage_costs,
+            "stage_timings": self.stage_timings,
+            # result/findings is large — only included in dedicated result endpoint
         }
 
 

@@ -28,17 +28,31 @@ def _get_client():
         import httpx
         from supabase import create_client
         from supabase.lib.client_options import ClientOptions
+        # supabase-py 2.31.0: ClientOptions dataclass is missing 'storage' and
+        # 'httpx_client' attrs that Client.__init__ accesses. Patch them post-construction.
+        try:
+            from supabase_auth import SyncMemoryStorage as _SyncMem
+        except ImportError:
+            try:
+                from gotrue.types import SyncMemoryStorage as _SyncMem  # type: ignore
+            except ImportError:
+                _SyncMem = None
+        opts = ClientOptions(
+            # Explicit httpx.Timeout — passing an int has a known bug in supabase-py 2.x
+            # where the write timeout isn't applied when sending large findings payloads.
+            # write=60 gives the 200-400KB findings JSONB room to complete.
+            postgrest_client_timeout=httpx.Timeout(
+                connect=5.0, read=30.0, write=60.0, pool=5.0
+            )
+        )
+        if _SyncMem is not None and not hasattr(opts, 'storage'):
+            opts.storage = _SyncMem()
+        if not hasattr(opts, 'httpx_client'):
+            opts.httpx_client = None
         _client = create_client(
             os.environ["SUPABASE_URL"],
             os.environ["SUPABASE_SERVICE_KEY"],
-            options=ClientOptions(
-                # Explicit httpx.Timeout — passing an int has a known bug in supabase-py 2.x
-                # where the write timeout isn't applied when sending large findings payloads.
-                # write=60 gives the 200-400KB findings JSONB room to complete.
-                postgrest_client_timeout=httpx.Timeout(
-                    connect=5.0, read=30.0, write=60.0, pool=5.0
-                )
-            ),
+            options=opts,
         )
     return _client
 
@@ -200,12 +214,13 @@ def fetch_failed() -> list[dict]:
     return result.data or []
 
 
-def fetch_all_recent(limit: int = 20) -> list[dict]:
-    """SELECT most recent jobs regardless of status — for debugging."""
+def fetch_all_recent(limit: int = 20, source: str = "live") -> list[dict]:
+    """SELECT most recent jobs for the given source (dev/live) — for debugging."""
     result = (
         _get_client()
         .table("audit_run")
-        .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, error, created_at, completed_at")
+        .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, error, created_at, completed_at, stage_costs, stage_timings, source")
+        .eq("source", source)
         .order("created_at", desc=True)
         .limit(limit)
         .execute()

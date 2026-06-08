@@ -901,7 +901,26 @@ function adminPortal() {
     },
 
     selectAudit(audit) {
-      this.selectedAudit = this.selectedAudit?.job_id === audit.job_id ? null : audit;
+      if (this.selectedAudit?.job_id === audit.job_id) { this.selectedAudit = null; return; }
+      this.selectedAudit = audit;
+      // Fetch findings + stage_costs for complete/reviewed jobs (not included in list data)
+      if (['complete','reviewed','released'].includes(audit.status) ||
+          (audit.reviewed_by_human)) {
+        fetch(`/api/admin/result/${audit.job_id}`, { credentials: 'include' })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (!data) return;
+            // Merge findings fields into selectedAudit so metric helpers can read them
+            if (this.selectedAudit?.job_id === audit.job_id) {
+              this.selectedAudit = {
+                ...this.selectedAudit,
+                findings: data,
+                stage_costs:   data.stage_costs   ?? this.selectedAudit.stage_costs,
+                stage_timings: data.stage_timings ?? this.selectedAudit.stage_timings,
+              };
+            }
+          }).catch(() => {});
+      }
     },
 
     // ── metric helpers ───────────────────────────────────────
