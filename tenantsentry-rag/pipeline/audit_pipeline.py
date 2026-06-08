@@ -591,6 +591,7 @@ def run_audit(
             cpi_context=cpi_ctx,
             land_tax_context=lt_ctx,
             schedule_context=sched_ctx,
+            clause_number=clause_heading,  # AG2: enables statute hint lookup
         )
         _clause_ms = int((time.perf_counter() - _t_clause) * 1000)
         n_flags = len(analysis.get("risk_flags") or [])

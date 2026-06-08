@@ -10,6 +10,7 @@ Routing logic:
 """
 
 import os
+import re
 import json
 import time
 import anthropic
@@ -198,6 +199,120 @@ def _build_jurisdiction_constraint(jurisdiction: str) -> str:
     ])
 
 
+# -- AG2: Jurisdiction clause-level statute hints ------------------------------
+#
+# Maps (list_of_trigger_patterns, legislation_ref, hint_text) for WA.
+# A hint fires when ANY pattern matches the combined clause_number + clause_text.
+# Patterns are tried case-insensitively.
+#
+# Adding hints for a new state: add a parallel list (e.g. _VIC_CTRS_HINTS)
+# and extend _build_clause_statute_hints() to check it.
+
+_WA_CTRS_HINTS: list[tuple[list[str], str, str]] = [
+    (
+        [r"\b8\.\d+\b", r"capital\s+(cost|expenditure|works?|repair)", r"structural\s+(repair|maintenance)"],
+        "CTRS Act (WA) s.11 -- Prohibition on Capital Cost Recovery",
+        (
+            "Under s.11 of the Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA), "
+            "a landlord CANNOT recover capital costs, capital works, or structural repairs "
+            "through outgoings or any other mechanism. "
+            "Any clause that purports to pass capital expenditure to the tenant is UNLAWFUL. "
+            "Flag at HIGH severity if this clause allows capital cost recovery."
+        ),
+    ),
+    (
+        [r"\b7\.6\b", r"\bland\s+tax\b"],
+        "CTRS Act (WA) s.13 -- Absolute Prohibition on Land Tax Recovery",
+        (
+            "Under s.13 of the Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA), "
+            "it is UNLAWFUL for a landlord to require a tenant to pay land tax, directly "
+            "or via outgoings. Any such clause is VOID. "
+            "This is an absolute prohibition -- flag at HIGH severity regardless of framing."
+        ),
+    ),
+    (
+        [r"\b7\.1\b", r"trading\s+hours?", r"hours\s+of\s+(trade|operation|business)"],
+        "CTRS Act (WA) s.14C -- Mandatory Trading Hours Restrictions",
+        (
+            "Under s.14C of the Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA), "
+            "a landlord cannot compel a tenant to trade during hours beyond what was voluntarily "
+            "agreed. Flag any clause giving the landlord unilateral power to extend or vary "
+            "trading hours -- this is a MEDIUM-HIGH severity issue."
+        ),
+    ),
+    (
+        [r"\b12\.\d+\b", r"\bassignment\b", r"\bsubleas(e|ing)\b", r"\bsubletting\b"],
+        "CTRS Act (WA) s.22 + PLA (WA) ss.80-82 -- Assignment Protections",
+        (
+            "Under s.22 of the CTRS Act (WA): landlord cannot unreasonably withhold consent "
+            "to assignment, and the outgoing tenant MUST be released from future obligations "
+            "on a valid assignment. Under Property Law Act 1969 (WA) ss.80-82: assignment "
+            "consent standards and covenant release on transfer apply. "
+            "Under PLA s.81: landlord MUST serve formal written notice specifying the breach "
+            "and a reasonable cure period before re-entering for default. "
+            "Flag clauses allowing refusal without stated reasonable grounds, or that retain "
+            "ongoing assignor liability post-assignment."
+        ),
+    ),
+    (
+        [r"\b26\.16\b", r"contract(ing)?\s+out", r"\bretail\s+shop\b", r"\bCTRS\b"],
+        "CTRS Act (WA) s.27 -- Anti-Contracting-Out",
+        (
+            "Under s.27 of the Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA), "
+            "any lease term purporting to exclude, restrict, or modify the CTRS Act is VOID. "
+            "An entire agreement clause broad enough to override statutory rights is "
+            "unenforceable to that extent. "
+            "If this clause contains language excluding retail tenancy protections, flag at "
+            "HIGH severity."
+        ),
+    ),
+    (
+        [r"\b26\.1\b", r"quiet\s+enjoyment", r"peaceful\s+(enjoyment|possession)", r"covenant\s+for\s+quiet"],
+        "Transfer of Land Act 1893 (WA) s.92(b) -- Implied Quiet Enjoyment Covenant",
+        (
+            "Under s.92(b) of the Transfer of Land Act 1893 (WA), a covenant of quiet "
+            "enjoyment is implied into every registered lease. "
+            "If this clause excludes, limits, or modifies quiet enjoyment (e.g. restricting "
+            "it to direct acts of the landlord only, excluding agents/contractors, or stating "
+            "that the landlord's exercise of rights cannot breach the covenant), flag at "
+            "HIGH severity. "
+            "Also consider recommending lodgement of a caveat under the TLA to protect the "
+            "tenant's leasehold interest if the lease is not registered."
+        ),
+    ),
+]
+
+
+def _build_clause_statute_hints(
+    jurisdiction: str,
+    clause_number: str,
+    clause_text: str,
+) -> str:
+    """
+    AG2: Return a formatted block of jurisdiction-specific statute hints for
+    this clause, based on clause number and/or text keyword matches.
+
+    Returns an empty string if no hints apply (so callers can gate on truthiness).
+    """
+    jur = jurisdiction.upper()
+    if jur != "WA":
+        # Architecture is in place; add _VIC_CTRS_HINTS etc. as needed
+        return ""
+
+    search_text = f"{clause_number} {clause_text}"
+    matched: list[str] = []
+
+    for patterns, ref, hint in _WA_CTRS_HINTS:
+        if any(re.search(p, search_text, re.IGNORECASE) for p in patterns):
+            matched.append(f"  [{ref}]\n  {hint}")
+
+    if not matched:
+        return ""
+
+    header = "WA STATUTORY CONSTRAINTS (mandatory -- check each against this clause):"
+    return header + "\n" + "\n\n".join(matched)
+
+
 # Keywords that trigger deep reasoning (Opus)
 COMPLEX_CLAUSE_KEYWORDS = [
     "rent review", "cpi", "market review",
@@ -243,6 +358,7 @@ def analyse_clause(
     cpi_context: str = "",
     land_tax_context: str = "",
     schedule_context: str = "",  # AQ2: injected schedule item content
+    clause_number: str = "",     # AG2: clause heading/number for statute hint lookup
 ) -> dict:
     """
     Analyse a single lease clause with grounded RAG context.
@@ -325,7 +441,6 @@ def analyse_clause(
     ]
 
     # G7: Inject pre-computed ABS CPI data when available.
-    # Claude must interpret this figure, not recalculate it.
     if cpi_context:
         user_prompt_parts += [
             cpi_context,
@@ -333,7 +448,6 @@ def analyse_clause(
         ]
 
     # F5: Inject definitive jurisdiction-specific land tax position.
-    # Claude applies the correct statutory rule -- no guesswork.
     if land_tax_context:
         user_prompt_parts += [
             land_tax_context,
@@ -348,6 +462,17 @@ def analyse_clause(
             schedule_context,
             "IMPORTANT: Check the schedule items above before flagging any risk in this clause.",
             "If a schedule item shows Not Applicable or overrides the clause default, adjust your finding accordingly.",
+            "",
+        ]
+
+    # AG2: Inject WA CTRS Act / TLA section-level hints when clause number or
+    # text matches a known statutory trigger. Empty string if no match.
+    _statute_hints = _build_clause_statute_hints(jurisdiction, clause_number, clause_text)
+    if _statute_hints:
+        user_prompt_parts += [
+            _statute_hints,
+            "IMPORTANT: Apply each statutory constraint above before finalising your risk flags.",
+            "A breach of any of these provisions must be flagged -- do not omit it.",
             "",
         ]
 
@@ -377,7 +502,7 @@ def analyse_clause(
                 timeout=60.0,
             )
             raw = response.content[0].text.strip()
-            usage = response.usage  # always present on a successful response
+            usage = response.usage
             try:
                 result = json.loads(raw)
                 result["_model"] = model
@@ -473,7 +598,7 @@ def triage_clauses(
     try:
         response = client.messages.create(
             model=HAIKU_MODEL,
-            max_tokens=512,  # 256 was too tight for large-index batches (e.g. indices 125-149)
+            max_tokens=512,
             messages=[{"role": "user", "content": prompt}],
             timeout=30.0,
         )

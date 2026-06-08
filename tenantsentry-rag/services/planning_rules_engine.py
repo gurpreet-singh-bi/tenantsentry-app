@@ -23,6 +23,9 @@ The core rule pattern across all Australian jurisdictions:
         NT   > 12 yr  Planning Act 1999 (NT) s.5
         WA   > 20 yr  Planning and Development Act 2005 (WA) s.136 — lease VOID AB INITIO
 
+    AG4 — WA additional rules:
+        PR-WA-002: TLA 1893 s.92(b) — quiet enjoyment excluded/limited + caveat recommendation
+
 Public API
 ----------
     evaluate_planning_rules(
@@ -47,80 +50,57 @@ from loguru import logger
 
 # ── Shared helpers ─────────────────────────────────────────────────────────────
 
-# Patterns that signal the lease is for a PORTION of land (not a whole lot
-# and not a self-contained tenancy within a building).
-# Shared across all jurisdiction rules — each state rule calls _is_portion().
 _PORTION_PATTERNS = [
     r"portion\s+of\s+(Lot|land|the\s+Land|Crown\s+Land)",
     r"part\s+of\s+Lot\s+\d+",
     r"part\s+of\s+the\s+Land",
     r"designated\s+(area|portion)",
     r"area\s+of\s+approximately",
-    r"Item\s*2[^\d]",                               # Schedule 1, Item 2 often describes a portion
+    r"Item\s*2[^\d]",
     r"exclud(ing|es)\s+.{0,40}(area|portion|land)",
     r"(leased\s+)?premises?\s+being\s+part",
     r"part\s+of\s+(the\s+)?land\s+(described|comprising|known)",
     r"portion\s+of\s+(the\s+)?land\s+(described|comprising|known)",
-    r"open\s+(area|land|space)\s+(forming\s+)?part",     # outdoor areas attached to tenancy
-    r"car\s+park(ing)?\s+area",                          # separate carparking land often triggers
+    r"open\s+(area|land|space)\s+(forming\s+)?part",
+    r"car\s+park(ing)?\s+area",
 ]
 
-# Patterns that NEGATE a deemed-subdivision finding — indicates a self-contained
-# building tenancy (Shop X, Suite X, Level X, Unit X) which is universally exempt
-# from deemed-subdivision rules across all states.
 _BUILDING_TENANCY_PATTERNS = [
     r"\bShop\s+\d+",
     r"\bSuite\s+\d+",
     r"\bUnit\s+\d+",
     r"\bLevel\s+\d+",
     r"\bFloor\s+\d+",
-    r"\bLot\s+\d+\s+on\s+(Strata|Community)\s+Plan",   # strata — already a lot
+    r"\bLot\s+\d+\s+on\s+(Strata|Community)\s+Plan",
     r"whole\s+of\s+(the\s+)?(building|premises|floor)",
 ]
 
 
 def _is_portion_of_land(meta: dict, text: str) -> bool:
-    """
-    Return True if the lease appears to be for a portion of a land lot
-    (as opposed to a whole lot or a tenancy within a building).
-    """
-    # If metadata has already flagged this, trust it
     if meta.get("is_portion_of_land"):
         return True
-
-    # If it looks like a self-contained building tenancy, exempt it
     if any(re.search(p, text, re.IGNORECASE) for p in _BUILDING_TENANCY_PATTERNS):
         return False
-
     return any(re.search(p, text, re.IGNORECASE) for p in _PORTION_PATTERNS)
 
 
 def _estimate_total_term_years(meta: dict, text: str) -> int | None:
-    """
-    Estimate the total lease term including all option periods.
-    Returns None if it cannot be determined.
-    """
-    # Try metadata first (populated by lease_metadata_extractor)
     if meta.get("total_term_years"):
         return int(meta["total_term_years"])
 
     initial = meta.get("lease_term_years")
     options_total = meta.get("options_total_years")
-
     if initial is not None and options_total is not None:
         return int(initial) + int(options_total)
 
-    # Fall back to text parsing
     initial_match = re.search(
         r"(?:initial\s+term|term\s+of\s+(?:the\s+)?lease)[^0-9]{0,20}(\d+)\s*years?",
         text, re.IGNORECASE,
     )
-    # Multiple option patterns: "five (5) further terms of ten (10) years each"
     option_matches = re.findall(
         r"(\d+)\s+(?:further\s+)?(?:option|term)[s]?\s+of\s+(\d+)\s+years?",
         text, re.IGNORECASE,
     )
-    # Single option: "a further term of 10 years"
     single_option_matches = re.findall(
         r"(?:further\s+term|option\s+period)[^0-9]{0,20}(\d+)\s*years?",
         text, re.IGNORECASE,
@@ -140,80 +120,106 @@ def _estimate_total_term_years(meta: dict, text: str) -> int | None:
 
     if initial_years is None and options_years == 0:
         return None
-
     return (initial_years or 0) + options_years
 
 
 def _make_portion_condition(threshold_years: int):
-    """
-    Factory: returns a condition function for the standard "portion of land +
-    total term > threshold" pattern shared by all jurisdiction rules.
-
-    threshold_years: the year limit above which deemed subdivision is triggered.
-    """
     def _condition(meta: dict, text: str) -> tuple[bool, list[str]]:
         reasons: list[str] = []
-
-        # ── Check 1: Portion of land ─────────────────────────────────────────
         if not _is_portion_of_land(meta, text):
             return False, []
         reasons.append("lease appears to be for a portion of a land lot (not a whole lot or building tenancy)")
 
-        # ── Check 2: Total term > threshold ──────────────────────────────────
         total_years = _estimate_total_term_years(meta, text)
-
         if total_years is None:
             reasons.append(
                 f"total lease term (including options) could not be determined — "
                 f"if it exceeds {threshold_years} years, planning/development approval is mandatory"
             )
             return True, reasons
-
         if total_years <= threshold_years:
             return False, []
-
         reasons.append(
             f"total cumulative term is approximately {total_years} years "
             f"(initial term + option periods), which exceeds the {threshold_years}-year threshold"
         )
         return True, reasons
-
     return _condition
 
 
-# ── WA: custom condition (void ab initio — more severe, bespoke logic kept) ───
+# ── WA bespoke conditions ─────────────────────────────────────────────────────
 
 def _wa_pda_s136_condition(meta: dict, text: str) -> tuple[bool, list[str]]:
-    """
-    WA PDA 2005 s.136: Lease of a PORTION of land for >20 years total term
-    (including options) requires WAPC approval or the lease is VOID AB INITIO.
-    """
+    """WA PDA 2005 s.136: portion of lot, >20yr total term -> void ab initio."""
     reasons: list[str] = []
-
-    # WA-specific portion detection (keeps original patterns plus shared ones)
-    wa_extra = [r"Item\s*2[^\d]"]  # already in _PORTION_PATTERNS, kept for explicitness
-    is_portion = _is_portion_of_land(meta, text)
-
-    if not is_portion:
+    if not _is_portion_of_land(meta, text):
         return False, []
     reasons.append("lease appears to be for a portion of a lot (not the entire lot)")
 
     total_years = _estimate_total_term_years(meta, text)
-
     if total_years is None:
         reasons.append(
             "total lease term (including options) could not be determined — "
             "if it exceeds 20 years, WAPC approval is mandatory"
         )
         return True, reasons
-
     if total_years <= 20:
         return False, []
-
     reasons.append(
         f"total cumulative term is approximately {total_years} years "
         f"(initial term + option periods), which exceeds the 20-year threshold"
     )
+    return True, reasons
+
+
+def _wa_quiet_enjoyment_condition(meta: dict, text: str) -> tuple[bool, list[str]]:
+    """
+    AG4 / PR-WA-002: Fires when the lease text appears to exclude or limit
+    the statutory quiet enjoyment covenant (TLA 1893 s.92(b)), or when the
+    lease is likely unregistered (short term) and a caveat is advisable.
+    """
+    reasons: list[str] = []
+
+    qe_present = bool(re.search(
+        r"quiet\s+enjoyment|peaceful\s+(enjoyment|possession)|covenant\s+for\s+quiet",
+        text, re.IGNORECASE,
+    ))
+    if not qe_present:
+        return False, []
+
+    exclusion_patterns = [
+        r"does\s+not\s+(extend|apply|include).{0,60}(agent|contractor|repair|work)",
+        r"(excluding|except\s+for|other\s+than).{0,60}(direct\s+act|own\s+act)",
+        r"exercise\s+of\s+(rights?|powers?).{0,40}(not\s+(constitute|be\s+a?\s+breach)|shall\s+not\s+breach)",
+        r"(limit(ed)?|restrict(ed)?|modif(ied|y)).{0,60}quiet\s+enjoyment",
+        r"quiet\s+enjoyment.{0,120}(limit(ed)?|restrict(ed)?|modif(ied|y)|exclud)",
+        r"no\s+(warranty|representation|guarantee).{0,40}quiet",
+        r"(waive[sd]?|waiving).{0,40}quiet\s+enjoyment",
+    ]
+    is_limited = any(re.search(p, text, re.IGNORECASE) for p in exclusion_patterns)
+
+    likely_unregistered = False
+    total_years = _estimate_total_term_years(meta, text)
+    if total_years is not None and total_years < 3:
+        likely_unregistered = True
+    if re.search(r"(not\s+register(ed)?|unregistered\s+lease)", text, re.IGNORECASE):
+        likely_unregistered = True
+
+    if not is_limited and not likely_unregistered:
+        return False, []
+
+    if is_limited:
+        reasons.append(
+            "lease contains language that appears to limit or exclude the statutory quiet "
+            "enjoyment covenant (TLA 1893 s.92(b)) — e.g. restricting it to direct landlord "
+            "acts, carving out contractor works, or stating landlord rights cannot breach it"
+        )
+    if likely_unregistered:
+        reasons.append(
+            "lease term suggests the lease may not require registration at Landgate — "
+            "lodging a TLA caveat is recommended to protect the tenant's leasehold interest "
+            "against subsequent purchasers or mortgagees"
+        )
     return True, reasons
 
 
@@ -222,6 +228,38 @@ def _wa_pda_s136_condition(meta: dict, text: str) -> tuple[bool, list[str]]:
 _PLANNING_RULES: list[dict] = [
 
     # ── WA ────────────────────────────────────────────────────────────────────
+    {
+        "id": "PR-WA-002",
+        "jurisdiction": "WA",
+        "severity": "high",
+        "title": "Quiet Enjoyment Covenant Modified/Excluded — Caveat Recommended (TLA 1893 s.92(b))",
+        "description": (
+            "Under Section 92(b) of the Transfer of Land Act 1893 (WA), a covenant of "
+            "quiet enjoyment is implied into every registered lease. "
+            "This lease contains language that EXCLUDES or LIMITS the tenant's right to "
+            "quiet enjoyment — for example, by restricting it to direct acts of the landlord "
+            "only, carving out contractor or repair works, or stating that the landlord's "
+            "exercise of lease rights cannot constitute a breach. "
+            "A diminished quiet enjoyment covenant leaves the tenant exposed to disruption, "
+            "interference by contractors, and loss of the premises during works with no remedy. "
+            "If the lease is not registered on title, the tenant's interest is also vulnerable "
+            "to bona fide purchasers — lodging a caveat under the TLA protects the leasehold "
+            "interest against subsequent dealings."
+        ),
+        "legislation": "Transfer of Land Act 1893 (WA) s.92(b)",
+        "action": (
+            "1. Review the quiet enjoyment clause and compare against full TLA s.92(b) protection. "
+            "2. Reject carve-outs limiting the covenant to direct landlord acts only — insist it "
+            "   extends to all persons claiming through or under the landlord. "
+            "3. Remove any provision that the landlord's exercise of lease rights cannot constitute "
+            "   a breach of quiet enjoyment. "
+            "4. If the lease is not registered at Landgate, instruct your solicitor to lodge a "
+            "   caveat under the TLA to protect your leasehold interest against subsequent "
+            "   purchasers and mortgagees. "
+            "5. Obtain independent legal advice from a WA property lawyer."
+        ),
+        "condition": _wa_quiet_enjoyment_condition,
+    },
     {
         "id": "PR-WA-001",
         "jurisdiction": "WA",
@@ -405,7 +443,7 @@ _PLANNING_RULES: list[dict] = [
             "(including renewal options) is deemed a subdivision of the land. "
             "This requires subdivision approval under the Land Use Planning and "
             "Approvals Act 1993 (Tas) from the relevant council. "
-            "Note: proposed 2026 amendments may create exemptions for utility/energy "
+            "Note: proposed 2026 amendments may create exemptions for utility and energy "
             "infrastructure leases, but commercial leases remain subject to this rule."
         ),
         "legislation": "Local Government (Building and Miscellaneous Provisions) Act 1993 (Tas) s.3; Land Use Planning and Approvals Act 1993 (Tas)",
@@ -462,9 +500,6 @@ def evaluate_planning_rules(
     """
     Run all planning rules applicable to the given jurisdiction against
     the lease metadata and full text.
-
-    Returns a list of triggered finding dicts, each containing:
-        rule_id, severity, title, description, legislation, action, triggered_by
     """
     jur = jurisdiction.upper().strip()
     findings: list[dict] = []
@@ -503,10 +538,7 @@ def evaluate_planning_rules(
 
 
 def format_planning_finding_as_warning(finding: dict) -> str:
-    """
-    Format a planning finding as a pipeline_warnings string for inclusion
-    in the AuditResult. Uses a clear prefix so the UI can style it distinctly.
-    """
+    """Format a planning finding as a pipeline_warnings string."""
     triggered = "; ".join(finding.get("triggered_by", []))
     return (
         f"[PLANNING LAW — {finding['severity'].upper()}] {finding['title']} | "
