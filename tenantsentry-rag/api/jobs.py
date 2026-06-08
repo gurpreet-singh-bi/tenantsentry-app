@@ -34,6 +34,12 @@ from pathlib import Path
 # Load .env from the tenantsentry-rag root regardless of working directory
 load_dotenv(Path(__file__).parent.parent / ".env")
 
+# Imported lazily at call-time to avoid circular import at module level
+# (mode.py is standalone so this is safe, but jobs.py is imported very early)
+def _current_source() -> str:
+    from api.mode import is_dev
+    return "dev" if is_dev() else "live"
+
 
 # ── Detect whether Supabase is configured and reachable ──────────────────────
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
@@ -97,6 +103,7 @@ class Job:
         released: bool = False,
         released_at: Optional[str] = None,
         result: Optional[dict] = None,
+        source: str = "live",
     ):
         self.job_id = job_id
         self.filename = filename
@@ -114,6 +121,7 @@ class Job:
         self.released = released
         self.released_at = released_at
         self.result = result  # populated only when needed (complete_job / get_job with result)
+        self.source = source
 
     @classmethod
     def from_row(cls, row: dict, result: Optional[dict] = None) -> "Job":
@@ -135,6 +143,7 @@ class Job:
             released=row.get("released", False),
             released_at=row.get("released_at"),
             result=result or row.get("findings"),
+            source=row.get("source", "live"),
         )
 
     def to_dict(self) -> dict:
@@ -154,6 +163,7 @@ class Job:
             "reviewed_at": self.reviewed_at,
             "released": self.released,
             "released_at": self.released_at,
+            "source": self.source,
             # result is large — only included in dedicated result endpoint
         }
 
@@ -179,12 +189,13 @@ def _supabase_ok() -> bool:
 
 def create_job(filename: str, jurisdiction: str, tenant_name: str) -> Job:
     job_id = str(uuid.uuid4())
-    job = Job(job_id=job_id, filename=filename, jurisdiction=jurisdiction, tenant_name=tenant_name)
+    source = _current_source()
+    job = Job(job_id=job_id, filename=filename, jurisdiction=jurisdiction, tenant_name=tenant_name, source=source)
     # Always write to fallback first so we never lose the job on a Supabase error
     _jobs_fallback[job_id] = job
     if _supabase_ok():
         try:
-            _store.insert_job(job_id, filename, jurisdiction, tenant_name)
+            _store.insert_job(job_id, filename, jurisdiction, tenant_name, source=source)
         except Exception as e:
             logger.error(f"[{job_id}] Supabase insert failed, using in-memory: {e}")
     return job
@@ -425,28 +436,31 @@ def list_active() -> list[Job]:
 
 
 def list_pending_review() -> list[Job]:
-    """Return completed-but-unreviewed jobs, newest first."""
+    """Return completed-but-unreviewed jobs for the current mode (dev/live), newest first."""
+    source = _current_source()
     if _supabase_ok():
         try:
-            return [Job.from_row(r) for r in _store.fetch_pending_review()]
+            return [Job.from_row(r) for r in _store.fetch_pending_review(source=source)]
         except Exception as e:
             logger.error(f"Supabase list_pending_review failed, using fallback: {e}")
     return sorted(
-        [j for j in _jobs_fallback.values() if j.status == JobStatus.COMPLETE and not j.reviewed_by_human],
+        [j for j in _jobs_fallback.values()
+         if j.status == JobStatus.COMPLETE and not j.reviewed_by_human and j.source == source],
         key=lambda j: j.completed_at or "",
         reverse=True,
     )
 
 
 def list_reviewed() -> list[Job]:
-    """Return reviewed jobs (released or awaiting release), newest first."""
+    """Return reviewed jobs for the current mode (dev/live), newest first."""
+    source = _current_source()
     if _supabase_ok():
         try:
-            return [Job.from_row(r) for r in _store.fetch_reviewed()]
+            return [Job.from_row(r) for r in _store.fetch_reviewed(source=source)]
         except Exception as e:
             logger.error(f"Supabase list_reviewed failed, using fallback: {e}")
     return sorted(
-        [j for j in _jobs_fallback.values() if j.reviewed_by_human],
+        [j for j in _jobs_fallback.values() if j.reviewed_by_human and j.source == source],
         key=lambda j: j.reviewed_at or "",
         reverse=True,
     )

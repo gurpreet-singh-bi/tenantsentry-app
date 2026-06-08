@@ -49,7 +49,7 @@ def _now() -> str:
 
 # ── Write operations ──────────────────────────────────────────────────────────
 
-def insert_job(job_id: str, filename: str, jurisdiction: str, tenant_name: str) -> dict:
+def insert_job(job_id: str, filename: str, jurisdiction: str, tenant_name: str, source: str = "live") -> dict:
     """INSERT a new queued job row. Returns the inserted row."""
     row = {
         "job_id": job_id,
@@ -59,9 +59,10 @@ def insert_job(job_id: str, filename: str, jurisdiction: str, tenant_name: str) 
         "status": "queued",
         "progress": 0,
         "stage": "Queued",
+        "source": source,
     }
     result = _get_client().table("audit_run").insert(row).execute()
-    logger.debug(f"[{job_id}] Inserted audit_run row")
+    logger.debug(f"[{job_id}] Inserted audit_run row (source={source})")
     return result.data[0] if result.data else row
 
 
@@ -157,27 +158,29 @@ def fetch_findings(job_id: str) -> Optional[dict]:
     return None
 
 
-def fetch_pending_review() -> list[dict]:
-    """SELECT complete-but-unreviewed jobs, newest first."""
+def fetch_pending_review(source: str = "live") -> list[dict]:
+    """SELECT complete-but-unreviewed jobs for the given source (dev/live), newest first."""
     result = (
         _get_client()
         .table("audit_run")
         .select("*")
         .eq("status", "complete")
         .eq("reviewed_by_human", False)
+        .eq("source", source)
         .order("completed_at", desc=True)
         .execute()
     )
     return result.data or []
 
 
-def fetch_reviewed() -> list[dict]:
-    """SELECT reviewed jobs (released or pending release), newest first."""
+def fetch_reviewed(source: str = "live") -> list[dict]:
+    """SELECT reviewed jobs for the given source (dev/live), newest first."""
     result = (
         _get_client()
         .table("audit_run")
         .select("*")
         .eq("reviewed_by_human", True)
+        .eq("source", source)
         .order("reviewed_at", desc=True)
         .execute()
     )

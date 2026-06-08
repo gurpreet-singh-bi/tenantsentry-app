@@ -18,6 +18,7 @@ Page routes:
   GET /auditor             → auditor.html    (auditor QA portal — human-in-loop review)
   GET /admin               → admin.html      (super-admin portal — all portals end-to-end)
   GET /partners/dashboard  → partners_dashboard.html  (channel partner portal)
+  GET /invoices            → invoices.html  (F14 invoice upload + F16 anomaly monitor)
 
 Run locally:
     uvicorn api.main:app --reload --port 8000
@@ -796,6 +797,18 @@ async def reports_page(request: Request):
     return templates.TemplateResponse("reports.html", {"request": request})
 
 
+@app.get("/invoices", response_class=HTMLResponse)
+async def invoices_page(request: Request):
+    """Invoice Monitor — F14 upload + F16 anomaly flags per lease audit job."""
+    return templates.TemplateResponse("invoices.html", {"request": request})
+
+
+@app.get("/portal", response_class=HTMLResponse)
+async def tenant_portal_page(request: Request):
+    """Tenant Portal — Portfolio Dashboard + Lease Shield workspace."""
+    return templates.TemplateResponse("tenant_portal.html", {"request": request})
+
+
 @app.get("/api/reports")
 def list_reports():
     """
@@ -877,6 +890,487 @@ async def submit_invoice(body: InvoiceSubmitRequest):
     # Dev mode — acknowledge without persisting
     logger.info(f"[DEV] Invoice received: job={body.job_id} type={body.invoice_type} amount={body.amount_cents}c")
     return JSONResponse({"ok": True, "invoice_id": None, "invoice_type": body.invoice_type})
+
+
+# ── F14: Ongoing invoice upload ───────────────────────────────────────────────
+
+@app.post("/api/invoice/upload")
+async def upload_invoice(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="Invoice PDF"),
+    job_id: str = Form(..., description="Existing completed audit job ID"),
+    invoice_type: str = Form(..., description="'monthly_rent' | 'estimate' | 'actuals'"),
+    period_start: str = Form("", description="YYYY-MM-DD"),
+    period_end: str = Form("", description="YYYY-MM-DD"),
+):
+    """
+    F14: Upload an ongoing invoice PDF against an existing completed lease audit.
+
+    Pipeline:
+      1. Validate job exists and is complete
+      2. SHA-256 dedup — return existing invoice_id if same PDF already processed
+      3. OCR + parse line items via outgoings_parser
+      4. Fetch clause_analyses from the original audit job
+      5. Run outgoings_engine reconciliation
+      6. Store invoice row with reconciliation_result
+      7. Trigger F16 anomaly checks as a background task
+      8. Return invoice_id + reconciliation summary
+
+    Dev mode: returns canned mock reconciliation result. No OCR or Supabase calls.
+    """
+    import hashlib
+    import tempfile
+
+    from db.invoice_store import insert_invoice, get_by_hash, update_invoice
+    from services.anomaly_monitor import run_anomaly_checks, maybe_send_alert
+
+    if invoice_type not in VALID_INVOICE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid invoice_type. Must be one of: {sorted(VALID_INVOICE_TYPES)}",
+        )
+
+    # ── Dev mode path ─────────────────────────────────────────────────────────
+    if is_dev():
+        mock_recon = {
+            "doc_filename": file.filename,
+            "doc_type": "invoice",
+            "period_start": period_start or None,
+            "period_end": period_end or None,
+            "total_claimed_cents": 450000,
+            "total_disputed_cents": 85000,
+            "engine_status": "complete",
+            "warnings": [],
+            "lease_clauses_used": ["Outgoings — Schedule A", "Outgoings — Management Fee"],
+            "findings": [
+                {
+                    "line_item_description": "Building Management Fee",
+                    "category": "management_fee",
+                    "amount_cents": 85000,
+                    "finding_type": "overcharge",
+                    "severity": "high",
+                    "explanation": (
+                        "Management fee ($850) exceeds the 10% cap of net outgoings "
+                        "stipulated in clause 8.3. Maximum permitted: $412.50."
+                    ),
+                    "legislation_ref": None,
+                    "clause_ref": "Clause 8.3",
+                    "disputed_amount_cents": 43750,
+                },
+                {
+                    "line_item_description": "General Cleaning",
+                    "category": "cleaning",
+                    "amount_cents": 120000,
+                    "finding_type": "compliant",
+                    "severity": "info",
+                    "explanation": "Cleaning charge is within lease-permitted outgoings categories.",
+                    "legislation_ref": None,
+                    "clause_ref": "Schedule A",
+                    "disputed_amount_cents": 0,
+                },
+            ],
+        }
+        row = {
+            "job_id": job_id,
+            "invoice_type": invoice_type,
+            "period_start": period_start or None,
+            "period_end": period_end or None,
+            "amount_cents": 450000,
+            "line_items": [],
+            "pdf_hash": "dev-mock-hash",
+            "pdf_url": None,
+            "filename": file.filename,
+            "reconciliation_result": mock_recon,
+            "recon_status": "complete",
+        }
+        stored = insert_invoice(row)
+        invoice_id = stored.get("id")
+
+        def _dev_anomaly_task(jid, iid):
+            flags = run_anomaly_checks(jid, iid)
+            maybe_send_alert(flags, jid)
+
+        background_tasks.add_task(_dev_anomaly_task, job_id, invoice_id)
+
+        return JSONResponse({
+            "ok": True,
+            "invoice_id": invoice_id,
+            "invoice_type": invoice_type,
+            "recon_status": "complete",
+            "total_claimed_cents": mock_recon["total_claimed_cents"],
+            "total_disputed_cents": mock_recon["total_disputed_cents"],
+            "finding_count": len(mock_recon["findings"]),
+            "reconciliation_result": mock_recon,
+            "mode": "dev",
+        })
+
+    # ── Live mode path ────────────────────────────────────────────────────────
+
+    # 1. Validate job
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+    if getattr(job, "status", None) is not None:
+        job_status = job.status.value if hasattr(job.status, "value") else str(job.status)
+        if job_status != "complete":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Job '{job_id}' is not complete (status: {job_status}). "
+                       "Invoice upload requires a completed lease audit.",
+            )
+
+    # 2. Read file + SHA-256 dedup
+    pdf_bytes = await file.read()
+    if not pdf_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+
+    existing = get_by_hash(job_id, pdf_hash)
+    if existing:
+        logger.info(f"[invoice/upload] Duplicate PDF detected — returning existing invoice {existing.get('id')}")
+        return JSONResponse({
+            "ok": True,
+            "invoice_id": existing.get("id"),
+            "invoice_type": existing.get("invoice_type"),
+            "recon_status": existing.get("recon_status"),
+            "total_claimed_cents": existing.get("amount_cents"),
+            "total_disputed_cents": (
+                (existing.get("reconciliation_result") or {}).get("total_disputed_cents", 0)
+            ),
+            "finding_count": len(
+                ((existing.get("reconciliation_result") or {}).get("findings") or [])
+            ),
+            "duplicate": True,
+        })
+
+    # 3. Write to temp file for OCR
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(pdf_bytes)
+        tmp_path = tmp.name
+
+    invoice_id = None
+    try:
+        # 4. OCR + parse line items
+        from ingestion.outgoings_parser import parse_outgoings_pdf
+        parsed = parse_outgoings_pdf(tmp_path)
+
+        # Derive amount_cents from parsed result
+        amount_cents = parsed.computed_total_cents or parsed.total_cents or 0
+
+        # 5. Fetch clause_analyses + jurisdiction from original audit
+        from db.audit_run_store import fetch_findings
+        findings = fetch_findings(job_id) or {}
+        clause_analyses = findings.get("clause_analyses") or []
+        jurisdiction = findings.get("jurisdiction") or ""
+
+        # 6. Reconcile
+        recon_result_dict: dict = {}
+        recon_status = "skipped"
+        if clause_analyses:
+            from pipeline.outgoings_engine import run_outgoings_reconciliation, reconciliation_result_to_dict
+            recon = run_outgoings_reconciliation(
+                parsed_outgoings=parsed,
+                doc_filename=file.filename or "invoice.pdf",
+                clause_analyses=clause_analyses,
+                jurisdiction=jurisdiction,
+            )
+            recon_result_dict = reconciliation_result_to_dict(recon)
+            recon_status = recon.engine_status
+        else:
+            recon_status = "skipped"
+            recon_result_dict = {
+                "doc_filename": file.filename,
+                "doc_type": "invoice",
+                "engine_status": "skipped",
+                "warnings": ["No clause analyses found for this job — reconciliation skipped."],
+                "findings": [],
+                "total_claimed_cents": amount_cents,
+                "total_disputed_cents": 0,
+            }
+
+        # 7. Store invoice row
+        row = {
+            "job_id": job_id,
+            "invoice_type": invoice_type,
+            "period_start": period_start or parsed.period_start or None,
+            "period_end": period_end or parsed.period_end or None,
+            "amount_cents": amount_cents,
+            "line_items": [
+                {
+                    "category": li.category,
+                    "description": li.description,
+                    "amount_cents": li.amount_cents,
+                    "gst_cents": li.gst_cents,
+                }
+                for li in (parsed.line_items or [])
+            ],
+            "pdf_hash": pdf_hash,
+            "pdf_url": None,    # TODO: upload to Supabase Storage and store path
+            "filename": file.filename,
+            "reconciliation_result": recon_result_dict,
+            "recon_status": recon_status,
+        }
+        stored = insert_invoice(row)
+        invoice_id = stored.get("id")
+
+        # 8. Background: anomaly checks + optional email alert
+        def _anomaly_task(jid, iid):
+            try:
+                flags = run_anomaly_checks(jid, iid)
+                maybe_send_alert(flags, jid)
+            except Exception as exc:
+                logger.error(f"[anomaly_task] Background anomaly check failed: {exc}")
+
+        background_tasks.add_task(_anomaly_task, job_id, invoice_id)
+
+        logger.info(
+            f"[invoice/upload] Invoice {invoice_id} stored for job {job_id} — "
+            f"type={invoice_type} amount={amount_cents}c recon={recon_status} "
+            f"findings={len(recon_result_dict.get('findings') or [])}"
+        )
+
+        return JSONResponse({
+            "ok": True,
+            "invoice_id": invoice_id,
+            "invoice_type": invoice_type,
+            "recon_status": recon_status,
+            "total_claimed_cents": amount_cents,
+            "total_disputed_cents": recon_result_dict.get("total_disputed_cents", 0),
+            "finding_count": len(recon_result_dict.get("findings") or []),
+            "reconciliation_result": recon_result_dict,
+            "mode": "live",
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[invoice/upload] Failed for job {job_id}: {e}")
+        # If we stored the invoice row but reconciliation failed, mark it failed
+        if invoice_id:
+            try:
+                update_invoice(invoice_id, {"recon_status": "failed"})
+            except Exception:
+                pass
+        raise HTTPException(status_code=500, detail=f"Invoice processing failed: {e}")
+
+    finally:
+        import os as _os
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+
+
+@app.get("/api/invoice/history/{job_id}")
+async def invoice_history(job_id: str):
+    """
+    F14: List all invoices filed against a completed lease audit, newest first.
+
+    Returns summary per invoice: type, period, amount, disputed amount,
+    finding count, reconciliation status, and anomaly flag count.
+    Powers the Invoice History tab in the Audit Centre UI (F11).
+    """
+    from db.invoice_store import list_invoices_for_job, get_anomaly_flags_for_invoice
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+
+    if is_dev():
+        # Return deterministic mock history
+        return JSONResponse({
+            "job_id": job_id,
+            "invoices": [
+                {
+                    "invoice_id": "dev-inv-001",
+                    "invoice_type": "monthly_rent",
+                    "period_start": "2026-05-01",
+                    "period_end": "2026-05-31",
+                    "amount_cents": 450000,
+                    "total_disputed_cents": 85000,
+                    "recon_status": "complete",
+                    "finding_count": 2,
+                    "anomaly_flag_count": 1,
+                    "filename": "may-2026-rent-invoice.pdf",
+                },
+                {
+                    "invoice_id": "dev-inv-000",
+                    "invoice_type": "monthly_rent",
+                    "period_start": "2026-04-01",
+                    "period_end": "2026-04-30",
+                    "amount_cents": 440000,
+                    "total_disputed_cents": 0,
+                    "recon_status": "complete",
+                    "finding_count": 0,
+                    "anomaly_flag_count": 0,
+                    "filename": "apr-2026-rent-invoice.pdf",
+                },
+            ],
+            "total_invoices": 2,
+            "total_disputed_cents": 85000,
+            "mode": "dev",
+        })
+
+    invoices = list_invoices_for_job(job_id)
+    result = []
+    total_disputed = 0
+    for inv in invoices:
+        inv_id = str(inv.get("id", ""))
+        recon = inv.get("reconciliation_result") or {}
+        disputed = recon.get("total_disputed_cents") or 0
+        total_disputed += disputed
+        anomaly_flags = get_anomaly_flags_for_invoice(inv_id)
+        result.append({
+            "invoice_id": inv_id,
+            "invoice_type": inv.get("invoice_type"),
+            "period_start": inv.get("period_start"),
+            "period_end": inv.get("period_end"),
+            "amount_cents": inv.get("amount_cents"),
+            "total_disputed_cents": disputed,
+            "recon_status": inv.get("recon_status"),
+            "finding_count": len(recon.get("findings") or []),
+            "anomaly_flag_count": sum(1 for f in anomaly_flags if not f.get("dismissed")),
+            "filename": inv.get("filename"),
+        })
+
+    return JSONResponse({
+        "job_id": job_id,
+        "invoices": result,
+        "total_invoices": len(result),
+        "total_disputed_cents": total_disputed,
+        "mode": "live",
+    })
+
+
+# ── F16: Anomaly monitor endpoints ────────────────────────────────────────────
+
+@app.get("/api/anomalies/{job_id}")
+async def get_anomaly_flags(job_id: str, include_dismissed: bool = False):
+    """
+    F16: Return all undismissed anomaly flags for a lease, ordered by severity.
+
+    Query params:
+      include_dismissed=true — include flags the tenant has already dismissed
+
+    Returns flags grouped by severity tier for easy UI rendering.
+    """
+    from db.invoice_store import get_anomaly_flags as _get_flags
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+
+    if is_dev():
+        return JSONResponse({
+            "job_id": job_id,
+            "flags": [
+                {
+                    "id": "dev-flag-001",
+                    "check_name": "category_cost_spike",
+                    "category": "management_fee",
+                    "severity": "medium",
+                    "description": (
+                        "Management fee increased by 28.5% compared to the "
+                        "average of the last 3 invoices."
+                    ),
+                    "expected_cents": 125000,
+                    "actual_cents": 160600,
+                    "delta_pct": 28.5,
+                    "detection_layer": "trend",
+                    "dismissed": False,
+                    "invoice_id": "dev-inv-001",
+                    "created_at": "2026-06-01T09:00:00+10:00",
+                }
+            ],
+            "total": 1,
+            "high_count": 0,
+            "medium_count": 1,
+            "low_count": 0,
+            "mode": "dev",
+        })
+
+    flags = _get_flags(job_id, include_dismissed=include_dismissed)
+    return JSONResponse({
+        "job_id": job_id,
+        "flags": flags,
+        "total": len(flags),
+        "high_count": sum(1 for f in flags if f.get("severity") == "high"),
+        "medium_count": sum(1 for f in flags if f.get("severity") == "medium"),
+        "low_count": sum(1 for f in flags if f.get("severity") == "low"),
+        "mode": "live",
+    })
+
+
+@app.get("/api/anomalies/{job_id}/latest")
+async def get_latest_anomaly_flags(job_id: str):
+    """
+    F16: Return anomaly flags for the most recently uploaded invoice only.
+    Useful for post-upload UI: "here's what we found in this invoice."
+    """
+    from db.invoice_store import list_invoices_for_job, get_anomaly_flags_for_invoice
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+
+    if is_dev():
+        return JSONResponse({
+            "job_id": job_id,
+            "invoice_id": "dev-inv-001",
+            "flags": [
+                {
+                    "id": "dev-flag-001",
+                    "check_name": "category_cost_spike",
+                    "category": "management_fee",
+                    "severity": "medium",
+                    "description": "Management fee increased by 28.5% vs trailing average.",
+                    "expected_cents": 125000,
+                    "actual_cents": 160600,
+                    "delta_pct": 28.5,
+                    "dismissed": False,
+                }
+            ],
+            "total": 1,
+            "mode": "dev",
+        })
+
+    invoices = list_invoices_for_job(job_id)
+    if not invoices:
+        return JSONResponse({"job_id": job_id, "invoice_id": None, "flags": [], "total": 0})
+
+    latest = invoices[0]
+    latest_id = str(latest.get("id", ""))
+    flags = get_anomaly_flags_for_invoice(latest_id)
+
+    return JSONResponse({
+        "job_id": job_id,
+        "invoice_id": latest_id,
+        "flags": flags,
+        "total": len(flags),
+        "mode": "live",
+    })
+
+
+class DismissFlagRequest(BaseModel):
+    note: str = ""
+
+
+@app.post("/api/anomalies/{flag_id}/dismiss")
+async def dismiss_anomaly_flag(flag_id: str, body: DismissFlagRequest):
+    """
+    F16: Tenant dismisses an anomaly flag after reviewing it.
+    Dismissed flags are excluded from the default anomaly view.
+    """
+    from db.invoice_store import dismiss_anomaly_flag as _dismiss
+
+    if is_dev():
+        return JSONResponse({"ok": True, "flag_id": flag_id, "dismissed": True, "mode": "dev"})
+
+    updated = _dismiss(flag_id, note=body.note)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Flag '{flag_id}' not found.")
+
+    return JSONResponse({"ok": True, "flag_id": flag_id, "dismissed": True, "mode": "live"})
 
 
 # ── Feedback ──────────────────────────────────────────────────────────────────
@@ -1565,7 +2059,7 @@ def _score_manual_entry(data: dict) -> dict:
     return {
         "risk_score":      score,
         "risk_level":      risk_level,
-        "pages_analysed":  None,    # no pages for manual entry
+        "pages_analysed":  None,
         "clauses_scanned": None,
         "total_flags":     len(flags),
         "high_flags":      high_count,
@@ -1574,6 +2068,178 @@ def _score_manual_entry(data: dict) -> dict:
         "top_flags":       flags[:3],
         "source":          "manual",
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Human-in-loop gate — Review, Release, Cancel, Document download
+# All require admin auth. review_job / release_job / cancel_job live in jobs.py.
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/admin/review/{job_id}")
+async def admin_review_job(job_id: str, request: Request, _: None = Depends(require_admin)):
+    """
+    Auditor approves findings — sets reviewed_by_human=True + stores reviewer notes.
+    Body: { notes: str, clauseState?: { [heading]: { status, note } } }
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail="Job must be complete before review")
+    body = await request.json()
+    notes = (body.get("notes") or "").strip()
+    reviewed = review_job(job_id, notes)
+    if not reviewed:
+        raise HTTPException(status_code=500, detail="Review update failed")
+    logger.info(f"[{job_id}] Approved by auditor — notes: {notes[:80] or '(none)'}")
+    return JSONResponse(reviewed.to_dict())
+
+
+@app.post("/api/admin/release/{job_id}")
+async def admin_release_job(job_id: str, _: None = Depends(require_admin)):
+    """
+    Release audit report to tenant — only callable after auditor has reviewed.
+    Sets released=True + released_at timestamp; tenant portal can now download report.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if not job.reviewed_by_human:
+        raise HTTPException(status_code=409, detail="Job must be reviewed before release")
+    released = release_job(job_id)
+    if not released:
+        raise HTTPException(status_code=500, detail="Release update failed")
+    logger.info(f"[{job_id}] Released to tenant by auditor")
+    return JSONResponse(released.to_dict())
+
+
+@app.post("/api/admin/cancel/{job_id}")
+async def admin_cancel_job(job_id: str, request: Request, _: None = Depends(require_admin)):
+    """
+    Kill switch — three actions:
+      'fail'   → mark job failed (terminal). In-flight thread discarded.
+      'retry'  → reset to queued + re-dispatch if PDF is in storage.
+      'delete' → hard-delete from memory + Supabase.
+    Body: { action: 'fail' | 'retry' | 'delete' }
+    """
+    body = await request.json()
+    action = body.get("action", "fail")
+    if action not in ("fail", "retry", "delete"):
+        raise HTTPException(status_code=400, detail="action must be 'fail', 'retry', or 'delete'")
+
+    result = cancel_job(job_id, action)
+
+    # If retry and PDF is available, re-dispatch immediately
+    if action == "retry" and result.get("pdf_available"):
+        stored_doc = get_document(job_id)
+        if stored_doc:
+            pdf_bytes = stored_doc.get("pdf_bytes") or stored_doc.get("data")
+            jurisdiction = stored_doc.get("jurisdiction", "NSW")
+            tenant_name  = stored_doc.get("tenant_name")
+            if pdf_bytes:
+                import tempfile as _tmpfile
+                with _tmpfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(pdf_bytes)
+                    tmp_path = tmp.name
+                pipeline_fn = _get_pipeline()
+
+                def _retry_run():
+                    try:
+                        pipeline_fn(
+                            job_id=job_id,
+                            pdf_path=tmp_path,
+                            jurisdiction=jurisdiction,
+                            tenant_name=tenant_name,
+                            progress_callback=lambda pct, stage: update_job_progress(job_id, pct, stage),
+                        )
+                        complete_job(job_id, {})
+                    except Exception as exc:
+                        fail_job(job_id, str(exc))
+
+                _audit_executor.submit(_retry_run)
+                result["resubmitted"] = True
+                logger.info(f"[{job_id}] Retry: re-dispatched to {pipeline_fn.__name__}")
+
+    logger.info(f"[{job_id}] Kill switch: action={action}, result={result}")
+    return JSONResponse(result)
+
+
+@app.get("/api/admin/document/{job_id}")
+async def admin_get_document(job_id: str, _: None = Depends(require_admin)):
+    """
+    Download the original uploaded lease PDF for an audit job.
+    Used by the auditor portal 'Original Lease PDF' document row.
+    Falls back to Supabase Storage if the in-memory buffer was cleared.
+    """
+    from fastapi.responses import Response as _Resp
+    stored = get_document(job_id)
+    pdf_bytes = None
+    filename = f"lease_{job_id}.pdf"
+
+    if stored:
+        pdf_bytes = stored.get("pdf_bytes") or stored.get("data")
+        filename  = stored.get("filename", filename)
+
+    if not pdf_bytes and _USE_SUPABASE:
+        # V1: try to fetch from Supabase Storage 'lease-pdfs' bucket
+        try:
+            from db.audit_run_store import fetch_pdf_bytes as _fetch_pdf
+            pdf_bytes = _fetch_pdf(job_id)
+        except Exception as e:
+            logger.warning(f"[{job_id}] Supabase PDF fetch failed: {e}")
+
+    if not pdf_bytes:
+        raise HTTPException(
+            status_code=404,
+            detail="Original PDF not available — in-memory buffer may have been cleared after server restart. "
+                   "PDF is preserved in Supabase Storage when USE_SUPABASE=true.",
+        )
+
+    return _Resp(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Tenant jobs API — feeds the Tenant Portal live mode
+# Returns all complete+released jobs visible to the current tenant session.
+# Auth: session cookie (tenant_id) — in LIVE mode backed by Supabase.
+#       DEV mode: returns all released jobs in the fallback store.
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/tenant/jobs")
+async def tenant_jobs(request: Request):
+    """
+    List audit jobs for the tenant portal.
+    DEV:  all complete + released jobs in fallback store (for test visibility).
+    LIVE: jobs for the authenticated tenant (filtered by tenant_id cookie).
+    Returns summary list — no clause_analyses payload (use /api/audit/result/{id}).
+    """
+    if is_dev():
+        jobs = [
+            j.to_dict() for j in _jobs_fallback.values()
+            if j.status == JobStatus.COMPLETE
+        ]
+        return JSONResponse({"jobs": sorted(jobs, key=lambda x: x.get("completed_at") or "", reverse=True)})
+
+    # LIVE: filter by tenant_id from session — stub until full auth is wired
+    # TODO (F-AUTH): replace cookie lookup with Supabase JWT validation
+    tenant_id = request.cookies.get("tenant_id") or request.headers.get("X-Tenant-Id")
+    if _USE_SUPABASE and tenant_id:
+        try:
+            from db.audit_run_store import fetch_jobs_for_tenant
+            rows = fetch_jobs_for_tenant(tenant_id)
+            return JSONResponse({"jobs": rows})
+        except Exception as e:
+            logger.error(f"tenant_jobs Supabase query failed: {e}")
+    # Fallback: return released jobs from in-memory store
+    jobs = [
+        j.to_dict() for j in _jobs_fallback.values()
+        if j.status == JobStatus.COMPLETE and j.released
+    ]
+    return JSONResponse({"jobs": sorted(jobs, key=lambda x: x.get("completed_at") or "", reverse=True)})
 
 
 @app.get("/free-check", response_class=HTMLResponse)
@@ -1646,9 +2312,6 @@ async def _run_free_check_job(
     """
     Async wrapper — runs the real audit pipeline in the bounded thread pool,
     truncated to FREE_CHECK_MAX_PAGES pages. Logs to free_check_run Supabase table.
-
-    DEV mode: run_dev_audit (deterministic mock, fast).
-    LIVE mode: run_live_audit with max_pages=5, skip_vector_store=True.
     """
     loop = asyncio.get_event_loop()
 
@@ -1660,7 +2323,6 @@ async def _run_free_check_job(
             cb = lambda pct, stage: update_job_progress(job_id, pct, stage)
 
             if is_dev():
-                # DEV: deterministic mock — ignores max_pages (always uses MOCK_CLAUSES)
                 result_obj = run_dev_audit(
                     pdf_path=tmp_path,
                     jurisdiction=jurisdiction,
@@ -1669,7 +2331,6 @@ async def _run_free_check_job(
                     progress_callback=cb,
                 )
             else:
-                # LIVE: real pipeline, first 5 pages only, skip vector store
                 result_obj = run_live_audit(
                     pdf_path=tmp_path,
                     jurisdiction=jurisdiction,
@@ -1680,23 +2341,17 @@ async def _run_free_check_job(
                     progress_callback=cb,
                 )
 
-            # Serialise AuditResult → dict for storage and slicing
             full_result = (
                 result_obj.model_dump(mode="json")
                 if hasattr(result_obj, "model_dump")
                 else (result_obj if isinstance(result_obj, dict) else result_obj.__dict__)
             )
-            # Stamp source so _slice_for_teaser can report it
             full_result["source"] = "dev" if is_dev() else "live"
 
-            # Build the teaser payload (what the anonymous user sees)
             pages_analysed = min(FREE_CHECK_MAX_PAGES, len(pdf_bytes) // 3000 + 1)
             teaser = _slice_for_teaser(full_result, doc_type, pages_analysed)
-
-            # Cache teaser for the result endpoint
             _free_check_results[job_id] = teaser
 
-            # Log full run to Supabase (non-fatal)
             try:
                 from db.free_check_store import log_free_check
                 log_free_check(
@@ -1740,8 +2395,6 @@ async def free_check_manual(request: Request):
     """
     Score a free check from manual form field entry — no PDF required.
     Synchronous (fast rule-based scoring). Returns the teaser payload directly.
-
-    Body JSON: doc_type, jurisdiction, + lease or HoA fields.
     """
     try:
         data = await request.json()
@@ -1760,7 +2413,6 @@ async def free_check_manual(request: Request):
         logger.warning(f"[FREE-CHECK-MANUAL] Scoring failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to score manual entry.")
 
-    # Log manual entry to Supabase (non-fatal — no PDF so full_result is minimal)
     try:
         from db.free_check_store import log_free_check
         log_free_check(
@@ -1782,7 +2434,6 @@ async def free_check_manual(request: Request):
 def free_check_result(job_id: str):
     """
     Return the free-check teaser payload for a completed job.
-    Shaped for the scanner→teaser UI: risk_score, top_flags, headline stats.
     """
     job = get_job(job_id)
     if not job:

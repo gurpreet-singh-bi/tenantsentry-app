@@ -207,32 +207,28 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
         <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white" style="background:linear-gradient(135deg,#00c2a8,#009e88);">TS</div>
         <span class="font-semibold text-sm" style="color:var(--ts-text0);">TenantSentry<span style="color:#00c2a8;">.ai</span></span>
       </a>
-      <div class="hidden md:flex items-center gap-1">
-        <a href="/dashboard" class="nav-link">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          Home
+      <div class="hidden md:flex items-center gap-1 ml-4">
+        <a href="/portal" class="nav-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Portfolio
         </a>
-        <a href="/audit" class="nav-link">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          New Audit
-        </a>
-        <a href="/dashboard" class="nav-link">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          My Audits
-        </a>
-        <a href="/reports" class="nav-link active">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          Reports
+        <a href="/portal?screen=workspace" class="nav-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Lease Shield
         </a>
       </div>
     </div>
     <div class="flex items-center gap-3">
+      <button class="relative flex items-center justify-center" style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);" title="Notifications">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8fa3bf" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      </button>
+      <span class="hidden sm:inline-flex" style="font-size:10px;font-weight:700;letter-spacing:0.04em;padding:3px 8px;border-radius:20px;background:rgba(0,194,168,0.12);border:1px solid rgba(0,194,168,0.25);color:#5ef0d8;">BUNDLE</span>
+      <div class="flex items-center justify-center text-xs font-bold" style="width:32px;height:32px;border-radius:50%;background:rgba(0,194,168,0.15);border:1px solid rgba(0,194,168,0.25);color:#5ef0d8;flex-shrink:0;">GM</div>
       <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle light/dark mode"
   style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;border:1px solid var(--ts-border-rgba,rgba(255,255,255,0.07));background:var(--ts-raised,rgba(255,255,255,0.035));">
   <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
   <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
 </button>
-      <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:rgba(0,194,168,0.15);border:1px solid rgba(0,194,168,0.25);color:#5ef0d8;">GM</div>
       <a href="/login" class="nav-link text-xs hidden sm:flex">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sign out

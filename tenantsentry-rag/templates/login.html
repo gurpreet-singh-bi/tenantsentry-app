@@ -373,7 +373,7 @@ $('loginForm').addEventListener('submit', function(e) {
     btn.classList.remove('loading'); btn.disabled = false;
     if (email === 'garry@tenantsentry.ai' && pw === 'demo1234') {
       showAlert('Signed in. Redirecting…', 'ok');
-      setTimeout(() => window.location.href = '/dashboard', 1000);
+      setTimeout(() => window.location.href = '/portal', 1000);
     } else {
       showAlert('Invalid email or password. Try garry@tenantsentry.ai / demo1234', 'err');
       $('pw').value = ''; $('pw').focus();

@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html lang="en" x-data="portalApp()" x-init="init()">
+<head>
+<script>
+/* Theme: apply before paint to avoid flash */
+(function(){
+  var t = localStorage.getItem('ts-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TenantSentry — Tenant Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --ts-bg0: #080b12;
+  --ts-bg1: #0f1320;
+  --ts-bg2: #161c2e;
+  --ts-bg3: #1e2540;
+  --ts-bg4: #252d4a;
+  --ts-border: rgba(255,255,255,0.07);
+  --ts-border2: rgba(255,255,255,0.12);
+  --teal: #00f5d4;
+  --teal-dim: rgba(0,245,212,0.15);
+  --teal-glow: rgba(0,245,212,0.35);
+  --purple: #d946ef;
+  --purple-dim: rgba(217,70,239,0.15);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.15);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.15);
+  --green: #10b981;
+  --green-dim: rgba(16,185,129,0.15);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.15);
+  --text-1: #f1f5f9;
+  --text-2: #94a3b8;
+  --text-3: #64748b;
+  --font-sans: 'Outfit', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+/* ── LIGHT THEME ── */
+html[data-theme="light"] {
+  --ts-bg0: #f0f4f8;
+  --ts-bg1: #ffffff;
+  --ts-bg2: #eef2f7;
+  --ts-bg3: #e4ecf5;
+  --ts-bg4: #d9e4ef;
+  --ts-border: rgba(0,0,0,0.08);
+  --ts-border2: rgba(0,0,0,0.14);
+  --text-1: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100vh; width: 100vw;
+  overflow: hidden;
+  background: var(--ts-bg0);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+/* Scrollbars */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ts-bg4); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ts-border2); }
+
+/* ── Layout ────────────────────────────────── */
+#app {
+  display: flex; flex-direction: column;
+  height: 100vh; width: 100vw;
+  overflow: hidden;
+}
+
+#appContent {
+  flex: 1; overflow: hidden;
+  position: relative;
+}
+.screen {
+  position: absolute; inset: 0;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+.screen.active {
+  opacity: 1; pointer-events: all;
+}
+
+/* ── Nav ─────────────────────────────────────── */
+.nav-link {
+  color: var(--text-2); font-size: 13px; font-weight: 500;
+  padding: 6px 10px; border-radius: 6px;
+  transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  cursor: pointer; text-decoration: none; border: none; background: transparent;
+}
+.nav-link:hover { color: #5ef0d8; background: rgba(0,194,168,0.08); }
+.nav-link.active { color: #5ef0d8; background: rgba(0,194,168,0.10); }
+.plan-pill {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: 20px;
+  background: rgba(0,194,168,0.12); border: 1px solid rgba(0,194,168,0.25); color: #5ef0d8;
+}
+.live-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700;
+  padding: 3px 8px; border-radius: 20px;
+  background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #10b981;
+}
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981; }
+
+/* ── Glass Card ──────────────────────────────── */
+.glass {
+  background: var(--ts-bg2);
+  border: 1px solid var(--ts-border);
+  border-radius: 10px;
+}
+.glass-inner {
+  background: var(--ts-bg3);
+  border: 1px solid var(--ts-border);
+  border-radius: 8px;
+}
+.card-title {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.card-label { font-size: 10px; color: var(--text-3); }
+.card-value { font-size: 18px; font-weight: 700; color: var(--text-1); }
+.card-sub { font-size: 10px; color: var(--text-2); margin-top: 1px; }
+
+/* ── Portfolio page header bar ───────────────── */
+.portfolio-page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0; padding: 0 2px 2px;
+}
+.portfolio-page-title {
+  font-size: 15px; font-weight: 700; color: var(--text-1); letter-spacing: -0.2px;
+}
+.portfolio-page-sub { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+.new-audit-cta {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 20px; border-radius: 8px;
+  background: var(--teal); color: #0a0d14;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; border: none; text-decoration: none;
+  transition: all 0.15s; white-space: nowrap;
+  box-shadow: 0 0 20px rgba(0,245,212,0.25);
+}
+.new-audit-cta:hover { box-shadow: 0 0 30px rgba(0,245,212,0.45); transform: translateY(-1px); }
+.new-audit-cta svg { flex-shrink: 0; }
+
+/* ── Screen A — Portfolio Dashboard ─────────── */
+#screenPortfolio {
+  display: flex; flex-direction: column;
+  height: 100%; overflow: hidden;
+  padding: 14px;
+  gap: 12px;
+}
+/* KPI strip */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  flex-shrink: 0;
+}
+.kpi-card {
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+  position: relative; overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.kpi-card.teal::before { background: var(--teal); }
+.kpi-card.purple::before { background: var(--purple); }
+.kpi-card.amber::before { background: var(--amber); }
+.kpi-card.green::before { background: var(--green); }
+.kpi-card.red::before { background: var(--red); }
+.kpi-value { font-size: 22px; font-weight: 700; line-height: 1.1; }
+.kpi-value.teal { color: var(--teal); }
+.kpi-value.purple { color: var(--purple); }
+.kpi-value.amber { color: var(--amber); }
+.kpi-value.green { color: var(--green); }
+.kpi-value.red { color: var(--red); }
+.kpi-delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; padding: 1px 6px; border-radius: 4px;
+  font-weight: 500;
+}
+.kpi-delta.up { background: var(--green-dim); color: var(--green); }
+.kpi-delta.down { background: var(--red-dim); color: var(--red); }
+.kpi-delta.warn { background: var(--amber-dim); color: var(--amber); }
+
+/* Main row */
+.portfolio-main {
+  flex: 1; min-height: 0;
+  display: flex; gap: 12px;
+}
+.portfolio-left {
+  width: 38%; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden;
+}
+.portfolio-right {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  gap: 10px; min-height: 0;
+}
+
+/* Inbox */
+.inbox-card {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.inbox-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--ts-border);
+  flex-shrink: 0;
+}
+.inbox-count {
+  background: var(--red); color: white;
+  font-size: 9px; font-weight: 700;
+  padding: 1px 5px; border-radius: 10px;
+  margin-left: 6px;
+}
+.inbox-list {
+  flex: 1; overflow-y: auto;
+  padding: 6px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.inbox-item {
+  padding: 10px 12px;
+  background: var(--ts-bg3);
+  border: 1px solid var(--ts-border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.inbox-item:hover {
+  border-color: var(--ts-border2);
+  background: var(--ts-bg4);
+  transform: translateX(2px);
+}
+.inbox-item.critical { border-left: 3px solid var(--red); }
+.inbox-item.warning { border-left: 3px solid var(--amber); }
+.inbox-item.info { border-left: 3px solid var(--teal); }
+.inbox-item-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.inbox-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.inbox-badge.critical { background: var(--red-dim); color: var(--red); }
+.inbox-badge.warning { background: var(--amber-dim); color: var(--amber); }
+.inbox-badge.info { background: var(--teal-dim); color: var(--teal); }
+.inbox-prop { font-size: 10px; font-weight: 600; color: var(--text-1); flex: 1; }
+.inbox-days { font-size: 9px; color: var(--text-3); font-family: var(--font-mono); }
+.inbox-title { font-size: 11px; font-weight: 500; color: var(--text-1); margin-bottom: 2px; }
+.inbox-desc { font-size: 10px; color: var(--text-2); line-height: 1.4; }
+.inbox-action {
+  font-size: 9px; color: var(--teal); margin-top: 5px;
+  display: flex; align-items: center; gap: 3px;
+}
+
+/* Outgoings Anomaly Monitor */
+.cam-card {
+  background: var(--ts-bg2);
+  border: 1px solid var(--ts-border);
+  border-radius: 10px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  flex: 0 0 55%;
+}
+.cam-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--ts-border);
+  flex-shrink: 0;
+}
+.cam-body {
+  flex: 1; min-height: 0;
+  padding: 10px 14px;
+  position: relative;
+}
+
+/* Leases Grid */
+.leases-card {
+  background: var(--ts-bg2);
+  border: 1px solid var(--ts-border);
+  border-radius: 10px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  flex: 1; min-height: 0;
+}
+.leases-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--ts-border);
+  flex-shrink: 0;
+}
+#portfolioLeasesContainer {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+.lease-grid-card {
+  background: var(--ts-bg3);
+  border: 1px solid var(--ts-border);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.lease-grid-card:hover {
+  border-color: var(--ts-border2);
+  background: var(--ts-bg4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.lease-grid-card.new-audit {
+  border: 1px dashed var(--ts-border2);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 6px; min-height: 80px;
+  color: var(--text-3);
+  transition: all 0.15s;
+}
+.lease-grid-card.new-audit:hover { color: var(--teal); border-color: var(--teal); }
+.lgc-prop { font-size: 11px; font-weight: 600; color: var(--text-1); margin-bottom: 4px; }
+.lgc-addr { font-size: 9px; color: var(--text-3); margin-bottom: 6px; }
+.lgc-score {
+  font-size: 18px; font-weight: 700;
+  margin-bottom: 2px;
+}
+.lgc-score.good { color: var(--green); }
+.lgc-score.warn { color: var(--amber); }
+.lgc-score.bad { color: var(--red); }
+.lgc-label { font-size: 9px; color: var(--text-3); }
+.lgc-tags { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.prop-tag {
+  font-size: 8px; padding: 1px 5px; border-radius: 3px;
+  font-weight: 600; text-transform: uppercase;
+}
+.prop-tag-collins { background: var(--teal-dim); color: var(--teal); }
+.prop-tag-william { background: var(--purple-dim); color: var(--purple); }
+.prop-tag-active { background: var(--green-dim); color: var(--green); }
+
+/* ── Screen B — Lease Shield Workspace ─────── */
+#screenWorkspace {
+  display: flex; flex-direction: column;
+  height: 100%; overflow: hidden;
+}
+.workspace-body {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: 280px 1fr 420px;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* Col 1 — Lease Sidebar */
+.ws-col1 {
+  border-right: 1px solid var(--ts-border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  background: var(--ts-bg1);
+}
+/* Vitals */
+.lease-vitals {
+  padding: 14px;
+  border-bottom: 1px solid var(--ts-border);
+  flex-shrink: 0;
+}
+.vitals-top {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; margin-bottom: 10px;
+}
+.vitals-name {
+  font-size: 14px; font-weight: 700; color: var(--text-1);
+  line-height: 1.2;
+}
+.vitals-landlord { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+.vitals-score-ring {
+  width: 42px; height: 42px; position: relative;
+  flex-shrink: 0;
+}
+.vitals-score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.vitals-score-num {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+}
+.vital-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.vital-box {
+  background: var(--ts-bg3);
+  border: 1px solid var(--ts-border);
+  border-radius: 6px; padding: 7px 8px;
+}
+.vital-label { font-size: 9px; color: var(--text-3); margin-bottom: 2px; }
+.vital-value { font-size: 11px; font-weight: 600; color: var(--text-1); }
+
+/* Milestone timeline */
+.ws-timeline {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.timeline-section-title {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-3);
+  margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--ts-border);
+}
+.milestone-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 5px 0;
+  position: relative;
+}
+.milestone-item::before {
+  content: '';
+  position: absolute; left: 6px; top: 14px; bottom: -5px;
+  width: 1px; background: var(--ts-border);
+}
+.milestone-item:last-child::before { display: none; }
+.milestone-dot {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid currentColor;
+  flex-shrink: 0; margin-top: 1px;
+  position: relative; z-index: 1;
+  background: var(--ts-bg1);
+}
+.milestone-dot.past { background: currentColor; }
+.milestone-details { flex: 1; min-width: 0; }
+.milestone-title { font-size: 11px; font-weight: 500; color: var(--text-1); }
+.milestone-date { font-size: 9px; color: var(--text-3); font-family: var(--font-mono); margin-top: 1px; }
+.milestone-days {
+  font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px;
+  margin-top: 2px; display: inline-block;
+}
+.days-critical { background: var(--red-dim); color: var(--red); }
+.days-warning { background: var(--amber-dim); color: var(--amber); }
+.days-normal { background: var(--green-dim); color: var(--green); }
+.days-past { background: var(--ts-bg3); color: var(--text-3); }
+
+/* Shield / Vault tabs */
+.ws-tabs-bar {
+  display: flex;
+  border-top: 1px solid var(--ts-border);
+  border-bottom: 1px solid var(--ts-border);
+  flex-shrink: 0;
+}
+.ws-tab-btn {
+  flex: 1; padding: 7px 0;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-3);
+  background: transparent; border: none; cursor: pointer;
+  transition: all 0.15s; position: relative;
+}
+.ws-tab-btn:first-child { border-right: 1px solid var(--ts-border); }
+.ws-tab-btn.active { color: var(--teal); background: var(--teal-dim); }
+.ws-tab-content {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 10px 12px;
+}
+.ws-tab-pane { display: none; }
+.ws-tab-pane.active { display: block; }
+
+/* Shield tab — clause list */
+.clause-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 8px;
+  background: var(--ts-bg3);
+  border: 1px solid var(--ts-border);
+  border-radius: 6px; margin-bottom: 5px;
+  cursor: pointer; transition: all 0.15s;
+}
+.clause-item:hover { border-color: var(--ts-border2); background: var(--ts-bg4); }
+.clause-item.active { border-color: var(--teal); background: var(--teal-dim); }
+.clause-status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 3px;
+}
+.clause-info { flex: 1; min-width: 0; }
+.clause-label { font-size: 10px; font-weight: 500; color: var(--text-1); }
+.clause-ref { font-size: 9px; color: var(--text-3); font-family: var(--font-mono); }
+.clause-risk {
+  font-size: 9px; padding: 1px 5px; border-radius: 3px;
+  font-weight: 600;
+}
+
+/* Vault tab */
+.vault-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px;
+  background: var(--ts-bg3);
+  border: 1px solid var(--ts-border);
+  border-radius: 6px; margin-bottom: 5px;
+}
+.vault-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.vault-icon { font-size: 14px; flex-shrink: 0; }
+.vault-label { font-size: 10px; color: var(--text-1); flex: 1; }
+.vault-date { font-size: 9px; color: var(--text-3); font-family: var(--font-mono); }
+
+/* ── Col 2 — Financial HUD + Billing Guard ── */
+.ws-col2 {
+  border-right: 1px solid var(--ts-border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  background: var(--ts-bg0);
+}
+
+/* Financial HUD */
+.fin-hud {
+  flex-shrink: 0;
+  padding: 14px;
+  border-bottom: 1px solid var(--ts-border);
+  display: flex; gap: 14px;
+  align-items: center;
+}
+.savings-wheel {
+  position: relative; flex-shrink: 0;
+  width: 90px; height: 90px;
+}
+#wSavingsCircle { width: 90px; height: 90px; transform: rotate(-90deg); }
+.savings-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.savings-main { font-size: 14px; font-weight: 700; color: var(--teal); }
+.savings-sub { font-size: 8px; color: var(--text-3); }
+.fin-stats {
+  flex: 1; display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+}
+.fin-stat {
+  background: var(--ts-bg3);
+  border: 1px solid var(--ts-border);
+  border-radius: 7px; padding: 8px 10px;
+}
+.fin-stat-value { font-size: 15px; font-weight: 700; }
+.fin-stat-label { font-size: 9px; color: var(--text-3); margin-top: 1px; }
+#wCumulativeSavings { }
+#wRecoveredAmount { }
+#wDisputedAmount { }
+#wMonitoredAmount { }
+.c-green { color: var(--green); }
+.c-amber { color: var(--amber); }
+.c-purple { color: var(--purple); }
+.c-teal { color: var(--teal); }
+
+/* Billing Guard */
+.billing-guard {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.bg-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--ts-border);
+  flex-shrink: 0;
+}
+/* Dropzone */
+.billing-dropzone-wrap {
+  padding: 10px 14px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ts-border);
+}
+#invoiceDropzone {
+  border: 1.5px dashed var(--ts-border2);
+  border-radius: 8px; padding: 12px;
+  text-align: center; cursor: pointer;
+  transition: all 0.2s; position: relative;
+  overflow: hidden; min-height: 60px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+}
+#invoiceDropzone:hover, #invoiceDropzone.drag-over {
+  border-color: var(--teal);
+  background: var(--teal-dim);
+}
+#wDropzoneSubtitle { font-size: 10px; color: var(--text-3); }
+.dropzone-icon { font-size: 20px; margin-bottom: 2px; }
+.dropzone-hint { font-size: 9px; color: var(--text-3); }
+/* Scanning overlay */
+#scanningOverlay {
+  position: absolute; inset: 0;
+  background: rgba(8,11,18,0.92);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px;
+  border-radius: 7px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+#scanningOverlay.active { opacity: 1; pointer-events: all; }
+.scan-laser {
+  position: absolute; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--teal), transparent);
+  box-shadow: 0 0 8px var(--teal);
+  animation: laserScan 1.2s ease-in-out infinite;
+}
+@keyframes laserScan {
+  0% { top: 10%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 90%; opacity: 0; }
+}
+#scanStatusText { font-size: 10px; color: var(--teal); font-weight: 500; z-index: 1; }
+.scan-progress-track {
+  width: 80%; height: 3px;
+  background: var(--ts-bg3); border-radius: 2px;
+  overflow: hidden; z-index: 1;
+}
+#scanProgressFill {
+  height: 100%; width: 0%;
+  background: var(--teal);
+  box-shadow: 0 0 8px var(--teal);
+  transition: width 0.4s ease;
+  border-radius: 2px;
+}
+
+/* Invoice table */
+.invoice-table-wrap {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 8px 14px;
+}
+.invoice-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 10px;
+}
+.invoice-table th {
+  text-align: left; padding: 5px 6px;
+  color: var(--text-3); font-weight: 600;
+  font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase;
+  border-bottom: 1px solid var(--ts-border);
+  position: sticky; top: 0;
+  background: var(--ts-bg0);
+}
+.invoice-table td {
+  padding: 6px 6px;
+  border-bottom: 1px solid var(--ts-border);
+  color: var(--text-2); vertical-align: middle;
+}
+.invoice-table tr { cursor: pointer; transition: background 0.1s; }
+.invoice-table tr:hover td { background: var(--ts-bg2); }
+.invoice-table tr.anomaly td { color: var(--text-1); }
+.anomaly-dot {
+  display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; margin-right: 4px;
+  vertical-align: middle;
+}
+.inv-amount { font-family: var(--font-mono); font-size: 10px; }
+.inv-status {
+  font-size: 8px; padding: 1px 5px; border-radius: 3px;
+  font-weight: 600;
+}
+
+/* Anomaly chart in billing */
+.anomaly-chart-wrap {
+  padding: 8px 14px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--ts-border);
+  height: 90px;
+  position: relative;
+}
+
+/* ── Col 3 — Action Center ───────────────────── */
+.ws-col3 {
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  background: var(--ts-bg1);
+}
+.action-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--ts-border);
+  flex-shrink: 0;
+}
+.col-title { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+#wActionInspectorPanel {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.action-context {
+  background: var(--ts-bg2);
+  border: 1px solid var(--ts-border);
+  border-radius: 8px; padding: 10px 12px;
+}
+.action-context-title {
+  font-size: 10px; font-weight: 600; color: var(--teal);
+  margin-bottom: 4px;
+}
+.action-context-body { font-size: 10px; color: var(--text-2); line-height: 1.5; }
+.letter-section { display: flex; flex-direction: column; gap: 6px; }
+.letter-label { font-size: 9px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+#letterEditor {
+  background: var(--ts-bg2);
+  border: 1px solid var(--ts-border);
+  border-radius: 7px; padding: 10px 12px;
+  font-size: 10px; color: var(--text-1);
+  font-family: var(--font-sans); line-height: 1.6;
+  min-height: 140px; resize: none; width: 100%;
+  outline: none; transition: border-color 0.15s;
+}
+#letterEditor:focus { border-color: var(--teal); }
+.action-buttons {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.act-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 12px; border-radius: 7px;
+  font-size: 11px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+  border: 1px solid transparent; width: 100%;
+  text-align: left;
+}
+.act-btn.primary {
+  background: var(--teal);
+  color: #0a0d14; border-color: var(--teal);
+  font-weight: 600;
+}
+.act-btn.primary:hover { box-shadow: 0 0 16px var(--teal-glow); }
+.act-btn.secondary {
+  background: var(--ts-bg3);
+  border-color: var(--ts-border2); color: var(--text-1);
+}
+.act-btn.secondary:hover { border-color: var(--teal); color: var(--teal); }
+.act-btn.xero-btn {
+  background: var(--ts-bg3);
+  border-color: var(--green); color: var(--green);
+}
+.act-btn.xero-btn:hover { background: var(--green-dim); }
+#xeroDraftSyncBtn { }
+.resolved-panel {
+  margin-top: 4px;
+  background: var(--ts-bg2);
+  border: 1px solid var(--ts-border);
+  border-radius: 8px; padding: 10px 12px;
+}
+.resolved-title {
+  font-size: 9px; font-weight: 600; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;
+}
+.resolved-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 0;
+  font-size: 10px; color: var(--text-2);
+  border-bottom: 1px solid var(--ts-border);
+}
+.resolved-item:last-child { border-bottom: none; }
+.resolved-check { color: var(--green); font-size: 11px; }
+
+/* Copied overlay */
+#copiedOverlay {
+  position: fixed;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: var(--ts-bg3); border: 1px solid var(--teal);
+  border-radius: 8px; padding: 8px 16px;
+  font-size: 12px; color: var(--teal);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+#copiedOverlay.show { opacity: 1; }
+
+/* ── New Audit Modal ──────────────────────────── */
+#newAuditModalOverlay {
+  position: fixed; inset: 0;
+  background: rgba(8,11,18,0.85);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+#newAuditModalOverlay.active { opacity: 1; pointer-events: all; }
+.modal-card {
+  background: var(--ts-bg2);
+  border: 1px solid var(--ts-border2);
+  border-radius: 14px; padding: 28px;
+  width: 480px; max-width: 90vw;
+  position: relative;
+}
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+.modal-sub { font-size: 11px; color: var(--text-2); margin-bottom: 20px; }
+.modal-field { margin-bottom: 14px; }
+.modal-label { font-size: 10px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; }
+.modal-input, .modal-select {
+  width: 100%; background: var(--ts-bg3);
+  border: 1px solid var(--ts-border2);
+  border-radius: 7px; padding: 8px 12px;
+  color: var(--text-1); font-family: var(--font-sans); font-size: 12px;
+  outline: none; transition: border-color 0.15s;
+}
+.modal-input:focus, .modal-select:focus { border-color: var(--teal); }
+#modalScanningOverlay {
+  position: absolute; inset: 0;
+  background: rgba(8,11,18,0.95);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  border-radius: 14px;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+#modalScanningOverlay.active { opacity: 1; pointer-events: all; }
+#modalScanIcon { font-size: 32px; }
+#modalScanTitle { font-size: 16px; font-weight: 700; color: var(--text-1); }
+#modalScanSub { font-size: 11px; color: var(--text-2); }
+.modal-scan-progress {
+  width: 200px; height: 3px;
+  background: var(--ts-bg3); border-radius: 2px; overflow: hidden;
+}
+#modalScanProgressFill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--teal), var(--purple));
+  transition: width 0.4s ease;
+}
+#modalScanStatusText { font-size: 10px; color: var(--teal); }
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--ts-bg3); border: 1px solid var(--ts-border);
+  border-radius: 6px; padding: 4px 8px;
+  color: var(--text-2); cursor: pointer; font-size: 11px;
+}
+.modal-close:hover { color: var(--red); border-color: var(--red); }
+
+/* Scrollbar portfolio anomaly chart */
+#portfolioAnomalyChart { max-width: 100%; }
+
+/* Xero sync animation */
+@keyframes xeroSync {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(180deg); }
+}
+.xero-spin { animation: xeroSync 1s ease-in-out; }
+
+/* Pulse critical */
+@keyframes pulseBorder {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+}
+.pulse-critical { animation: pulseBorder 2s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══════════════════════ HEADER ══════════════════════ -->
+<nav class="flex-shrink-0 border-b" style="background:var(--ts-bg0);border-color:rgba(255,255,255,0.06);z-index:100;">
+  <div class="w-full px-6 flex items-center justify-between" style="height:56px;">
+
+    <!-- Logo + nav links -->
+    <div class="flex items-center gap-5">
+      <a href="/dashboard" class="flex items-center gap-2" title="Back to Dashboard" style="text-decoration:none;">
+        <div class="flex items-center justify-center text-sm font-bold"
+             style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#00c2a8,#009e88);">TS</div>
+        <span class="font-semibold text-sm" style="color:var(--text-1);">TenantSentry<span style="color:#00c2a8;">.ai</span></span>
+      </a>
+
+      <!-- Portal-only nav: two pages -->
+      <div class="flex items-center gap-1 ml-4">
+        <button class="nav-link" id="btnTabPortfolio"
+                :class="{ active: activeScreen === 'portfolio' }"
+                @click="switchScreen('portfolio')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Portfolio
+        </button>
+        <button class="nav-link" id="btnTabShield"
+                :class="{ active: activeScreen === 'workspace' }"
+                @click="switchScreen('workspace', null)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Lease Shield
+        </button>
+      </div>
+    </div>
+
+    <!-- Right side -->
+    <div class="flex items-center gap-3">
+      <!-- Notifications bell -->
+      <button class="flex items-center justify-center" style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);" title="Notifications">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8fa3bf" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      </button>
+
+      <!-- Plan pill -->
+      <span class="plan-pill">BUNDLE</span>
+
+      <!-- User avatar -->
+      <div class="flex items-center justify-center text-xs font-bold"
+           style="width:32px;height:32px;border-radius:50%;background:rgba(0,194,168,0.15);border:1px solid rgba(0,194,168,0.25);color:#5ef0d8;">GM</div>
+
+      <!-- mode-toggle.js injects LIVE here -->
+
+      <!-- Theme toggle -->
+      <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle theme"
+              style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.035);">
+        <svg id="ts-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-3,#4a6a8a)" stroke-width="2" style="display:block"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <svg id="ts-icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-3,#4a6a8a)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+
+      <!-- Sign out -->
+      <a href="/login" class="nav-link text-xs" style="font-size:12px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </a>
+    </div>
+
+  </div>
+</nav>
+
+<!-- ══════════════════════ CONTENT ══════════════════════ -->
+<div id="appContent">
+
+<!-- ━━━━━━━━━━━━━━━━━━━━ SCREEN A: Portfolio Dashboard ━━━━━━━━━━━━━━━━━━━━ -->
+<div id="screenPortfolio" class="screen" :class="{ active: activeScreen === 'portfolio' }">
+
+  <!-- Page header -->
+  <div class="portfolio-page-header">
+    <div>
+      <div class="portfolio-page-title">Portfolio Dashboard</div>
+      <div class="portfolio-page-sub" x-text="isLive ? 'No audits yet — start one below' : '3 active leases · $186,400 total savings identified'">3 active leases · $186,400 total savings identified</div>
+    </div>
+    <a href="/audit" class="new-audit-cta">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      New Audit
+    </a>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="glass kpi-card teal">
+      <div class="card-label">Total Floor Area</div>
+      <div class="kpi-value teal" x-text="isLive ? '—' : '4,820 m²'">4,820 m²</div>
+      <div class="kpi-delta up" x-show="!isLive">↑ 12% YoY</div>
+    </div>
+    <div class="glass kpi-card purple">
+      <div class="card-label">Total Savings Found</div>
+      <div class="kpi-value purple" x-text="isLive ? '—' : '$186,400'">$186,400</div>
+      <div class="kpi-delta up" x-show="!isLive">↑ $24k this quarter</div>
+    </div>
+    <div class="glass kpi-card amber">
+      <div class="card-label">Active Disputes</div>
+      <div class="kpi-value amber" x-text="isLive ? '0' : '3'">3</div>
+      <div class="kpi-delta warn" x-show="!isLive">⚠ 1 critical</div>
+    </div>
+    <div class="glass kpi-card green">
+      <div class="card-label">Compliance Avg</div>
+      <div class="kpi-value green" x-text="isLive ? '—' : '87/100'">87/100</div>
+      <div class="kpi-delta up" x-show="!isLive">↑ 4pts</div>
+    </div>
+  </div>
+
+  <!-- Main Row -->
+  <div class="portfolio-main">
+
+    <!-- Left — Urgent Inbox -->
+    <div class="portfolio-left">
+      <div class="glass inbox-card">
+        <div class="inbox-header">
+          <div style="display:flex;align-items:center;">
+            <span class="card-title">Urgent Portfolio Inbox</span>
+            <span class="inbox-count" x-show="!isLive">5</span>
+          </div>
+          <span style="font-size:9px;color:var(--text-3)" x-text="isLive ? '' : 'Click to action'"></span>
+        </div>
+        <!-- LIVE: empty inbox -->
+        <div x-show="isLive" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px 16px;text-align:center;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+          <div style="font-size:11px;color:var(--text-3)">No alerts yet</div>
+          <div style="font-size:10px;color:var(--text-3)">Alerts will appear here after your first audit</div>
+        </div>
+        <div class="inbox-list" id="portfolioInboxList" x-show="!isLive">
+          <!-- William St — critical option date -->
+          <div class="inbox-item critical pulse-critical" @click="openWorkspaceFromInbox('william', 'option-letter')">
+            <div class="inbox-item-header">
+              <span class="inbox-badge critical">CRITICAL</span>
+              <span class="inbox-prop">33 William St</span>
+              <span class="inbox-days">12 days</span>
+            </div>
+            <div class="inbox-title">Option to Renew Deadline</div>
+            <div class="inbox-desc">Tenant must exercise the 3-year option by 19 Jun 2026. Landlord has NOT confirmed receipt. Letter required urgently.</div>
+            <div class="inbox-action">
+              <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M1 6h10M7 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Draft exercise letter now
+            </div>
+          </div>
+
+          <!-- Collins St — land tax anomaly -->
+          <div class="inbox-item warning" @click="openWorkspaceFromInbox('collins', 'landtax')">
+            <div class="inbox-item-header">
+              <span class="inbox-badge warning">WARNING</span>
+              <span class="inbox-prop">120 Collins St</span>
+              <span class="inbox-days">3 days</span>
+            </div>
+            <div class="inbox-title">Land Tax Overcharge Detected</div>
+            <div class="inbox-desc">Sep invoice includes $8,420 land tax. Lease cl. 14.2 excludes land tax from outgoings. Overcharge: +$8,420.</div>
+            <div class="inbox-action">
+              <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M1 6h10M7 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Review &amp; dispute
+            </div>
+          </div>
+
+          <!-- Collins St — outgoings cap -->
+          <div class="inbox-item warning" @click="openWorkspaceFromInbox('collins', 'outgoings-cap')">
+            <div class="inbox-item-header">
+              <span class="inbox-badge warning">ACTION</span>
+              <span class="inbox-prop">120 Collins St</span>
+              <span class="inbox-days">14 days</span>
+            </div>
+            <div class="inbox-title">Outgoings Cap Approaching</div>
+            <div class="inbox-desc">Outgoings at 94% of 8% CPI cap. If Jul invoice is issued at same rate, cap will be exceeded. Prepare objection notice.</div>
+            <div class="inbox-action">
+              <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M1 6h10M7 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Review cap position
+            </div>
+          </div>
+
+          <!-- William St — CPI review -->
+          <div class="inbox-item info" @click="openWorkspaceFromInbox('william', 'rent-review')">
+            <div class="inbox-item-header">
+              <span class="inbox-badge info">INFO</span>
+              <span class="inbox-prop">33 William St</span>
+              <span class="inbox-days">28 days</span>
+            </div>
+            <div class="inbox-title">Annual Rent Review Due</div>
+            <div class="inbox-desc">CPI rent review scheduled 1 Aug 2026. TenantSentry projects 3.4% increase ($2,180/mo). Verify landlord calculation when issued.</div>
+            <div class="inbox-action">View projection</div>
+          </div>
+
+          <!-- QV1 — audit complete -->
+          <div class="inbox-item info" @click="openWorkspaceFromInbox('qv1', 'report')">
+            <div class="inbox-item-header">
+              <span class="inbox-badge info">READY</span>
+              <span class="inbox-prop">QV1 Tower</span>
+              <span class="inbox-days">Today</span>
+            </div>
+            <div class="inbox-title">Audit Complete — 2 Findings</div>
+            <div class="inbox-desc">Maintenance clause is below market (favours landlord). Admin fee 15% vs industry standard 10%. Potential saving: $4,200/yr.</div>
+            <div class="inbox-action">View full report</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right — Charts + Leases -->
+    <div class="portfolio-right">
+
+      <!-- Outgoings Anomaly Monitor -->
+      <div class="cam-card">
+        <div class="cam-header">
+          <div>
+            <div class="card-title">Outgoings Anomaly Monitor</div>
+            <div style="font-size:10px;color:var(--text-2);margin-top:2px">vs. market benchmark — 12 months rolling</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="width:8px;height:8px;border-radius:2px;background:var(--teal);display:inline-block"></span>
+              <span style="font-size:9px;color:var(--text-2)">Collins St</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="width:8px;height:8px;border-radius:2px;background:var(--purple);display:inline-block"></span>
+              <span style="font-size:9px;color:var(--text-2)">William St</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px" id="legendCapDot">
+              <span style="width:8px;height:8px;border-radius:2px;background:var(--amber);display:inline-block"></span>
+              <span style="font-size:9px;color:var(--text-2)">Market avg</span>
+            </div>
+          </div>
+        </div>
+        <div class="cam-body">
+          <canvas id="portfolioAnomalyChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Managed Leases Grid -->
+      <div class="leases-card">
+        <div class="leases-header">
+          <span class="card-title">Managed Leases</span>
+          <span style="font-size:10px;color:var(--text-2)">3 active · 1 monitoring</span>
+        </div>
+        <div id="portfolioLeasesContainer">
+          <!-- Mock cards — DEV only -->
+          <div class="lease-grid-card" x-show="!isLive" @click="openWorkspace('collins')">
+            <div class="lgc-prop">120 Collins St</div>
+            <div class="lgc-addr">Melbourne CBD, VIC</div>
+            <div class="lgc-score good">91</div>
+            <div class="lgc-label">Compliance Score</div>
+            <div class="lgc-tags">
+              <span class="prop-tag prop-tag-collins">Collins</span>
+              <span class="prop-tag prop-tag-active">Active</span>
+            </div>
+          </div>
+          <div class="lease-grid-card" x-show="!isLive" @click="openWorkspace('william')">
+            <div class="lgc-prop">33 William St</div>
+            <div class="lgc-addr">Melbourne CBD, VIC</div>
+            <div class="lgc-score warn">78</div>
+            <div class="lgc-label">Compliance Score</div>
+            <div class="lgc-tags">
+              <span class="prop-tag prop-tag-william">William</span>
+              <span class="prop-tag prop-tag-active">Active</span>
+            </div>
+          </div>
+          <div class="lease-grid-card" x-show="!isLive" @click="openWorkspace('qv1')">
+            <div class="lgc-prop">QV1 Tower</div>
+            <div class="lgc-addr">Brisbane CBD, QLD</div>
+            <div class="lgc-score good">88</div>
+            <div class="lgc-label">Compliance Score</div>
+            <div class="lgc-tags">
+              <span class="prop-tag" style="background:var(--blue-dim);color:var(--blue)">QV1</span>
+              <span class="prop-tag prop-tag-active">Active</span>
+            </div>
+          </div>
+          <!-- LIVE: empty state card -->
+          <div class="lease-grid-card" x-show="isLive" style="grid-column:1/-1;justify-content:center;align-items:center;gap:8px;flex-direction:column;cursor:default;opacity:0.6;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span style="font-size:10px;color:var(--text-3)">No audits yet</span>
+          </div>
+          <!-- New Audit — always visible -->
+          <div class="lease-grid-card new-audit" @click="location.href='/audit'">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span style="font-size:10px;font-weight:500">New Audit</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /portfolio-right -->
+  </div><!-- /portfolio-main -->
+
+</div><!-- /screenPortfolio -->
+
+<!-- ━━━━━━━━━━━━━━━━━━━━ SCREEN B: Lease Shield Workspace ━━━━━━━━━━━━━━━━━━━━ -->
+<div id="screenWorkspace" class="screen" :class="{ active: activeScreen === 'workspace' }">
+  <div class="workspace-body">
+
+    <!-- ── Col 1: Lease Sidebar ── -->
+    <div class="ws-col1">
+      <!-- Vitals -->
+      <div class="lease-vitals" id="wLeaseCard">
+        <div class="vitals-top">
+          <div style="flex:1;min-width:0;margin-right:8px">
+            <!-- Lease selector dropdown -->
+            <div style="position:relative;margin-bottom:4px">
+              <select id="wLeaseName"
+                      x-model="activeLeaseId"
+                      @change="onLeaseSwitch()"
+                      style="width:100%;background:var(--ts-bg3);border:1px solid var(--ts-border2);border-radius:6px;padding:5px 28px 5px 8px;color:var(--text-1);font-family:var(--font-sans);font-size:13px;font-weight:700;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;transition:border-color 0.15s"
+                      onmouseover="this.style.borderColor='var(--teal)'"
+                      onmouseout="this.style.borderColor='var(--ts-border2)'"
+                      onfocus="this.style.borderColor='var(--teal)'">
+                <!-- DEV mock options -->
+                <option value="collins" x-show="!isLive">120 Collins St</option>
+                <option value="william" x-show="!isLive">33 William St</option>
+                <option value="qv1" x-show="!isLive">QV1 Tower</option>
+                <!-- LIVE: real audits or placeholder -->
+                <template x-for="a in liveAudits" :key="a.job_id">
+                  <option :value="a.job_id" x-show="isLive" x-text="a.ref_name || a.job_id"></option>
+                </template>
+                <option x-show="isLive && liveAudits.length === 0" value="__live__">No audits yet</option>
+              </select>
+              <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-3)" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="vitals-landlord" id="wLandlordName" x-text="activeLease.landlord"></div>
+          </div>
+          <div class="vitals-score-ring">
+            <svg viewBox="0 0 42 42">
+              <circle cx="21" cy="21" r="17" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>
+              <circle cx="21" cy="21" r="17" fill="none"
+                      :stroke="activeLease.scoreColor"
+                      stroke-width="4"
+                      stroke-linecap="round"
+                      :stroke-dasharray="activeLease.scoreDash + ' 107'"
+                      />
+            </svg>
+            <div class="vitals-score-num" :style="'color:' + activeLease.scoreColor" id="wLbcsScore"
+                 x-text="activeLease.score"></div>
+          </div>
+        </div>
+        <div class="vital-grid">
+          <div class="vital-box">
+            <div class="vital-label">Next Review</div>
+            <div class="vital-value" id="wNextReview" x-text="activeLease.nextReview"></div>
+          </div>
+          <div class="vital-box">
+            <div class="vital-label">Lease Expiry</div>
+            <div class="vital-value" x-text="activeLease.expiry"></div>
+          </div>
+          <div class="vital-box">
+            <div class="vital-label">Monthly Rent</div>
+            <div class="vital-value" x-text="activeLease.rent"></div>
+          </div>
+          <div class="vital-box">
+            <div class="vital-label">Floor Area</div>
+            <div class="vital-value" x-text="activeLease.area"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Milestone Timeline -->
+      <div class="ws-timeline" id="wMilestoneList">
+        <div class="timeline-section-title">Key Dates</div>
+        <template x-for="m in activeLease.milestones" :key="m.id">
+          <div class="milestone-item">
+            <div class="milestone-dot" :class="{ past: m.past }"
+                 :style="'color:' + m.color"></div>
+            <div class="milestone-details">
+              <div class="milestone-title" x-text="m.title"></div>
+              <div class="milestone-date" x-text="m.date"></div>
+              <span class="milestone-days"
+                    :class="m.daysClass"
+                    x-text="m.daysLabel"
+                    x-show="m.daysLabel"></span>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Shield / Vault Tabs -->
+      <div class="ws-tabs-bar">
+        <button class="ws-tab-btn" id="btnTabShield"
+                :class="{ active: wsTab === 'shield' }"
+                @click="wsTab = 'shield'">Contract Shield</button>
+        <button class="ws-tab-btn" id="btnTabVault"
+                :class="{ active: wsTab === 'vault' }"
+                @click="wsTab = 'vault'">Compliance Vault</button>
+      </div>
+      <div class="ws-tab-content">
+        <!-- Shield Tab -->
+        <div class="ws-tab-pane" id="wShieldTab" :class="{ active: wsTab === 'shield' }">
+          <template x-for="c in activeLease.clauses" :key="c.id">
+            <div class="clause-item" :class="{ active: activeClauseId === c.id }"
+                 @click="selectClause(c)">
+              <div class="clause-status-dot"
+                   :style="'background:' + c.statusColor"></div>
+              <div class="clause-info">
+                <div class="clause-label" x-text="c.label"></div>
+                <div class="clause-ref" x-text="c.ref"></div>
+              </div>
+              <span class="clause-risk"
+                    :style="'background:' + c.riskBg + ';color:' + c.riskColor"
+                    x-text="c.risk"></span>
+            </div>
+          </template>
+        </div>
+        <!-- Vault Tab -->
+        <div class="ws-tab-pane" id="wVaultTab" :class="{ active: wsTab === 'vault' }">
+          <div id="wVaultGrid">
+            <template x-for="v in activeLease.vaultItems" :key="v.id">
+              <div class="vault-item">
+                <div class="vault-status-dot" :style="'background:' + v.dotColor"></div>
+                <div class="vault-icon" x-text="v.icon"></div>
+                <div class="vault-label" x-text="v.label"></div>
+                <div class="vault-date" x-text="v.date"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div><!-- /ws-col1 -->
+
+    <!-- ── Col 2: Financial HUD + Billing Guard ── -->
+    <div class="ws-col2">
+
+      <!-- Financial HUD -->
+      <div class="fin-hud">
+        <div class="savings-wheel">
+          <svg id="wSavingsCircle" viewBox="0 0 90 90">
+            <circle cx="45" cy="45" r="38" fill="none"
+                    stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+            <circle cx="45" cy="45" r="38" fill="none"
+                    stroke="var(--teal)" stroke-width="8"
+                    stroke-linecap="round"
+                    :stroke-dasharray="activeLease.savingsDash + ' 239'"
+                    />
+          </svg>
+          <div class="savings-center">
+            <div class="savings-main" id="wCumulativeSavings" x-text="activeLease.cumulativeSavings"></div>
+            <div class="savings-sub">Total Saved</div>
+          </div>
+        </div>
+        <div class="fin-stats">
+          <div class="fin-stat">
+            <div class="fin-stat-value c-green" id="wRecoveredAmount" x-text="activeLease.recovered"></div>
+            <div class="fin-stat-label">Recovered</div>
+          </div>
+          <div class="fin-stat">
+            <div class="fin-stat-value c-amber" id="wDisputedAmount" x-text="activeLease.disputed"></div>
+            <div class="fin-stat-label">In Dispute</div>
+          </div>
+          <div class="fin-stat">
+            <div class="fin-stat-value c-purple" id="wMonitoredAmount" x-text="activeLease.monitored"></div>
+            <div class="fin-stat-label">Monitored</div>
+          </div>
+          <div class="fin-stat">
+            <div class="fin-stat-value" style="color:var(--text-1)" x-text="activeLease.invoiceCount"></div>
+            <div class="fin-stat-label">Invoices</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Billing Guard -->
+      <div class="billing-guard">
+        <div class="bg-section-header">
+          <span class="col-title">Billing Guard</span>
+          <span style="font-size:9px;color:var(--text-3)"
+                x-text="activeLease.anomalyCount + ' anomal' + (activeLease.anomalyCount === 1 ? 'y' : 'ies') + ' detected'"></span>
+        </div>
+
+        <!-- Dropzone -->
+        <input type="file" id="invoiceFileInput" accept=".pdf" style="display:none" @change="onInvoiceFileSelected($event)">
+        <div class="billing-dropzone-wrap">
+          <div id="invoiceDropzone"
+               @click="handleDropzoneClick()"
+               @dragover.prevent="$el.classList.add('drag-over')"
+               @dragleave="$el.classList.remove('drag-over')"
+               @drop.prevent="handleDropzoneDrop($event)">
+            <div class="dropzone-icon">📄</div>
+            <div id="wDropzoneSubtitle" style="font-size:11px;color:var(--text-2);font-weight:500">Drop invoice PDF to scan</div>
+            <div class="dropzone-hint">or click to upload · AI-powered outgoings reconciliation</div>
+            <!-- Scanning overlay -->
+            <div id="scanningOverlay">
+              <div class="scan-laser"></div>
+              <div id="scanStatusText" style="z-index:1">Initialising…</div>
+              <div class="scan-progress-track">
+                <div id="scanProgressFill"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Invoice Table -->
+        <div class="invoice-table-wrap">
+          <table class="invoice-table">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Amount</th>
+                <th>Outgoings</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="wInvoiceTableBody">
+              <template x-for="inv in activeLease.invoices" :key="inv.id">
+                <tr :class="{ anomaly: inv.hasAnomaly }" @click="selectInvoice(inv)">
+                  <td x-text="inv.month"></td>
+                  <td class="inv-amount" x-text="inv.amount"></td>
+                  <td class="inv-amount" x-text="inv.outgoings"></td>
+                  <td>
+                    <span class="inv-status"
+                          :style="'background:' + inv.statusBg + ';color:' + inv.statusColor"
+                          x-text="inv.status"></span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mini anomaly chart -->
+        <div class="anomaly-chart-wrap">
+          <canvas id="wAnomalyChart" style="width:100%;height:100%"></canvas>
+        </div>
+      </div>
+
+    </div><!-- /ws-col2 -->
+
+    <!-- ── Col 3: Action Center ── -->
+    <div class="ws-col3">
+      <div class="action-header">
+        <span class="col-title">Action Center</span>
+        <span style="font-size:10px;color:var(--text-2)" x-text="actionContext.subtitle"></span>
+      </div>
+
+      <div id="wActionInspectorPanel">
+        <!-- Context box -->
+        <div class="action-context">
+          <div class="action-context-title" x-text="actionContext.title"></div>
+          <div class="action-context-body" x-text="actionContext.body"></div>
+        </div>
+
+        <!-- Letter section -->
+        <div class="letter-section" x-show="actionContext.showLetter">
+          <div class="letter-label" x-text="actionContext.letterLabel || 'Draft Letter'"></div>
+          <textarea id="letterEditor" x-model="actionContext.letterText" rows="8"></textarea>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="act-btn secondary" style="flex:1"
+                    @click="copyLetter()">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                <rect x="4" y="4" width="9" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+                <path d="M3 12V3a1 1 0 0 1 1-1h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+              Copy
+            </button>
+            <button class="act-btn xero-btn" id="xeroDraftSyncBtn" style="flex:1"
+                    @click="syncLetterToXero()">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8a5 5 0 0 1 9.9-1M13 8a5 5 0 0 1-9.9 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M12 4l1 3-3 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Sync Xero
+            </button>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="action-buttons">
+          <template x-for="btn in actionContext.buttons" :key="btn.label">
+            <button class="act-btn" :class="btn.cls" @click="handleActionBtn(btn)">
+              <span x-text="btn.icon || ''"></span>
+              <span x-text="btn.label"></span>
+            </button>
+          </template>
+        </div>
+
+        <!-- Resolved panel -->
+        <div class="resolved-panel" x-show="actionContext.resolved && actionContext.resolved.length > 0">
+          <div class="resolved-title">Recently Resolved</div>
+          <template x-for="r in (actionContext.resolved || [])" :key="r">
+            <div class="resolved-item">
+              <span class="resolved-check">✓</span>
+              <span x-text="r"></span>
+            </div>
+          </template>
+        </div>
+      </div><!-- /wActionInspectorPanel -->
+    </div><!-- /ws-col3 -->
+
+  </div><!-- /workspace-body DEV -->
+</div><!-- /screenWorkspace -->
+
+</div><!-- /appContent -->
+</div><!-- /app -->
+
+<!-- ── Copied overlay ── -->
+<div id="copiedOverlay">✓ Copied to clipboard</div>
+
+<!-- ── New Audit Modal ── -->
+<div id="newAuditModalOverlay" :class="{ active: showNewAuditModal }" @click.self="showNewAuditModal = false">
+  <div class="modal-card">
+    <button class="modal-close" @click="showNewAuditModal = false">✕ Close</button>
+    <div class="modal-title">Start New Audit</div>
+    <div class="modal-sub">Upload your lease document for AI-powered clause analysis</div>
+
+    <div class="modal-field">
+      <div class="modal-label">Lease Nickname</div>
+      <input class="modal-input" id="newLeaseRefName" type="text" placeholder="e.g. 120 Collins St Level 14" x-model="newAuditForm.refName"/>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Jurisdiction</div>
+      <select class="modal-select" id="newLeaseJurisdiction" x-model="newAuditForm.jurisdiction">
+        <option value="VIC">Victoria (VIC)</option>
+        <option value="NSW">New South Wales (NSW)</option>
+        <option value="QLD">Queensland (QLD)</option>
+        <option value="WA">Western Australia (WA)</option>
+        <option value="SA">South Australia (SA)</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Lease Document (PDF)</div>
+      <div style="border:1.5px dashed var(--ts-border2);border-radius:8px;padding:20px;text-align:center;cursor:pointer;color:var(--text-3);font-size:10px;transition:all 0.15s"
+           @click="triggerNewAuditScan()" @mouseover="$el.style.borderColor='var(--teal)'" @mouseout="$el.style.borderColor='var(--ts-border2)'">
+        📎 Click or drop PDF lease document here
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="act-btn secondary" style="flex:1" @click="showNewAuditModal = false">Cancel</button>
+      <button class="act-btn primary" style="flex:1" @click="triggerNewAuditScan()">
+        <span>🔍</span> Start AI Audit
+      </button>
+    </div>
+
+    <!-- Modal scanning overlay -->
+    <div id="modalScanningOverlay" :class="{ active: modalScanning }">
+      <div id="modalScanIcon">🔍</div>
+      <div id="modalScanTitle">Analysing Lease Document</div>
+      <div id="modalScanSub">Extracting clauses with AI…</div>
+      <div class="modal-scan-progress">
+        <div id="modalScanProgressFill" :style="'width:' + modalScanProgress + '%'"></div>
+      </div>
+      <div id="modalScanStatusText" x-text="modalScanStatus"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  TenantSentry Tenant Portal v2
+//  Alpine.js component — portalApp()
+// ══════════════════════════════════════════════
+
+const LEASES = {
+  collins: {
+    id: 'collins',
+    name: '120 Collins St',
+    landlord: 'Landlord: ISPT Core Fund',
+    score: 91,
+    scoreColor: '#10b981',
+    scoreDash: '97',
+    nextReview: '1 Aug 2026',
+    expiry: '30 Jun 2031',
+    rent: '$64,200/mo',
+    area: '2,340 m²',
+    cumulativeSavings: '$142k',
+    savingsDash: '179',
+    recovered: '$89,400',
+    disputed: '$24,600',
+    monitored: '$28,400',
+    invoiceCount: '18 invoices',
+    anomalyCount: 2,
+    milestones: [
+      { id: 'm1', title: 'Lease Commencement', date: '1 Jul 2021', past: true, color: '#64748b', daysLabel: 'Completed', daysClass: 'days-past' },
+      { id: 'm2', title: 'First Rent Review (CPI)', date: '1 Jul 2022', past: true, color: '#64748b', daysLabel: 'Completed', daysClass: 'days-past' },
+      { id: 'm3', title: 'Outgoings Reconciliation', date: '31 Jul 2026', past: false, color: '#f59e0b', daysLabel: '54 days', daysClass: 'days-warning' },
+      { id: 'm4', title: 'Annual Rent Review', date: '1 Aug 2026', past: false, color: '#f59e0b', daysLabel: '55 days', daysClass: 'days-warning' },
+      { id: 'm5', title: 'Option Window Opens', date: '1 Jan 2028', past: false, color: '#00f5d4', daysLabel: '573 days', daysClass: 'days-normal' },
+      { id: 'm6', title: 'Lease Expiry', date: '30 Jun 2031', past: false, color: '#94a3b8', daysLabel: '1849 days', daysClass: 'days-normal' },
+    ],
+    clauses: [
+      { id: 'c1', label: 'Outgoings — Land Tax Exclusion', ref: 'Clause 14.2', statusColor: '#ef4444', risk: 'BREACH', riskBg: 'rgba(239,68,68,0.15)', riskColor: '#ef4444' },
+      { id: 'c2', label: 'Outgoings Cap (8% CPI)', ref: 'Clause 14.5', statusColor: '#f59e0b', risk: 'AT RISK', riskBg: 'rgba(245,158,11,0.15)', riskColor: '#f59e0b' },
+      { id: 'c3', label: 'Admin Fee (10% cap)', ref: 'Clause 14.8', statusColor: '#10b981', risk: 'OK', riskBg: 'rgba(16,185,129,0.15)', riskColor: '#10b981' },
+      { id: 'c4', label: 'Maintenance Obligations', ref: 'Clause 8.1', statusColor: '#10b981', risk: 'OK', riskBg: 'rgba(16,185,129,0.15)', riskColor: '#10b981' },
+      { id: 'c5', label: 'Make Good — Exit', ref: 'Clause 22.3', statusColor: '#3b82f6', risk: 'MONITOR', riskBg: 'rgba(59,130,246,0.15)', riskColor: '#3b82f6' },
+    ],
+    vaultItems: [
+      { id: 'v1', label: 'Signed Lease Agreement', icon: '📄', dotColor: '#10b981', date: '1 Jul 2021' },
+      { id: 'v2', label: 'Outgoings Schedule 2025', icon: '📊', dotColor: '#10b981', date: '15 Feb 2025' },
+      { id: 'v3', label: 'Landlord Disclosure Statement', icon: '📋', dotColor: '#10b981', date: '20 Jun 2021' },
+      { id: 'v4', label: 'Make Good Assessment', icon: '🔧', dotColor: '#f59e0b', date: 'Pending' },
+    ],
+    invoices: [
+      { id: 'i1', month: 'Sep 2025', amount: '$72,640', outgoings: '$8,440', status: '⚠ Land Tax', statusBg: 'rgba(239,68,68,0.15)', statusColor: '#ef4444', hasAnomaly: true },
+      { id: 'i2', month: 'Aug 2025', amount: '$64,200', outgoings: '$6,820', status: '✓ OK', statusBg: 'rgba(16,185,129,0.15)', statusColor: '#10b981', hasAnomaly: false },
+      { id: 'i3', month: 'Jul 2025', amount: '$64,200', outgoings: '$6,780', status: '⚠ Cap Warn', statusBg: 'rgba(245,158,11,0.15)', statusColor: '#f59e0b', hasAnomaly: true },
+      { id: 'i4', month: 'Jun 2025', amount: '$64,200', outgoings: '$6,640', status: '✓ OK', statusBg: 'rgba(16,185,129,0.15)', statusColor: '#10b981', hasAnomaly: false },
+      { id: 'i5', month: 'May 2025', amount: '$64,200', outgoings: '$6,510', status: '✓ OK', statusBg: 'rgba(16,185,129,0.15)', statusColor: '#10b981', hasAnomaly: false },
+    ],
+  },
+  william: {
+    id: 'william',
+    name: '33 William St',
+    landlord: 'Landlord: Dexus Property Group',
+    score: 78,
+    scoreColor: '#f59e0b',
+    scoreDash: '83',
+    nextReview: '1 Aug 2026',
+    expiry: '28 Feb 2028',
+    rent: '$41,800/mo',
+    area: '1,420 m²',
+    cumulativeSavings: '$44k',
+    savingsDash: '90',
+    recovered: '$31,200',
+    disputed: '$8,400',
+    monitored: '$4,400',
+    invoiceCount: '12 invoices',
+    anomalyCount: 1,
+    milestones: [
+      { id: 'm1', title: 'Lease Commencement', date: '1 Mar 2022', past: true, color: '#64748b', daysLabel: 'Completed', daysClass: 'days-past' },
+      { id: 'm2', title: '⚡ Option to Renew Deadline', date: '19 Jun 2026', past: false, color: '#ef4444', daysLabel: '12 days', daysClass: 'days-critical' },
+      { id: 'm3', title: 'Rent Review (CPI)', date: '1 Aug 2026', past: false, color: '#f59e0b', daysLabel: '55 days', daysClass: 'days-warning' },
+      { id: 'm4', title: 'Option Period Commencement', date: '1 Mar 2028', past: false, color: '#94a3b8', daysLabel: '631 days', daysClass: 'days-normal' },
+      { id: 'm5', title: 'Lease Expiry', date: '28 Feb 2028', past: false, color: '#94a3b8', daysLabel: '630 days', daysClass: 'days-normal' },
+    ],
+    clauses: [
+      { id: 'c1', label: 'Option to Renew (3yr)', ref: 'Clause 35.1', statusColor: '#ef4444', risk: 'URGENT', riskBg: 'rgba(239,68,68,0.15)', riskColor: '#ef4444' },
+      { id: 'c2', label: 'Rent Review (CPI)', ref: 'Clause 5.2', statusColor: '#f59e0b', risk: 'DUE SOON', riskBg: 'rgba(245,158,11,0.15)', riskColor: '#f59e0b' },
+      { id: 'c3', label: 'Outgoings (Gross + Excl)', ref: 'Clause 13.1', statusColor: '#10b981', risk: 'OK', riskBg: 'rgba(16,185,129,0.15)', riskColor: '#10b981' },
+      { id: 'c4', label: 'Permitted Use', ref: 'Clause 3.2', statusColor: '#10b981', risk: 'OK', riskBg: 'rgba(16,185,129,0.15)', riskColor: '#10b981' },
+    ],
+    vaultItems: [
+      { id: 'v1', label: 'Signed Lease Agreement', icon: '📄', dotColor: '#10b981', date: '1 Mar 2022' },
+      { id: 'v2', label: 'Option Notice Template', icon: '📝', dotColor: '#f59e0b', date: 'Needs lodging' },
+      { id: 'v3', label: 'Outgoings Schedule 2025', icon: '📊', dotColor: '#10b981', date: '10 Jan 2025' },
+    ],
+    invoices: [
+      { id: 'i1', month: 'Oct 2025', amount: '$41,800', outgoings: '$3,220', status: '✓ OK', statusBg: 'rgba(16,185,129,0.15)', statusColor: '#10b981', hasAnomaly: false },
+      { id: 'i2', month: 'Sep 2025', amount: '$41,800', outgoings: '$3,220', status: '✓ OK', statusBg: 'rgba(16,185,129,0.15)', statusColor: '#10b981', hasAnomaly: false },
+      { id: 'i3', month: 'Aug 2025', amount: '$41,800', outgoings: '$3,220', status: '✓ OK', statusBg: 'rgba(16,185,129,0.15)', statusColor: '#10b981', hasAnomaly: false },
+      { id: 'i4', month: 'Jul 2025', amount: '$41,800', outgoings: '$3,220', status: '✓ OK', statusBg: 'rgba(16,185,129,0.15)', statusColor: '#10b981', hasAnomaly: false },
+    ],
+  },
+  qv1: {
+    id: 'qv1',
+    name: 'QV1 Tower',
+    landlord: 'Landlord: Brookfield Asset Mgmt',
+    score: 88,
+    scoreColor: '#10b981',
+    scoreDash: '94',
+    nextReview: '1 Oct 2026',
+    expiry: '30 Sep 2029',
+    rent: '$28,400/mo',
+    area: '1,060 m²',
+    cumulativeSavings: '$0',
+    savingsDash: '20',
+    recovered: '$0',
+    disputed: '$0',
+    monitored: '$4,200',
+    invoiceCount: '2 invoices',
+    anomalyCount: 0,
+    milestones: [
+      { id: 'm1', title: 'Audit Completed', date: '7 Jun 2026', past: false, color: '#10b981', daysLabel: 'Today', daysClass: 'days-normal' },
+      { id: 'm2', title: 'Rent Review', date: '1 Oct 2026', past: false, color: '#f59e0b', daysLabel: '116 days', daysClass: 'days-warning' },
+      { id: 'm3', title: 'Lease Expiry', date: '30 Sep 2029', past: false, color: '#94a3b8', daysLabel: '1210 days', daysClass: 'days-normal' },
+    ],
+    clauses: [
+      { id: 'c1', label: 'Maintenance Clause (Below Market)', ref: 'Clause 9.4', statusColor: '#f59e0b', risk: 'REVIEW', riskBg: 'rgba(245,158,11,0.15)', riskColor: '#f59e0b' },
+      { id: 'c2', label: 'Admin Fee (15% — above 10% std)', ref: 'Clause 14.7', statusColor: '#f59e0b', risk: 'ABOVE STD', riskBg: 'rgba(245,158,11,0.15)', riskColor: '#f59e0b' },
+      { id: 'c3', label: 'Rent Review Mechanism', ref: 'Clause 5.1', statusColor: '#10b981', risk: 'OK', riskBg: 'rgba(16,185,129,0.15)', riskColor: '#10b981' },
+    ],
+    vaultItems: [
+      { id: 'v1', label: 'Signed Lease Agreement', icon: '📄', dotColor: '#10b981', date: '1 Oct 2024' },
+      { id: 'v2', label: 'Audit Report v1.0', icon: '📊', dotColor: '#10b981', date: '7 Jun 2026' },
+    ],
+    invoices: [
+      { id: 'i1', month: 'Jun 2026', amount: '$28,400', outgoings: '$2,840', status: '✓ OK', statusBg: 'rgba(16,185,129,0.15)', statusColor: '#10b981', hasAnomaly: false },
+      { id: 'i2', month: 'May 2026', amount: '$28,400', outgoings: '$2,840', status: '✓ OK', statusBg: 'rgba(16,185,129,0.15)', statusColor: '#10b981', hasAnomaly: false },
+    ],
+  },
+};
+
+const ACTION_CONTEXTS = {
+  default: {
+    title: 'Select an Item to Action',
+    subtitle: 'Awaiting selection',
+    body: 'Click a clause, invoice row, or inbox alert to view AI-generated actions and draft correspondence.',
+    showLetter: false, buttons: [], resolved: [],
+  },
+  'option-letter': {
+    title: '⚡ Exercise Option to Renew — URGENT',
+    subtitle: '12 days remaining',
+    body: 'Clause 35.1 grants a 3-year option to renew. Written notice must be served on Dexus by 19 Jun 2026. Failure to serve = option lapses permanently.',
+    showLetter: true,
+    letterLabel: 'Option Exercise Notice',
+    letterText: `To: Dexus Property Group (Landlord)\nRe: 33 William St, Melbourne VIC 3000\n\nDear Sir/Madam,\n\nWe refer to the Lease dated 1 March 2022 for the above premises.\n\nPursuant to Clause 35.1, we hereby provide formal written notice of our intention to exercise the Option to Renew for a further term of three (3) years, commencing 1 March 2028.\n\nPlease confirm receipt of this notice in writing at your earliest convenience.\n\nYours faithfully,\n[Tenant Name]\n[Date]`,
+    buttons: [
+      { label: 'Send via Certified Email', cls: 'primary', icon: '📧', action: 'send-option' },
+      { label: 'Download PDF Copy', cls: 'secondary', icon: '📄', action: 'download-option' },
+      { label: 'Mark as Served', cls: 'secondary', icon: '✓', action: 'mark-served' },
+    ],
+    resolved: ['Lease terms verified (Clause 35.1)', 'Option window confirmed: 7 Apr–19 Jun 2026'],
+  },
+  'landtax': {
+    title: '💰 Land Tax Overcharge — $8,420',
+    subtitle: 'Collins St · Sep invoice',
+    body: 'Clause 14.2 of the Collins St lease explicitly excludes land tax from recoverable outgoings. The Sep 2025 invoice includes a $8,420 land tax line item that is not payable by the tenant.',
+    showLetter: true,
+    letterLabel: 'Objection Letter',
+    letterText: `To: ISPT Core Fund (Landlord)\nRe: 120 Collins St — September 2025 Invoice Dispute\n\nDear Property Manager,\n\nWe write regarding the outgoings invoice dated September 2025 which includes a land tax charge of $8,420.\n\nPursuant to Clause 14.2 of our lease, land tax is explicitly excluded from recoverable outgoings. We therefore reject this charge and request an amended invoice within 14 days.\n\nWe reserve all rights under the lease.\n\nYours sincerely,\n[Tenant Name]`,
+    buttons: [
+      { label: 'Send Dispute Letter', cls: 'primary', icon: '📧', action: 'send-dispute' },
+      { label: 'Request Itemised Invoice', cls: 'secondary', icon: '📋', action: 'request-itemised' },
+    ],
+    resolved: ['Clause 14.2 confirmed — land tax excluded', 'AI confidence: 97%'],
+  },
+  'outgoings-cap': {
+    title: '📊 Outgoings Cap Warning',
+    subtitle: 'Collins St · 94% of cap',
+    body: 'The 8% CPI cap under Clause 14.5 is at 94% utilisation. If the Jul invoice is issued at the same rate, outgoings will breach the cap by approximately $2,100.',
+    showLetter: true,
+    letterLabel: 'Pre-emptive Notice',
+    letterText: `To: ISPT Core Fund (Landlord)\nRe: 120 Collins St — Outgoings Cap Notice\n\nDear Property Manager,\n\nWe draw your attention to Clause 14.5 of our lease, which caps outgoings increases at 8% per annum.\n\nYTD outgoings are currently at 94% of this cap. We request that all future invoices adhere to this cap, and that any excess be credited.\n\nYours sincerely,\n[Tenant Name]`,
+    buttons: [
+      { label: 'Send Preventive Notice', cls: 'primary', icon: '📧', action: 'send-cap-notice' },
+      { label: 'Download Cap Calculation', cls: 'secondary', icon: '📄', action: 'download-calc' },
+    ],
+    resolved: ['CPI cap rate confirmed (8%)', 'YTD outgoings calculated from all invoices'],
+  },
+  'rent-review': {
+    title: '📈 Annual Rent Review — Projection',
+    subtitle: 'William St · 1 Aug 2026',
+    body: 'CPI (Melbourne) for the relevant period is estimated at 3.4%. Projected rent increase: $1,421/mo (from $41,800 to $43,221). TenantSentry will alert you when the landlord issues their notice.',
+    showLetter: false,
+    buttons: [
+      { label: 'Set Rent Review Alert', cls: 'primary', icon: '🔔', action: 'set-alert' },
+      { label: 'View CPI Calculation', cls: 'secondary', icon: '📊', action: 'view-cpi' },
+    ],
+    resolved: [],
+  },
+  'report': {
+    title: '📋 Audit Complete — 2 Findings',
+    subtitle: 'QV1 Tower · 7 Jun 2026',
+    body: 'Two clauses identified as below market standard: (1) Maintenance clause favours landlord — estimated $2,400/yr above market. (2) Admin fee 15% vs 10% industry standard — additional cost $1,800/yr.',
+    showLetter: false,
+    buttons: [
+      { label: 'View Full Audit Report', cls: 'primary', icon: '📄', action: 'view-report' },
+      { label: 'Raise with Landlord', cls: 'secondary', icon: '📧', action: 'raise-landlord' },
+    ],
+    resolved: ['54 clauses extracted and analysed', 'Rent review mechanism: standard market terms'],
+  },
+  'new-invoice': {
+    title: '🔍 New Invoice Scanned',
+    subtitle: 'AI anomaly check complete',
+    body: 'Invoice scanned and reconciled against lease clauses. Land tax line item of $8,420 detected — clause 14.2 excludes this charge. Anomaly flagged.',
+    showLetter: true,
+    letterLabel: 'Auto-Generated Dispute Letter',
+    letterText: `To: ISPT Core Fund\nRe: 120 Collins St — Overcharge Dispute\n\nDear Property Manager,\n\nAI-powered audit of your recent invoice has identified a land tax charge of $8,420 that is excluded under Clause 14.2.\n\nWe dispute this charge and request an amended invoice.\n\nYours sincerely,\n[Tenant Name]`,
+    buttons: [
+      { label: 'Send Dispute Letter', cls: 'primary', icon: '📧', action: 'send-dispute' },
+      { label: 'Sync to Xero', cls: 'xero-btn', icon: '🔄', action: 'xero-sync' },
+    ],
+    resolved: ['OCR extraction complete (42 line items)', 'Reconciliation against 5 lease clauses'],
+  },
+};
+
+// Empty lease object returned when LIVE mode has no real data
+LEASES['__live__'] = {
+  id: '__live__',
+  name: '—',
+  landlord: '',
+  score: 0,
+  scoreColor: 'var(--text-3)',
+  scoreDash: '0',
+  nextReview: '—',
+  expiry: '—',
+  rent: '—',
+  area: '—',
+  cumulativeSavings: '$0',
+  savingsDash: '0',
+  recovered: '$0',
+  disputed: '$0',
+  monitored: '$0',
+  invoiceCount: '0 invoices',
+  anomalyCount: 0,
+  milestones: [],
+  clauses: [],
+  vaultItems: [],
+  invoices: [],
+};
+
+function portalApp() {
+  return {
+    // ── State ──
+    activeScreen: 'portfolio',
+    activeLeaseId: 'collins',
+    activeClauseId: null,
+    wsTab: 'shield',
+    actionContext: { ...ACTION_CONTEXTS.default },
+    showNewAuditModal: false,
+    modalScanning: false,
+    modalScanProgress: 0,
+    modalScanStatus: '',
+    newAuditForm: { refName: '', jurisdiction: 'VIC' },
+    // Mode
+    isLive: false,
+    liveJobId: null,
+    liveAudits: [],
+
+    // Charts
+    _camChart: null,
+    _anomalyChart: null,
+
+    // ── Computed ──
+    get activeLease() {
+      if (this.isLive) {
+        // In LIVE mode: use real job data if available, else empty shell
+        return LEASES[this.activeLeaseId] || LEASES['__live__'];
+      }
+      return LEASES[this.activeLeaseId] || LEASES.collins;
+    },
+
+    // ── Init ──
+    init() {
+      this.loadMode();
+      this.$nextTick(() => {
+        this.initCamChart();
+        this.initAnomalyChart();
+        // Re-check mode when the mode pill is clicked
+        const _self = this;
+        document.addEventListener('click', (e) => {
+          if (e.target && (e.target.id === 'ts-mode-pill' || e.target.closest('#ts-mode-pill'))) {
+            setTimeout(() => _self.loadMode(), 400);
+          }
+        });
+      });
+      // Apply theme icons once DOM ready
+      if (typeof tsApplyThemeIcons === 'function') tsApplyThemeIcons();
+    },
+
+    // ── Screen switching ──
+    switchScreen(screen, leaseId) {
+      if (leaseId) this.activeLeaseId = leaseId;
+      this.activeScreen = screen;
+      if (screen === 'workspace') {
+        this.$nextTick(() => {
+          this.initAnomalyChart();
+        });
+      }
+    },
+
+    openWorkspace(leaseId, contextKey) {
+      this.activeLeaseId = leaseId;
+      this.activeScreen = 'workspace';
+      this.actionContext = { ...ACTION_CONTEXTS[contextKey || 'default'] };
+      this.activeClauseId = null;
+      this.$nextTick(() => this.initAnomalyChart());
+    },
+
+    // ── Lease switcher ──
+    onLeaseSwitch() {
+      this.actionContext = { ...ACTION_CONTEXTS.default };
+      this.activeClauseId = null;
+      this.wsTab = 'shield';
+      this.$nextTick(() => this.initAnomalyChart());
+    },
+
+    openWorkspaceFromInbox(leaseId, contextKey) {
+      this.activeLeaseId = leaseId;
+      this.activeScreen = 'workspace';
+      this.actionContext = { ...ACTION_CONTEXTS[contextKey || 'default'] };
+      this.activeClauseId = contextKey;
+      this.wsTab = 'shield';
+      this.$nextTick(() => this.initAnomalyChart());
+    },
+
+    // ── Clause select ──
+    selectClause(clause) {
+      this.activeClauseId = clause.id;
+      const ctxMap = {
+        'c1': clause.label.includes('Land Tax') ? 'landtax' : 'option-letter',
+        'c2': clause.label.includes('Cap') ? 'outgoings-cap' : 'rent-review',
+      };
+      const ctx = ctxMap[clause.id] || 'default';
+      this.actionContext = {
+        ...(ACTION_CONTEXTS[ctx] || ACTION_CONTEXTS.default),
+        subtitle: clause.ref + ' · ' + clause.risk,
+      };
+    },
+
+    // ── Invoice select ──
+    selectInvoice(inv) {
+      if (inv.hasAnomaly) {
+        const ctx = { ...ACTION_CONTEXTS.landtax };
+        ctx.subtitle = inv.month + ' · $' + inv.amount;
+        this.actionContext = ctx;
+      } else {
+        this.actionContext = {
+          title: '✓ Invoice Clear',
+          subtitle: inv.month,
+          body: inv.month + ' invoice of ' + inv.amount + ' has been reconciled against lease clauses. No anomalies detected.',
+          showLetter: false, buttons: [], resolved: ['Reconciliation complete'],
+        };
+      }
+    },
+
+    // ── Invoice scan simulation ──
+    simulateInvoiceScan() {
+      const overlay = document.getElementById('scanningOverlay');
+      const fill = document.getElementById('scanProgressFill');
+      const statusEl = document.getElementById('scanStatusText');
+      if (!overlay || !fill || !statusEl) return;
+
+      const stages = [
+        [0, 'Uploading document…'],
+        [20, 'Running OCR extraction…'],
+        [45, 'Parsing outgoings line items…'],
+        [70, 'Reconciling against lease clauses…'],
+        [90, 'Running anomaly detection…'],
+        [100, 'Complete — 1 anomaly found!'],
+      ];
+
+      overlay.classList.add('active');
+      let i = 0;
+      const tick = setInterval(() => {
+        if (i >= stages.length) {
+          clearInterval(tick);
+          setTimeout(() => {
+            overlay.classList.remove('active');
+            fill.style.width = '0%';
+            this.actionContext = { ...ACTION_CONTEXTS['new-invoice'] };
+            const lease = LEASES[this.activeLeaseId];
+            if (lease) {
+              lease.invoices.unshift({
+                id: 'new-' + Date.now(),
+                month: 'Jul 2026',
+                amount: '$72,640',
+                outgoings: '$8,420 ⚠',
+                status: '⚠ Land Tax',
+                statusBg: 'rgba(239,68,68,0.15)',
+                statusColor: '#ef4444',
+                hasAnomaly: true,
+              });
+              lease.anomalyCount += 1;
+            }
+          }, 1000);
+          return;
+        }
+        const [pct, msg] = stages[i];
+        fill.style.width = pct + '%';
+        statusEl.textContent = msg;
+        i++;
+      }, 600);
+    },
+
+    // ── Xero sync ──
+    triggerXeroSync() {
+      const dot = document.getElementById('xeroDotIndicator');
+      const txt = document.getElementById('xeroStatusText');
+      if (!txt) return;
+      txt.textContent = 'Syncing…';
+      if (dot) dot.style.background = '#f59e0b';
+      setTimeout(() => {
+        txt.textContent = 'Synced just now';
+        if (dot) {
+          dot.style.background = '#10b981';
+          dot.style.boxShadow = '0 0 10px #10b981';
+        }
+        setTimeout(() => {
+          txt.textContent = 'Synced <1m ago';
+          if (dot) dot.style.boxShadow = '0 0 6px #10b981';
+        }, 2000);
+      }, 1500);
+    },
+
+    syncLetterToXero() {
+      const btn = document.getElementById('xeroDraftSyncBtn');
+      if (btn) {
+        btn.textContent = '⟳ Syncing…';
+        setTimeout(() => {
+          btn.innerHTML = '✓ Synced to Xero';
+          setTimeout(() => {
+            btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M3 8a5 5 0 0 1 9.9-1M13 8a5 5 0 0 1-9.9 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 4l1 3-3 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Sync Xero';
+          }, 2000);
+        }, 1200);
+      }
+      this.triggerXeroSync();
+    },
+
+    // ── Copy letter ──
+    copyLetter() {
+      const text = this.actionContext.letterText || '';
+      navigator.clipboard.writeText(text).catch(() => {});
+      const overlay = document.getElementById('copiedOverlay');
+      if (overlay) {
+        overlay.classList.add('show');
+        setTimeout(() => overlay.classList.remove('show'), 1800);
+      }
+    },
+
+    // ── Action button handler ──
+    handleActionBtn(btn) {
+      if (btn.action === 'xero-sync') { this.syncLetterToXero(); return; }
+      if (btn.action === 'mark-served') {
+        if (!this.actionContext.resolved) this.actionContext.resolved = [];
+        this.actionContext.resolved.push('Option notice marked as served — ' + new Date().toLocaleDateString('en-AU'));
+        return;
+      }
+      alert(btn.label + ' — feature available in full application.');
+    },
+
+    // ── New Audit Modal ──
+    openNewAuditModal() {
+      this.showNewAuditModal = true;
+      this.modalScanning = false;
+      this.modalScanProgress = 0;
+    },
+
+    triggerNewAuditScan() {
+      this.modalScanning = true;
+      const stages = [
+        [0, '📄', 'Uploading document…', 'Secure upload in progress'],
+        [15, '🔍', 'Extracting text…', 'AI OCR running'],
+        [35, '🧠', 'Identifying clauses…', 'LLM parsing 54 clauses'],
+        [60, '⚖️', 'Checking obligations…', 'Cross-referencing legislation'],
+        [80, '📊', 'Calculating risk scores…', 'LBCS scoring model'],
+        [95, '✅', 'Generating report…', 'Building audit summary'],
+        [100, '🎉', 'Audit Complete!', '2 findings · 54 clauses analysed'],
+      ];
+      let i = 0;
+      const tick = setInterval(() => {
+        if (i >= stages.length) {
+          clearInterval(tick);
+          setTimeout(() => {
+            this.modalScanning = false;
+            this.showNewAuditModal = false;
+          }, 1500);
+          return;
+        }
+        const [pct, icon, title, sub] = stages[i];
+        this.modalScanProgress = pct;
+        this.modalScanStatus = sub;
+        const iconEl = document.getElementById('modalScanIcon');
+        const titleEl = document.getElementById('modalScanTitle');
+        const subEl = document.getElementById('modalScanSub');
+        if (iconEl) iconEl.textContent = icon;
+        if (titleEl) titleEl.textContent = title;
+        if (subEl) subEl.textContent = sub;
+        i++;
+      }, 700);
+    },
+
+    // ── Mode awareness ──
+    loadMode() {
+      const _self = this;
+      fetch('/api/mode')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d) return;
+          const wasLive = _self.isLive;
+          _self.isLive = !d.is_dev;
+          if (_self.isLive) {
+            _self.activeLeaseId = '__live__';
+            _self.loadLiveAudits();
+          } else if (wasLive) {
+            // Returning to DEV — restore mock defaults, re-init charts
+            _self.activeLeaseId = 'collins';
+            _self.$nextTick(() => { _self.initCamChart(); _self.initAnomalyChart(); });
+          }
+        })
+        .catch(() => {});
+    },
+
+    loadLiveAudits() {
+      const token = localStorage.getItem('ts-admin-token') || '';
+      if (!token) return;
+      fetch('/api/admin/jobs/recent', { headers: { 'X-Admin-Token': token } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d || !d.jobs) return;
+          this.liveAudits = d.jobs.filter(j => j.status === 'complete');
+          if (this.liveAudits.length > 0) {
+            this.liveJobId = this.liveAudits[0].job_id;
+          }
+        })
+        .catch(() => {});
+    },
+
+    // ── Invoice upload (LIVE mode) ──
+    handleDropzoneClick() {
+      if (this.isLive) {
+        document.getElementById('invoiceFileInput').click();
+      } else {
+        this.simulateInvoiceScan();
+      }
+    },
+
+    handleDropzoneDrop(e) {
+      document.getElementById('invoiceDropzone').classList.remove('drag-over');
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!file) return;
+      if (this.isLive) {
+        this.uploadInvoiceFile(file);
+      } else {
+        this.simulateInvoiceScan();
+      }
+    },
+
+    onInvoiceFileSelected(e) {
+      const file = e.target && e.target.files && e.target.files[0];
+      if (file) this.uploadInvoiceFile(file);
+    },
+
+    uploadInvoiceFile(file) {
+      if (!this.liveJobId) {
+        alert('No completed audit job found for this lease.\nRun a lease audit first, then return here to upload invoices.');
+        return;
+      }
+      const overlay = document.getElementById('scanningOverlay');
+      const fill = document.getElementById('scanProgressFill');
+      const statusEl = document.getElementById('scanStatusText');
+      if (!overlay || !fill || !statusEl) return;
+
+      overlay.classList.add('active');
+      statusEl.textContent = 'Uploading…';
+      fill.style.width = '10%';
+
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('job_id', this.liveJobId);
+      fd.append('invoice_type', 'monthly_rent');
+
+      const _self = this;
+      fetch('/api/invoice/upload', { method: 'POST', body: fd })
+        .then(r => {
+          fill.style.width = '80%';
+          statusEl.textContent = 'Processing…';
+          return r.ok ? r.json() : Promise.reject(r.status);
+        })
+        .then(data => {
+          fill.style.width = '100%';
+          statusEl.textContent = data.anomaly_count > 0
+            ? `Complete — ${data.anomaly_count} anomal${data.anomaly_count === 1 ? 'y' : 'ies'} found!`
+            : 'Complete — no anomalies detected.';
+          setTimeout(() => {
+            overlay.classList.remove('active');
+            fill.style.width = '0%';
+            if (data.anomaly_count > 0) {
+              _self.actionContext = { ...ACTION_CONTEXTS['new-invoice'] };
+            } else {
+              _self.actionContext = {
+                title: '✓ Invoice Clear',
+                subtitle: 'No anomalies detected',
+                body: 'Invoice reconciled against lease clauses. All outgoings charges are within contractual limits.',
+                showLetter: false, buttons: [], resolved: ['Reconciliation complete', 'All clauses checked'],
+              };
+            }
+          }, 1200);
+        })
+        .catch(err => {
+          fill.style.width = '0%';
+          statusEl.textContent = 'Upload failed — check console';
+          setTimeout(() => overlay.classList.remove('active'), 2000);
+          console.error('[invoice upload]', err);
+        });
+    },
+
+    // ── Charts ──
+    initCamChart() {
+      const canvas = document.getElementById('portfolioAnomalyChart');
+      if (!canvas) return;
+      if (this._camChart) this._camChart.destroy();
+      const ctx = canvas.getContext('2d');
+      this._camChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          datasets: [
+            {
+              label: 'Collins St',
+              data: [6200, 6300, 6280, 6350, 6510, 6640, 6780, 6820, 8440, null, null, null],
+              backgroundColor: 'rgba(0,245,212,0.7)',
+              borderColor: '#00f5d4',
+              borderWidth: 1, borderRadius: 3,
+            },
+            {
+              label: 'William St',
+              data: [3100, 3100, 3200, 3150, 3200, 3220, 3220, 3220, 3220, null, null, null],
+              backgroundColor: 'rgba(217,70,239,0.7)',
+              borderColor: '#d946ef',
+              borderWidth: 1, borderRadius: 3,
+            },
+            {
+              label: 'Market Avg',
+              data: [5800, 5850, 5900, 5920, 5950, 6000, 6050, 6080, 6100, 6120, 6150, 6180],
+              type: 'line',
+              borderColor: '#f59e0b',
+              backgroundColor: 'transparent',
+              borderWidth: 2,
+              borderDash: [4, 3],
+              pointRadius: 2,
+              tension: 0.3,
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(14,18,30,0.95)',
+              titleColor: '#f1f5f9', bodyColor: '#94a3b8',
+              borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+              callbacks: {
+                label: (ctx) => ' $' + ctx.raw?.toLocaleString(),
+              },
+            },
+          },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 9 } } },
+            y: {
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: { color: '#64748b', font: { size: 9 }, callback: (v) => '$' + (v/1000).toFixed(0) + 'k' },
+            },
+          },
+        },
+      });
+    },
+
+    // ── Theme (must be in Alpine component scope for $nextTick compat) ──
+    applyThemeIcons() { tsApplyThemeIcons(); },
+
+    initAnomalyChart() {
+      const canvas = document.getElementById('wAnomalyChart');
+      if (!canvas) return;
+      if (this._anomalyChart) this._anomalyChart.destroy();
+      const lease = this.activeLease;
+      const labels = lease.invoices.map(i => i.month).reverse();
+      const values = lease.invoices.map(i => parseFloat(i.outgoings.replace(/[^0-9.]/g, ''))).reverse();
+      const colors = lease.invoices.map(i => i.hasAnomaly ? 'rgba(239,68,68,0.8)' : 'rgba(0,245,212,0.5)').reverse();
+      const ctx = canvas.getContext('2d');
+      this._anomalyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Outgoings',
+            data: values,
+            backgroundColor: colors,
+            borderRadius: 2,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: {
+            backgroundColor: 'rgba(14,18,30,0.95)',
+            titleColor: '#f1f5f9', bodyColor: '#94a3b8',
+            borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+          } },
+          scales: {
+            x: { display: false },
+            y: { display: false },
+          },
+        },
+      });
+    },
+  };
+}
+
+// ── Theme toggle (global, called from button onclick) ──
+function tsApplyThemeIcons() {
+  var moon = document.getElementById('ts-icon-moon');
+  var sun  = document.getElementById('ts-icon-sun');
+  var t    = document.documentElement.getAttribute('data-theme') || 'dark';
+  if (moon) moon.style.display = t === 'dark'  ? 'block' : 'none';
+  if (sun)  sun.style.display  = t === 'light' ? 'block' : 'none';
+}
+function tsToggleTheme() {
+  var current = document.documentElement.getAttribute('data-theme') || 'dark';
+  var next    = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('ts-theme', next);
+  tsApplyThemeIcons();
+}
+document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
+tsApplyThemeIcons();
+</script>
+</body>
+</html>

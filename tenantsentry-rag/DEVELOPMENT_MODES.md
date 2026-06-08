@@ -138,8 +138,74 @@ External services fail. Every Live implementation must:
 | `api/main.py` | `_get_pipeline()` routes to correct pipeline | |
 | `api/jobs.py` | In-memory fallback | Supabase `audit_run` |
 | `db/pdf_store.py` | In-memory `_documents` | Supabase Storage |
+| `db/invoice_store.py` | In-memory `_dev_invoices` + `_dev_anomaly_flags` dicts | Supabase `invoice` + `anomaly_flag` |
 | `output/evidence_pack.py` | Template dispute letter | Claude Sonnet letter + live ABS |
+| `services/anomaly_monitor.py` | 1 deterministic mock flag (category_cost_spike/medium) | Real Layer 1 + Layer 2 checks against Supabase data |
 | `vector_store/supabase_store.py` | Skipped (no embeddings in dev) | VoyageAI + pgvector |
+
+---
+
+## F14 — Invoice Upload (POST /api/invoice/upload)
+
+| Behaviour | DEV | LIVE |
+|-----------|-----|------|
+| OCR / PDF parse | Skipped | `outgoings_parser.parse_outgoings_pdf()` |
+| Clause context | Skipped | `fetch_findings(job_id)` → `clause_analyses` |
+| Reconciliation | Canned `ReconciliationResult` (2 findings: 1 overcharge, 1 compliant) | `run_outgoings_reconciliation()` via outgoings_engine |
+| Supabase write | In-memory `_dev_invoices` | `invoice` table (migration 009) |
+| Dedup check | Returns same mock invoice_id on repeated upload | SHA-256 hash vs `invoice.pdf_hash` |
+| Anomaly trigger | Runs `_dev_run_anomaly_checks()` → 1 mock flag | Runs `_live_run_anomaly_checks()` as BackgroundTask |
+| Email alert | Skipped | Logs warning (wire to email provider when ready) |
+
+**Dev mock response shape:**
+```json
+{
+  "ok": true,
+  "invoice_id": "<uuid>",
+  "invoice_type": "monthly_rent",
+  "recon_status": "complete",
+  "total_claimed_cents": 450000,
+  "total_disputed_cents": 85000,
+  "finding_count": 2,
+  "reconciliation_result": { ... },
+  "mode": "dev"
+}
+```
+
+---
+
+## F16 — Anomaly Monitor (services/anomaly_monitor.py)
+
+| Behaviour | DEV | LIVE |
+|-----------|-----|------|
+| Layer 1 checks | Skipped | 5 rule-based checks vs lease clause_analyses |
+| Layer 2 checks | Skipped | 4 trend checks (requires ≥3 prior invoices) |
+| Return value | 1 mock `AnomalyFlag` (category_cost_spike, medium) | Real flags from both layers |
+| Supabase write | In-memory `_dev_anomaly_flags` dict | `anomaly_flag` table (migration 010) |
+| Email alert | `logger.debug` (no email sent) | `logger.warning` (wire to email provider) |
+
+**Dev mock flag:**
+```json
+{
+  "check_name": "category_cost_spike",
+  "category": "management_fee",
+  "severity": "medium",
+  "description": "Management fee increased by 28.5% vs trailing 3-period average...",
+  "expected_cents": 125000,
+  "actual_cents": 160600,
+  "delta_pct": 28.5,
+  "detection_layer": "trend"
+}
+```
+
+---
+
+## DB Migrations Required (run once in Supabase SQL editor)
+
+| File | Purpose |
+|------|---------|
+| `supabase/009_invoice_pdf_and_reconciliation.sql` | Adds `pdf_hash`, `pdf_url`, `filename`, `reconciliation_result`, `recon_status` to `invoice` table |
+| `supabase/010_anomaly_flags.sql` | Creates `anomaly_flag` table |
 
 ---
 
