@@ -359,6 +359,7 @@ def analyse_clause(
     land_tax_context: str = "",
     schedule_context: str = "",  # AQ2: injected schedule item content
     clause_number: str = "",     # AG2: clause heading/number for statute hint lookup
+    deal_summary: str = "",      # AG1: confirmed deal terms — ground truth injected before all context
 ) -> dict:
     """
     Analyse a single lease clause with grounded RAG context.
@@ -431,7 +432,17 @@ def analyse_clause(
 
     leg_context = legislation_context or "No specific legislation retrieved -- apply your expertise and the risk rules below."
 
-    user_prompt_parts = [
+    user_prompt_parts = []
+
+    # AG1: Inject confirmed deal terms first so they act as ground truth for
+    # all subsequent analysis. The model must not contradict these facts.
+    if deal_summary:
+        user_prompt_parts += [
+            deal_summary,
+            "",
+        ]
+
+    user_prompt_parts += [
         "LEGISLATION CONTEXT (cite when available -- flag even if empty):",
         leg_context,
         "",
@@ -606,16 +617,14 @@ def triage_clauses(
         raw = response.content[0].text.strip()
         indices = json.loads(raw)
         valid = [int(i) for i in indices if isinstance(i, (int, float))]
-        flag_pct = round(100 * len(valid) / len(chunks)) if chunks else 0
-        logger.info(
-            f"Haiku triage batch offset={batch_offset} size={len(chunks)}: "
-            f"{len(valid)} flagged ({flag_pct}%) -> {valid} "
-            f"[in={usage.input_tokens} out={usage.output_tokens}]"
-        )
         return valid, {"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}
-    except Exception as e:
+    except json.JSONDecodeError:
         logger.warning(
-            f"Haiku triage FALLBACK (batch_offset={batch_offset}): {e} "
-            f"-- flagging all {len(chunks)} clauses (may inflate triage rate)"
+            f"Haiku triage non-JSON response (offset={batch_offset}): {raw[:100]} -- flagging all"
         )
-        return list(range(batch_offset, batch_offset + len(chunks))), {"input_tokens": 0, "output_tokens": 0}
+        fallback = list(range(batch_offset, batch_offset + len(chunks)))
+        return fallback, {"input_tokens": 0, "output_tokens": 0}
+    except Exception as exc:
+        logger.error(f"Haiku triage failed (offset={batch_offset}): {exc} -- flagging all")
+        fallback = list(range(batch_offset, batch_offset + len(chunks)))
+        return fallback, {"input_tokens": 0, "output_tokens": 0}

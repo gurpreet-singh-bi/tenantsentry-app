@@ -147,7 +147,7 @@ def _progress(callback: ProgressCallback, pct: int, stage: str) -> None:
     logger.debug(f"[{pct}%] {stage}")
 
 
-# ── AQ2: Schedule cross-reference index ──────────────────────────────────────
+# -- AQ2: Schedule cross-reference index --------------------------------------
 
 # Matches "Schedule 1, Item 6" / "Item 14" / "Schedule 1 Item 6" / "Item 6 of Schedule 1"
 _SCHEDULE_REF_RE = re.compile(
@@ -174,7 +174,7 @@ def _build_schedule_index(chunks) -> dict[tuple[int, int], str]:
     number are stored under schedule_num=1 as a fallback.
 
     Returns:
-        dict keyed by (schedule_num, item_num) → item text
+        dict keyed by (schedule_num, item_num) -> item text
     """
     index: dict[tuple[int, int], str] = {}
 
@@ -240,17 +240,114 @@ def _get_schedule_context(clause_text: str, schedule_index: dict[tuple[int, int]
             found.append(f"Schedule {sched_num}, Item {item_num}:\n{item_text}")
             logger.debug(f"[AQ2] Injecting Schedule {sched_num} Item {item_num} into clause context")
         else:
-            # Item referenced but not in index — flag absence so Claude knows to be cautious
+            # Item referenced but not in index -- flag absence so Claude knows to be cautious
             found.append(
                 f"Schedule {sched_num}, Item {item_num}: "
-                "[Not extracted — check the original document before flagging a risk on this item]"
+                "[Not extracted -- check the original document before flagging a risk on this item]"
             )
             logger.debug(f"[AQ2] Schedule {sched_num} Item {item_num} referenced but not in index")
 
     return "\n\n".join(found)
 
 
-# ── AQ4: Clause coverage completeness check ──────────────────────────────────
+# -- AG1: Deal summary (ground truth anchor for clause analysis) --------------
+
+def _build_deal_summary(
+    schedule_index: dict[tuple[int, int], str],
+    lease_metadata: dict,
+) -> str:
+    """
+    AG1: Build a confirmed deal anchor from schedule items and extracted metadata.
+
+    Injected into every clause analysis prompt so the model cannot contradict
+    established deal facts (e.g. a rent-free period established in Schedule 1
+    must not be ignored when analysing a rent-in-advance clause).
+
+    Returns empty string if no usable data is available (safe to gate on truthiness).
+    """
+    lines: list[str] = []
+
+    # -- Metadata-derived deal terms -----------------------------------------
+    landlord = lease_metadata.get("landlord_name")
+    if landlord:
+        lines.append(f"  Landlord:          {landlord}")
+
+    tenant = lease_metadata.get("tenant_name")
+    if tenant and str(tenant).strip().lower() not in ("", "unknown"):
+        lines.append(f"  Tenant:            {tenant}")
+
+    term_yrs = lease_metadata.get("lease_term_years") or lease_metadata.get("initial_term_years")
+    options  = lease_metadata.get("options_total_years") or lease_metadata.get("options_years")
+    if term_yrs:
+        term_str = f"{term_yrs} years initial"
+        if options:
+            term_str += f" + {options} years options"
+        lines.append(f"  Term:              {term_str}")
+
+    commencement = lease_metadata.get("commencement_date") or lease_metadata.get("start_date")
+    if commencement:
+        lines.append(f"  Commencement:      {commencement}")
+
+    rent_pa = lease_metadata.get("base_rent_pa")
+    if rent_pa is not None:
+        if isinstance(rent_pa, (int, float)):
+            lines.append(f"  Base Rent (p.a.):  ${rent_pa:,.2f}")
+        else:
+            lines.append(f"  Base Rent (p.a.):  {rent_pa}")
+
+    rent_free = lease_metadata.get("rent_free_period") or lease_metadata.get("rent_free_months")
+    if rent_free:
+        lines.append(f"  Rent-Free Period:  {rent_free}")
+
+    area = lease_metadata.get("floor_area_sqm")
+    if area:
+        lines.append(f"  Floor Area:        {area} sqm")
+
+    permitted_use = lease_metadata.get("permitted_use")
+    if permitted_use:
+        lines.append(f"  Permitted Use:     {permitted_use}")
+
+    bank_guarantee = (
+        lease_metadata.get("bank_guarantee_amount")
+        or lease_metadata.get("security_deposit")
+    )
+    if bank_guarantee:
+        lines.append(f"  Bank Guarantee:    {bank_guarantee}")
+
+    # -- All schedule items (verbatim, authoritative) -------------------------
+    if schedule_index:
+        lines.append("")
+        lines.append("  SCHEDULE ITEMS (verbatim from this lease -- these override clause defaults):")
+        by_sched: dict[int, list[tuple[int, str]]] = {}
+        for (sched_num, item_num), item_text in sorted(schedule_index.items()):
+            by_sched.setdefault(sched_num, []).append((item_num, item_text))
+        for sched_num in sorted(by_sched):
+            lines.append(f"  Schedule {sched_num}:")
+            for item_num, item_text in sorted(by_sched[sched_num]):
+                # First 250 chars is sufficient for ground-truth anchoring
+                snippet = item_text[:250].replace("\n", " ").strip()
+                if len(item_text) > 250:
+                    snippet += "..."
+                lines.append(f"    Item {item_num}: {snippet}")
+
+    if not lines:
+        return ""
+
+    header = (
+        "CONFIRMED DEAL TERMS (extracted from lease schedules and metadata -- treat as ground truth):"
+    )
+    footer = (
+        "CRITICAL: These facts are confirmed from the lease. Do NOT contradict them in your analysis. "
+        "If a clause appears to conflict with a confirmed deal term (e.g. a rent clause where the "
+        "schedule shows no rent is payable, or a make-good clause on a short-term fit-out lease), "
+        "flag the CONFLICT explicitly -- do not simply report the clause as if the confirmed fact "
+        "does not exist. If a schedule item says 'Not Applicable' or 'N/A', treat it as overriding "
+        "any default in the clause body."
+    )
+    return header + "\n" + "\n".join(lines) + "\n" + footer
+
+
+# -- AQ4: Clause coverage completeness check ----------------------------------
 
 # Matches top-level and sub-clause numbers: "5.1", "26.16", "7", etc.
 _CLAUSE_NUM_RE = re.compile(r"^\s*(\d+(?:\.\d+)*)\s+[A-Z]", re.MULTILINE)
@@ -299,7 +396,7 @@ def _check_clause_coverage(chunks, full_text: str) -> list[str]:
     sorted_missing = sorted(missing, key=lambda x: [int(p) for p in x.split(".")])
     warnings = [
         f"[AQ4] Clause coverage gap: clause {n} appears in the document text but was not "
-        f"extracted as a chunk — it may have been missed during chunking. "
+        f"extracted as a chunk -- it may have been missed during chunking. "
         f"Review this clause manually."
         for n in sorted_missing
         if _is_meaningful_gap(n, extracted)
@@ -405,10 +502,10 @@ def run_audit(
     _timings["ocr_ms"] = _ms(_t_ocr)
 
     # 2b. Free-check truncation: limit to first N pages before chunking.
-    # This keeps the real engine intact — only the input is shortened.
+    # This keeps the real engine intact -- only the input is shortened.
     if max_pages is not None and len(parsed.pages) > max_pages:
         logger.info(
-            f"[FREE-CHECK] Truncating {len(parsed.pages)} pages → {max_pages} "
+            f"[FREE-CHECK] Truncating {len(parsed.pages)} pages -> {max_pages} "
             f"(max_pages={max_pages})"
         )
         parsed.pages = parsed.pages[:max_pages]
@@ -435,8 +532,18 @@ def run_audit(
     # AQ2: Build schedule index for cross-reference injection
     _schedule_index = _build_schedule_index(chunks)
 
+    # AG1: Build deal summary anchor from schedule items.
+    # Metadata isn't available yet (extracted post-analysis), but schedule items
+    # ARE available here and are the most authoritative source of deal terms.
+    # Must be assigned before _analyse_one closure runs in the ThreadPoolExecutor.
+    _deal_summary = _build_deal_summary(_schedule_index, {})
+    if _deal_summary:
+        logger.info("[AG1] Deal summary anchor built -- injecting confirmed terms into all clause prompts")
+    else:
+        logger.info("[AG1] No schedule items found -- clause prompts run without deal anchor")
+
     # 4. Optional: embed + store (production only)
-    # skip_vector_store=True bypasses this for anonymous free checks — we don't want
+    # skip_vector_store=True bypasses this for anonymous free checks -- we don't want
     # truncated, unauthenticated documents polluting the knowledge base.
     _t_embed = time.perf_counter()
     if USE_VECTOR_STORE and not skip_vector_store:
@@ -447,10 +554,10 @@ def run_audit(
 
         if _already_indexed:
             logger.info(
-                f"G2 dedup: document {(document_hash or '')[:12]}… already in vector store "
-                f"— skipping {len(chunks)} chunk embeddings"
+                f"G2 dedup: document {(document_hash or '')[:12]}... already in vector store "
+                f"-- skipping {len(chunks)} chunk embeddings"
             )
-            _progress(cb, 45, "Document already indexed — skipping embedding.")
+            _progress(cb, 45, "Document already indexed -- skipping embedding.")
         else:
             _progress(cb, 35, f"Embedding {len(chunks)} clauses...")
             from embedding.embedder import embed_texts
@@ -521,16 +628,16 @@ def run_audit(
         return format_for_prompt(_cpi_snapshot)
 
     # 6. Two-pass clause analysis
-    #    Pass 1: Haiku triage — batch 25 clauses per prompt to identify the ~20-40
+    #    Pass 1: Haiku triage -- batch 25 clauses per prompt to identify the ~20-40
     #            that carry real risk and need full Sonnet/Opus analysis.
-    #    Pass 2: Parallel Sonnet/Opus — ThreadPoolExecutor(max_workers=12) over
+    #    Pass 2: Parallel Sonnet/Opus -- ThreadPoolExecutor(max_workers=12) over
     #            flagged clauses only; unflagged get a lightweight stub.
     _t_analysis = time.perf_counter()
     n = len(chunks)
     TRIAGE_BATCH_SIZE = 25
-    TRIAGE_WORKERS    = 5    # max parallel Sonnet/Opus calls; 12 hammers rate limits → effectively serial
+    TRIAGE_WORKERS    = 5    # max parallel Sonnet/Opus calls; 12 hammers rate limits -> effectively serial
 
-    # ── Pass 1: Haiku triage ─────────────────────────────────────────────────
+    # -- Pass 1: Haiku triage -------------------------------------------------
     _progress(cb, 48, f"Triaging {n} clauses...")
     _t_triage = time.perf_counter()
 
@@ -547,7 +654,7 @@ def run_audit(
         f"({_timings['triage_ms']}ms)"
     )
 
-    # ── Pass 2: Parallel deep analysis ───────────────────────────────────────
+    # -- Pass 2: Parallel deep analysis ---------------------------------------
     import threading
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -592,6 +699,7 @@ def run_audit(
             land_tax_context=lt_ctx,
             schedule_context=sched_ctx,
             clause_number=clause_heading,  # AG2: enables statute hint lookup
+            deal_summary=_deal_summary,    # AG1: confirmed deal terms ground truth
         )
         _clause_ms = int((time.perf_counter() - _t_clause) * 1000)
         n_flags = len(analysis.get("risk_flags") or [])
@@ -622,7 +730,7 @@ def run_audit(
                 clause_heading=chunk.metadata.get("clause_heading", f"Clause {idx + 1}"),
                 clause_text=chunk.content,
                 clause_type="other",
-                plain_english_summary="Standard clause — screened by triage, no material risk identified.",
+                plain_english_summary="Standard clause -- screened by triage, no material risk identified.",
             )
 
     _progress(cb, 50, f"Analysing {len(flagged)} flagged clauses in parallel...")
@@ -669,7 +777,7 @@ def run_audit(
     # metadata extraction below regardless of date extraction success.
     full_text = "\n\n".join(p.get("text", "") for p in parsed.pages)
 
-    # AQ4: Clause coverage completeness check — runs after all analysis,
+    # AQ4: Clause coverage completeness check -- runs after all analysis,
     # before assembling the result. Warnings are surfaced in pipeline_warnings.
     _coverage_warnings = _check_clause_coverage(chunks, full_text)
 
@@ -689,7 +797,7 @@ def run_audit(
 
     _timings["dates_ms"] = _ms(_t_dates)
 
-    # 8a. Extract key lease metadata (landlord, rent, area) from cover pages — Haiku, fast
+    # 8a. Extract key lease metadata (landlord, rent, area) from cover pages -- Haiku, fast
     _t_meta = time.perf_counter()
     lease_metadata: dict = {}
     try:
@@ -703,8 +811,11 @@ def run_audit(
         logger.error(f"Lease metadata extraction failed (non-fatal): {e}")
     _timings["metadata_ms"] = _ms(_t_meta)
 
-    # 8b. AQ3: Planning rules engine — fires cross-clause statutory requirements.
+    # 8b. AQ3: Planning rules engine -- fires cross-clause statutory requirements.
     # Runs after metadata extraction so term/area data is available.
+    # pipeline_warnings is initialised here (seeded with AQ4 coverage gaps) so
+    # the planning block can prepend its findings immediately.
+    pipeline_warnings: list[str] = list(_coverage_warnings)  # AQ4: seed with coverage gaps
     _t_planning = time.perf_counter()
     _planning_findings: list[dict] = []
     try:
@@ -750,7 +861,7 @@ def run_audit(
     # 8b. Optional: outgoings / invoice reconciliation
     # Runs after lease analysis so we have clause_analyses available for context.
     reconciliation_results: list[dict] = []
-    pipeline_warnings: list[str] = list(_coverage_warnings)  # AQ4: seed with coverage gaps
+    # pipeline_warnings already initialised above (after metadata extraction).
 
     if additional_docs:
         from ingestion.outgoings_parser import parse_outgoings_pdf
@@ -766,7 +877,7 @@ def run_audit(
             for ad in amendment_docs:
                 pipeline_warnings.append(
                     f"Lease amendment '{ad['filename']}' was uploaded but amendment analysis is "
-                    "not yet implemented — it has been noted but not cross-referenced against the lease. "
+                    "not yet implemented -- it has been noted but not cross-referenced against the lease. "
                     "Please review it manually."
                 )
 
@@ -774,7 +885,7 @@ def run_audit(
             for od in other_docs:
                 pipeline_warnings.append(
                     f"Document '{od['filename']}' (type: {od.get('doc_type','other')}) was uploaded "
-                    "but no analysis engine exists for this document type — it was ignored."
+                    "but no analysis engine exists for this document type -- it was ignored."
                 )
 
         for i, doc in enumerate(outgoings_docs):
@@ -841,7 +952,7 @@ def run_audit(
     )
 
     logger.info(
-        f"Audit complete — {len(clause_analyses)} clauses, "
+        f"Audit complete -- {len(clause_analyses)} clauses, "
         f"{len(all_flags)} flags ({len(high_flags)} high), "
         f"risk={risk_score}/100, dates={len(lease_dates)} | "
         f"recon_docs={len(reconciliation_results)} | "
