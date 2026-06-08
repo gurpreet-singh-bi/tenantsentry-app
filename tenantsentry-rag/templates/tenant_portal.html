@@ -1861,37 +1861,125 @@ function portalApp() {
       fetch('/api/audit/result/' + jobId, { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(result => {
-          if (!result) return;
+          // Use job row as fallback for metadata even when findings are empty
           const job = this.liveAudits.find(j => j.job_id === jobId) || {};
+          if (!result || Object.keys(result).length === 0) {
+            // Findings not in DB — show job row metadata with empty vitals
+            LEASES[jobId] = {
+              ...LEASES['__live__'],
+              id: jobId,
+              address: job.filename || job.jurisdiction || 'Live Audit',
+              name:    job.tenant_name || 'Live Audit',
+              tenant:  job.tenant_name || 'Tenant',
+              status:  job.released ? 'released' : 'awaiting release',
+            };
+            this.$nextTick(() => this.initAnomalyChart());
+            return;
+          }
+          // ── helpers: risk colour from clause analysis ──
+          const _riskCol = c => c.risk_flags?.some(f=>f.severity==='high') ? '#ef4444'
+                              : c.risk_flags?.some(f=>f.severity==='medium') ? '#f59e0b' : '#10b981';
+          const _riskBg  = c => c.risk_flags?.some(f=>f.severity==='high') ? 'rgba(239,68,68,0.15)'
+                              : c.risk_flags?.some(f=>f.severity==='medium') ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)';
+          const _riskLbl = c => c.risk_flags?.some(f=>f.severity==='high') ? 'HIGH RISK'
+                              : c.risk_flags?.some(f=>f.severity==='medium') ? 'MEDIUM' : 'OK';
+
+          // ── extract dates from lease_dates array (LeaseDate objects from pipeline) ──
+          const _dates = result.lease_dates || [];
+          const _fmtDate = v => v ? new Date(v).toLocaleDateString('en-AU', {day:'numeric',month:'short',year:'numeric'}) : '—';
+          const _expDate  = _dates.find(d => d.date_type === 'lease_expiry');
+          const _revDate  = _dates.find(d => d.date_type && d.date_type.startsWith('rent_review'));
+          const _expiry   = _expDate  ? _fmtDate(_expDate.date_value)  || _expDate.date_description  || '—' : '—';
+          const _nextRev  = _revDate  ? _fmtDate(_revDate.date_value)  || _revDate.date_description  || '—' : '—';
+
+          // ── lease metadata (landlord_name, base_rent_pa, floor_area_sqm from AuditResult) ──
+          const _rules    = result.extracted_rules || {};   // legacy CPI series
+          const _landlord = result.landlord_name || '—';
+          const _rent     = result.base_rent_pa
+                              ? '$' + Math.round(result.base_rent_pa).toLocaleString('en-AU') + ' p.a.'
+                              : '—';
+          const _area     = result.floor_area_sqm
+                              ? result.floor_area_sqm.toLocaleString('en-AU') + ' m²'
+                              : '—';
+
+          // ── financial fields (v1: populated from reconciliation results when available) ──
+          const _savings  = result.total_savings_cents ? Math.round(result.total_savings_cents / 100) : 0;
+          const _recovered = result.recovered_cents ? '$' + Math.round(result.recovered_cents/100).toLocaleString() : '$0';
+          const _disputed  = result.disputed_cents  ? '$' + Math.round(result.disputed_cents/100).toLocaleString()  : '$0';
+          const _monitored = result.monitored_value_cents ? '$' + Math.round(result.monitored_value_cents/100).toLocaleString() : '$0';
+          const _cumSavings = _savings > 0 ? '$' + _savings.toLocaleString() : '$0';
+          // savings ring: 239 = circumference of SVG circle in template
+          const _savingsDash = _savings > 0 ? Math.min(Math.round(_savings / 500), 239).toString() : '0';
+
+          // ── risk score ring (risk_score IS in AuditResult — 0-100) ──
+          const _score = result.risk_score != null ? Math.round(result.risk_score) : 0;
+          const _scoreColor = _score >= 60 ? '#10b981' : _score >= 30 ? '#f59e0b' : '#ef4444';
+          // 107 = circumference constant in vitals ring SVG
+          const _scoreDash = Math.round(_score / 100 * 107).toString();
+
+          // ── vault items: risk-flagged clauses ──
+          const _vault = (result.clause_analyses || [])
+            .filter(c => c.risk_flags?.length > 0)
+            .slice(0, 6)
+            .map((c, i) => ({
+              id: 'v'+i,
+              label: c.clause_heading,
+              sub: c.risk_flags[0]?.description || '',
+              color: _riskCol(c),
+            }));
+
           LEASES[jobId] = {
             id: jobId,
             address: job.filename || result.jurisdiction || 'Live Audit',
+            name: job.tenant_name || job.filename || 'Live Audit',
             tenant:  job.tenant_name || 'Tenant',
-            area:    result.total_sqm ? result.total_sqm + ' m²' : '—',
+            landlord: _landlord,
+            area:    _area,
             type:    result.doc_type || 'commercial',
             status:  job.released ? 'released' : 'awaiting release',
-            nextReview: result.next_review_date || '—',
-            riskScore: result.risk_score || 0,
-            milestones: (result.key_dates || []).map((d, i) => ({
-              id: 'm'+i, title: d.label || d.type || '', date: d.date || '',
-              past: false, color: '#00f5d4', daysLabel: d.date || '', daysClass: ''
+            // lease term / dates — extracted from lease_dates array
+            expiry:     _expiry,
+            rent:       _rent,
+            nextReview: _nextRev,
+            // risk score ring
+            score:      _score,
+            scoreColor: _scoreColor,
+            scoreDash:  _scoreDash,
+            // savings ring
+            savings:         _savings,
+            cumulativeSavings: _cumSavings,
+            savingsDash:     _savingsDash,
+            // financial stats
+            recovered: _recovered,
+            disputed:  _disputed,
+            monitored: _monitored,
+            // invoice / anomaly counters
+            invoiceCount:  (result.invoice_count || 0) + ' invoice' + ((result.invoice_count || 0) === 1 ? '' : 's'),
+            anomalyCount:  result.anomaly_count || 0,
+            // milestones from lease_dates (LeaseDate objects with date_type + date_value)
+            milestones: _dates.slice(0, 6).map((d, i) => ({
+              id: 'm'+i,
+              title: d.date_description || d.date_type || '',
+              date: _fmtDate(d.date_value),
+              past: d.date_value ? new Date(d.date_value) < new Date() : false,
+              color: '#00f5d4',
+              daysLabel: _fmtDate(d.date_value),
+              daysClass: '',
             })),
+            // top clauses for shield view
             clauses: (result.clause_analyses || []).slice(0, 8).map((c, i) => ({
               id: 'c'+i, label: c.clause_heading, ref: c.clause_reference || '',
-              statusColor: c.risk_flags?.some(f=>f.severity==='high') ? '#ef4444'
-                         : c.risk_flags?.some(f=>f.severity==='medium') ? '#f59e0b' : '#10b981',
-              risk: c.risk_flags?.some(f=>f.severity==='high') ? 'HIGH RISK'
-                  : c.risk_flags?.some(f=>f.severity==='medium') ? 'MEDIUM' : 'OK',
-              riskBg: c.risk_flags?.some(f=>f.severity==='high') ? 'rgba(239,68,68,0.15)'
-                    : c.risk_flags?.some(f=>f.severity==='medium') ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
-              riskColor: c.risk_flags?.some(f=>f.severity==='high') ? '#ef4444'
-                       : c.risk_flags?.some(f=>f.severity==='medium') ? '#f59e0b' : '#10b981',
+              statusColor: _riskCol(c),
+              risk:        _riskLbl(c),
+              riskBg:      _riskBg(c),
+              riskColor:   _riskCol(c),
             })),
+            // vault: risk-flagged clauses
+            vaultItems: _vault,
             invoices: [],
-            savings: result.total_savings_cents ? Math.round(result.total_savings_cents/100) : 0,
           };
           this.$nextTick(() => this.initAnomalyChart());
-        })
+        }) // end result populated
         .catch(() => {});
       this.$nextTick(() => this.initAnomalyChart());
     },

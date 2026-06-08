@@ -789,11 +789,11 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                   <div class="text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--ts-text2);letter-spacing:0.7px">Document</div>
                   <div class="flex gap-4">
                     <div class="text-center">
-                      <div class="text-2xl font-bold" style="color:var(--ts-text0)" x-text="resultData?.raw_clause_count || resultData?.total_clauses || '—'"></div>
+                      <div class="text-2xl font-bold" style="color:var(--ts-text0)" x-text="resultData?.raw_clause_count ?? '—'"></div>
                       <div class="text-xs mt-1" style="color:var(--ts-text2)">In Lease</div>
                     </div>
                     <div class="text-center">
-                      <div class="text-2xl font-bold" style="color:#5ef0d8" x-text="resultData?.total_clauses ?? '—'"></div>
+                      <div class="text-2xl font-bold" style="color:#5ef0d8" x-text="resultData?.total_clauses_reviewed ?? resultData?.clause_analyses?.length ?? '—'"></div>
                       <div class="text-xs mt-1" style="color:var(--ts-text2)">Analysed</div>
                     </div>
                   </div>
@@ -804,8 +804,8 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                   <div class="text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--ts-text2);letter-spacing:0.7px">Review</div>
                   <div class="flex gap-4">
                     <div class="text-center">
-                      <div class="text-2xl font-bold" style="color:#6fdb7a" x-text="confirmedCount"></div>
-                      <div class="text-xs mt-1" style="color:var(--ts-text2)">Confirmed</div>
+                      <div class="text-2xl font-bold" style="color:#6fdb7a" x-text="verifiedCount"></div>
+                      <div class="text-xs mt-1" style="color:var(--ts-text2)">Verified</div>
                     </div>
                     <div class="text-center">
                       <div class="text-2xl font-bold" style="color:#fbbf24" x-text="flaggedCount"></div>
@@ -830,7 +830,17 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                 <button @click="filterSev='low'" :class="filterSev==='low' ? 'filter-chip active-low' : 'filter-chip inactive'">Low</button>
                 <button @click="filterSev='clean'" :class="filterSev==='clean' ? 'filter-chip active-all' : 'filter-chip inactive'">Clean</button>
               </div>
-              <span class="text-xs ml-auto" style="color:var(--ts-text2)" x-text="filteredClauses.length + ' of ' + (resultData?.clause_analyses?.length ?? 0) + ' clauses'"></span>
+              <span class="text-xs ml-auto" style="color:var(--ts-text2)" x-text="filteredClauses.length + ' of ' + (resultData?.raw_clause_count ?? resultData?.clause_analyses?.length ?? 0) + ' clauses'"></span>
+            </div>
+            <!-- Clause review-state filter -->
+            <div class="flex gap-1.5 flex-wrap px-1 pb-2">
+              <button @click="filterState='all'"        :class="filterState==='all'         ? 'filter-chip active-all'    : 'filter-chip inactive'">All States</button>
+              <button @click="filterState='unreviewed'" :class="filterState==='unreviewed'  ? 'filter-chip active-all'    : 'filter-chip inactive'">To Verify</button>
+              <button @click="filterState='verified'"   :class="filterState==='verified' ? 'filter-chip active-all' : 'filter-chip inactive'" :style="filterState==='verified' ? 'color:#4ade80' : ''">Verified</button>
+              <button @click="filterState='flagged'"    :class="filterState==='flagged'     ? 'filter-chip active-medium' : 'filter-chip inactive'">Flagged</button>
+              <button @click="filterState='rejected'"   :class="filterState==='rejected'    ? 'filter-chip active-high'   : 'filter-chip inactive'">Rejected</button>
+            </div>
+            <div style="display:none">
             </div>
 
             <!-- Loading -->
@@ -848,7 +858,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
             <template x-for="clause in filteredClauses" :key="clause.clause_heading">
               <div class="clause-card"
                 :class="{
-                  'confirmed':   clauseState[clause.clause_heading]?.status === 'confirmed',
+                  'verified':   clauseState[clause.clause_heading]?.status === 'verified',
                   'flagged-card':clauseState[clause.clause_heading]?.status === 'flagged',
                   'rejected':    clauseState[clause.clause_heading]?.status === 'rejected',
                   'active-doc':  activeDocClause?.clause_heading === clause.clause_heading
@@ -859,7 +869,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap mb-0.5">
                       <!-- Clause status dot -->
-                      <span x-show="clauseState[clause.clause_heading]?.status === 'confirmed'" class="text-green-400 text-xs font-bold">✓</span>
+                      <span x-show="clauseState[clause.clause_heading]?.status === 'verified'" class="text-green-400 text-xs font-bold">✓</span>
                       <span x-show="clauseState[clause.clause_heading]?.status === 'flagged'"  class="text-yellow-400 text-xs font-bold">⚑</span>
                       <span x-show="clauseState[clause.clause_heading]?.status === 'rejected'" class="text-red-400 text-xs font-bold">✗</span>
                       <span class="text-sm font-semibold" x-text="clause.clause_heading"></span>
@@ -929,33 +939,22 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                     <span style="color:#c0a060" x-text="clauseState[clause.clause_heading]?.note"></span>
                   </div>
 
-                  <!-- Note input (when adding note) -->
-                  <div x-show="clauseState[clause.clause_heading]?.addingNote">
-                    <textarea class="clause-note-input" placeholder="Add auditor note for this clause…"
-                      @blur="saveClauseNote(clause.clause_heading, $event.target.value)"
-                      :value="clauseState[clause.clause_heading]?.note || ''"
-                      rows="2"></textarea>
-                    <div class="flex gap-2 mt-1.5">
-                      <button class="btn btn-teal text-xs py-1 px-3" @click="saveClauseNote(clause.clause_heading, $el.previousElementSibling.previousElementSibling.value)">Save note</button>
-                      <button class="btn btn-ghost text-xs py-1 px-3" @click="clauseState[clause.clause_heading].addingNote = false; $dispatch('refresh')">Cancel</button>
-                    </div>
-                  </div>
                 </div>
 
                 <!-- Per-clause action bar -->
                 <div class="clause-action-bar">
                   <button class="btn btn-green text-xs py-1 px-3"
-                    @click="setClauseStatus(clause.clause_heading, 'confirmed')"
-                    :style="clauseState[clause.clause_heading]?.status==='confirmed' ? 'opacity:1;font-weight:800' : ''">
-                    ✓ Confirm
+                    @click="setClauseStatus(clause.clause_heading, 'verified')"
+                    :style="clauseState[clause.clause_heading]?.status==='verified' ? 'opacity:1;font-weight:800' : ''">
+                    ✓ Verify
                   </button>
                   <button class="btn btn-amber text-xs py-1 px-3"
-                    @click="setClauseStatus(clause.clause_heading, 'flagged')"
+                    @click="promptClauseAction(clause.clause_heading, 'flagged')"
                     :style="clauseState[clause.clause_heading]?.status==='flagged' ? 'opacity:1;font-weight:800' : ''">
                     ⚑ Flag
                   </button>
                   <button class="btn btn-red text-xs py-1 px-3"
-                    @click="setClauseStatus(clause.clause_heading, 'rejected')"
+                    @click="promptClauseAction(clause.clause_heading, 'rejected')"
                     :style="clauseState[clause.clause_heading]?.status==='rejected' ? 'opacity:1;font-weight:800' : ''">
                     ✗ Reject
                   </button>
@@ -968,6 +967,30 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                     @click="setClauseStatus(clause.clause_heading, null)">
                     ✕ Clear
                   </button>
+                </div>
+
+                <!-- Inline note input — appears immediately on Flag/Reject click, outside expand toggle -->
+                <div x-show="clauseState[clause.clause_heading]?.addingNote"
+                     x-transition:enter="transition ease-out duration-150"
+                     x-transition:enter-start="opacity-0 -translate-y-1"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     class="px-4 pb-3">
+                  <textarea class="clause-note-input w-full mt-2"
+                    :placeholder="'Add note for ' + (clauseState[clause.clause_heading]?.status === 'rejected' ? 'rejection' : 'flag') + '…'"
+                    @input="clauseState = { ...clauseState, [clause.clause_heading]: { ...clauseState[clause.clause_heading], note: $event.target.value } }"
+                    :value="clauseState[clause.clause_heading]?.note || ''"
+                    rows="2"
+                    x-ref="noteInput"></textarea>
+                  <div class="flex gap-2 mt-1.5">
+                    <button class="btn btn-teal text-xs py-1 px-3"
+                      @click="saveClauseNote(clause.clause_heading, clauseState[clause.clause_heading]?.note || '')">
+                      Save note
+                    </button>
+                    <button class="btn btn-ghost text-xs py-1 px-3"
+                      @click="clauseState = { ...clauseState, [clause.clause_heading]: { ...clauseState[clause.clause_heading], addingNote: false } }">
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -1203,14 +1226,14 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
                 <!-- Clause action progress -->
                 <div class="mb-4 p-3 rounded-lg text-xs" style="background:var(--ts-bg1);border:1px solid var(--ts-border-s)">
                   <div class="grid grid-cols-2 gap-y-1.5 mb-2">
-                    <span style="color:var(--ts-text3)">Confirmed</span><span class="font-bold text-green-400 text-right" x-text="confirmedCount"></span>
+                    <span style="color:var(--ts-text3)">Verified</span><span class="font-bold text-green-400 text-right" x-text="verifiedCount"></span>
                     <span style="color:var(--ts-text3)">Flagged</span><span class="font-bold text-yellow-400 text-right" x-text="flaggedCount"></span>
                     <span style="color:var(--ts-text3)">Rejected</span><span class="font-bold text-red-400 text-right" x-text="rejectedCount"></span>
-                    <span style="color:var(--ts-text3)">Total</span><span class="font-bold text-right" style="color:var(--ts-text0)" x-text="resultData?.clause_analyses?.length ?? 0"></span>
+                    <span style="color:var(--ts-text3)">Total</span><span class="font-bold text-right" style="color:var(--ts-text0)" x-text="resultData?.raw_clause_count ?? resultData?.clause_analyses?.length ?? 0"></span>
                   </div>
                   <div class="w-full h-1.5 rounded-full overflow-hidden" style="background:var(--ts-border-s)">
                     <div class="h-1.5 rounded-full transition-all" style="background:#0d9488"
-                      :style="'width:' + Math.round(((confirmedCount+flaggedCount+rejectedCount)/(resultData?.clause_analyses?.length||1))*100) + '%'"></div>
+                      :style="'width:' + Math.round(((verifiedCount+flaggedCount+rejectedCount)/(resultData?.clause_analyses?.length||1))*100) + '%'"></div>
                   </div>
                 </div>
 
@@ -1276,6 +1299,7 @@ function adminPortal() {
     actionError: '',
     searchQuery: '',
     filterSev: 'all',
+    filterState: 'all',
     expandedClauses: {},
     clauseState: {},
     sidebarTab: 'doc',
@@ -1478,6 +1502,7 @@ function adminPortal() {
       this.actionError = '';
       this.searchQuery = '';
       this.filterSev = 'all';
+      this.filterState = 'all';
       this.expandedClauses = {};
       this.clauseState = {};
       this.activeDocClause = null;
@@ -1510,23 +1535,32 @@ function adminPortal() {
       this.expandedClauses[heading] = !this.expandedClauses[heading];
     },
 
+    promptClauseAction(heading, status) {
+      // Flag/Reject: set state + auto-open comment box (comment is optional)
+      const cur = this.clauseState[heading] ?? { status: null, note: '', addingNote: false };
+      this.clauseState = { ...this.clauseState, [heading]: { ...cur, status, addingNote: true } };
+      this.expandedClauses = { ...this.expandedClauses, [heading]: true };
+    },
+
     setClauseStatus(heading, status) {
-      if (!this.clauseState[heading]) this.clauseState[heading] = { status: null, note: '', addingNote: false };
-      this.clauseState[heading].status = status;
-      // Auto-expand on flag
-      if (status === 'flagged') this.expandedClauses[heading] = true;
+      const cur = this.clauseState[heading] ?? { status: null, note: '', addingNote: false };
+      // Spread-reassign so Alpine v3 Proxy reliably tracks the mutation
+      this.clauseState = { ...this.clauseState, [heading]: { ...cur, status } };
+      if (status === 'flagged' || status === 'rejected') {
+        this.expandedClauses = { ...this.expandedClauses, [heading]: true };
+      }
     },
 
     toggleClauseNote(heading) {
-      if (!this.clauseState[heading]) this.clauseState[heading] = { status: null, note: '', addingNote: false };
-      this.clauseState[heading].addingNote = !this.clauseState[heading].addingNote;
-      if (this.clauseState[heading].addingNote) this.expandedClauses[heading] = true;
+      const cur = this.clauseState[heading] ?? { status: null, note: '', addingNote: false };
+      const next = !cur.addingNote;
+      this.clauseState = { ...this.clauseState, [heading]: { ...cur, addingNote: next } };
+      if (next) this.expandedClauses = { ...this.expandedClauses, [heading]: true };
     },
 
     saveClauseNote(heading, val) {
-      if (!this.clauseState[heading]) this.clauseState[heading] = { status: null, note: '', addingNote: false };
-      this.clauseState[heading].note = val?.trim() || '';
-      this.clauseState[heading].addingNote = false;
+      const cur = this.clauseState[heading] ?? { status: null, note: '', addingNote: false };
+      this.clauseState = { ...this.clauseState, [heading]: { ...cur, note: val?.trim() || '', addingNote: false } };
     },
 
     fmtDate(ts) {
@@ -1568,8 +1602,8 @@ function adminPortal() {
         n + (c.risk_flags?.length && !c.risk_flags.some(f => f.severity === 'high') && !c.risk_flags.some(f => f.severity === 'medium') ? 1 : 0), 0);
     },
 
-    get confirmedCount() {
-      return Object.values(this.clauseState).filter(s => s.status === 'confirmed').length;
+    get verifiedCount() {
+      return Object.values(this.clauseState).filter(s => s.status === 'verified').length;
     },
 
     get flaggedCount() {
@@ -1588,26 +1622,20 @@ function adminPortal() {
             : c.risk_flags.some(f => f.severity === 'medium') ? 'medium' : 'low')
           : 'clean';
         const sevMatch = this.filterSev === 'all' || maxSev === this.filterSev;
+        const clauseStatus = this.clauseState[c.clause_heading]?.status ?? null;
+        const stateMatch = this.filterState === 'all'
+          || (this.filterState === 'unreviewed' && !clauseStatus)
+          || (this.filterState === 'verified'   && clauseStatus === 'verified')
+          || (this.filterState === 'flagged'    && clauseStatus === 'flagged')
+          || (this.filterState === 'rejected'   && clauseStatus === 'rejected');
         const q = this.searchQuery.toLowerCase();
         const searchMatch = !q ||
           (c.clause_heading || '').toLowerCase().includes(q) ||
           (c.plain_english_summary || '').toLowerCase().includes(q) ||
           (c.summary || '').toLowerCase().includes(q);
-        return sevMatch && searchMatch;
+        return sevMatch && stateMatch && searchMatch;
       });
     },
-  };
-}
-</script>
-</body>
-</html>
-rCase().includes(q) ||
-          (c.plain_english_summary || '').toLowerCase().includes(q) ||
-          (c.summary || '').toLowerCase().includes(q);
-        return sevMatch && searchMatch;
-      });
-    },
-
     async approveAudit() {
       this.reviewing = true;
       this.actionError = '';
@@ -1654,6 +1682,7 @@ rCase().includes(q) ||
         this.releasing = false;
       }
     },
+
 
   };
 }

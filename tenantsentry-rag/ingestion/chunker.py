@@ -13,11 +13,13 @@ from loguru import logger
 
 # Regex patterns that indicate a new clause/section heading in AU commercial leases
 CLAUSE_HEADING_PATTERNS = [
-    r"^\s*(\d+)\.\s+[A-Z][A-Z\s]{3,}",           # "1. RENT REVIEW"
-    r"^\s*(\d+\.\d+)\s+[A-Z][A-Za-z\s]{3,}",     # "2.1 Definitions"
-    r"^\s*CLAUSE\s+\d+",                           # "CLAUSE 5"
-    r"^\s*PART\s+[IVXLC]+",                        # "PART III"
-    r"^\s*SCHEDULE\s+\d+",                         # "SCHEDULE 1"
+    r"^\s*(\d+)\.\s+[A-Z][A-Z\s]{3,}",                   # "1. RENT REVIEW"
+    r"^\s*(\d+\.\d+)\s+[A-Z][A-Za-z\s]{3,}",             # "2.1 Definitions"
+    r"^\s*(\d+\.\d+\.\d+)\s+[A-Z][A-Za-z\s]{2,}",      # "2.1.1 Sub-clause"
+    r"^\s*(\d+\.\d+\.\d+\.\d+)\s+[A-Z][A-Za-z\s]{2,}", # "2.1.1.1 Deep sub-clause"
+    r"^\s*CLAUSE\s+\d+",                                   # "CLAUSE 5"
+    r"^\s*PART\s+[IVXLC]+",                                # "PART III"
+    r"^\s*SCHEDULE\s+\d+",                                 # "SCHEDULE 1"
 ]
 
 COMPILED_PATTERNS = [re.compile(p, re.MULTILINE) for p in CLAUSE_HEADING_PATTERNS]

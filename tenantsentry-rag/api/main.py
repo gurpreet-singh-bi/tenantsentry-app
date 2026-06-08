@@ -2226,17 +2226,16 @@ async def tenant_jobs(request: Request):
         ]
         return JSONResponse({"jobs": sorted(jobs, key=lambda x: x.get("completed_at") or "", reverse=True)})
 
-    # LIVE: filter by tenant_id from session — stub until full auth is wired
-    # TODO (F-AUTH): replace cookie lookup with Supabase JWT validation
-    tenant_id = request.cookies.get("tenant_id") or request.headers.get("X-Tenant-Id")
-    if _USE_SUPABASE and tenant_id:
+    # LIVE: pull released jobs from Supabase (pre-auth: returns all released live jobs)
+    # TODO (F-AUTH): filter .eq("tenant_id", tenant_id) once auth column exists
+    if _USE_SUPABASE:
         try:
-            from db.audit_run_store import fetch_jobs_for_tenant
-            rows = fetch_jobs_for_tenant(tenant_id)
+            from db.audit_run_store import fetch_released_jobs
+            rows = fetch_released_jobs(source="live")
             return JSONResponse({"jobs": rows})
         except Exception as e:
             logger.error(f"tenant_jobs Supabase query failed: {e}")
-    # Fallback: return released jobs from in-memory store
+    # Fallback: released jobs from in-memory store
     jobs = [
         j.to_dict() for j in _jobs_fallback.values()
         if j.status == JobStatus.COMPLETE and j.released

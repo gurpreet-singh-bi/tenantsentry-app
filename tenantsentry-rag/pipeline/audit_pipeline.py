@@ -493,6 +493,20 @@ def run_audit(
 
     _timings["dates_ms"] = _ms(_t_dates)
 
+    # 8a. Extract key lease metadata (landlord, rent, area) from cover pages — Haiku, fast
+    _t_meta = _now()
+    lease_metadata: dict = {}
+    try:
+        from services.lease_metadata_extractor import extract_lease_metadata
+        lease_metadata = extract_lease_metadata(
+            lease_text=full_text,
+            jurisdiction=jur,
+            job_id=job_id,
+        )
+    except Exception as e:
+        logger.error(f"Lease metadata extraction failed (non-fatal): {e}")
+    _timings["metadata_ms"] = _ms(_t_meta)
+
     # 8. Assemble result
     _progress(cb, 95, "Assembling audit report...")
 
@@ -599,6 +613,11 @@ def run_audit(
         stage_timings=_timings,
         reconciliation_results=reconciliation_results,
         pipeline_warnings=pipeline_warnings,
+        # Key metadata from reference schedule (None when not found)
+        landlord_name=lease_metadata.get("landlord_name"),
+        base_rent_pa=lease_metadata.get("base_rent_pa"),
+        floor_area_sqm=lease_metadata.get("floor_area_sqm"),
+        lease_term_years=lease_metadata.get("lease_term_years"),
     )
 
     logger.info(

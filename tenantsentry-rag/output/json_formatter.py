@@ -75,6 +75,12 @@ class AuditResult(BaseModel):
     reconciliation_results: list[dict] = Field(default_factory=list)
     # Non-fatal pipeline warnings (e.g. unsupported doc type, amendment not analysed).
     pipeline_warnings: list[str] = Field(default_factory=list)
+    # Key lease metadata extracted from the cover / reference schedule.
+    # Populated by services/lease_metadata_extractor — None when not found or MOCK_MODE.
+    landlord_name: Optional[str] = None      # Full legal entity name of the landlord
+    base_rent_pa: Optional[float] = None     # Annual base rent in AUD (excl. outgoings)
+    floor_area_sqm: Optional[float] = None   # Net lettable area in sqm
+    lease_term_years: Optional[float] = None # Initial term in years
 
     @property
     def high_risk_flags(self) -> list[dict]:
