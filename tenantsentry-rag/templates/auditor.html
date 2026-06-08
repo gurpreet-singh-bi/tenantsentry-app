@@ -1300,6 +1300,12 @@ function adminPortal() {
         this.reviewed = data.reviewed;
         await this.loadDashboard();
         await this.loadActiveJobs();
+        // Re-fetch all data when DEV/LIVE mode is toggled
+        document.addEventListener('click', (e) => {
+          if (e.target.closest('#ts-mode-pill')) {
+            setTimeout(() => this.loadQueue(), 400);
+          }
+        });
       }
     },
 

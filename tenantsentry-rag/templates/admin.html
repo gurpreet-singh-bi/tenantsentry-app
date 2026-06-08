@@ -704,7 +704,17 @@ function adminPortal() {
     async init() {
       try {
         const r = await fetch('/api/admin/stats', { credentials: 'include' });
-        if (r.ok) { this.authed = true; await this.loadAll(); this._startTick(); }
+        if (r.ok) {
+          this.authed = true;
+          await this.loadAll();
+          this._startTick();
+          // Re-fetch all data when DEV/LIVE mode is toggled
+          document.addEventListener('click', (e) => {
+            if (e.target.closest('#ts-mode-pill')) {
+              setTimeout(() => this.loadAll(), 400);
+            }
+          });
+        }
       } catch {}
     },
 
