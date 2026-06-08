@@ -201,16 +201,17 @@ def fetch_reviewed(source: str = "live") -> list[dict]:
     return result.data or []
 
 
-def fetch_failed() -> list[dict]:
-    """SELECT failed jobs, newest first."""
-    result = (
+def fetch_failed(source: str | None = None) -> list[dict]:
+    """SELECT failed jobs, newest first. Filter by source if given."""
+    q = (
         _get_client()
         .table("audit_run")
         .select("*")
         .eq("status", "failed")
-        .order("completed_at", desc=True)
-        .execute()
     )
+    if source:
+        q = q.eq("source", source)
+    result = q.order("completed_at", desc=True).execute()
     return result.data or []
 
 
@@ -228,19 +229,20 @@ def fetch_all_recent(limit: int = 20, source: str = "live") -> list[dict]:
     return result.data or []
 
 
-def fetch_active() -> list[dict]:
+def fetch_active(source: str | None = None) -> list[dict]:
     """SELECT jobs currently queued or processing — for the kill switch panel.
     Ordered newest-first so a freshly submitted job appears at the top, not buried
     under zombie jobs stuck in 'processing' from a prior server restart.
     """
-    result = (
+    q = (
         _get_client()
         .table("audit_run")
-        .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, created_at")
+        .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, created_at, source")
         .in_("status", ["queued", "processing"])
-        .order("created_at", desc=True)   # newest first
-        .execute()
     )
+    if source:
+        q = q.eq("source", source)
+    result = q.order("created_at", desc=True).execute()
     return result.data or []
 
 

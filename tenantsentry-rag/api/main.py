@@ -423,7 +423,15 @@ async def partner_stats(_: None = Depends(require_partner)):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "TenantSentry.ai", "version": "1.0.0"}
+    from api.jobs import _supabase_ok
+    supabase_state = "connected" if _supabase_ok() else ("mock" if not _USE_SUPABASE else "error")
+    return {
+        "status": "ok",
+        "service": "TenantSentry.ai",
+        "version": "1.0.0",
+        "supabase": supabase_state,
+        "pipeline_mode": "live" if not is_dev() else "dev",
+    }
 
 
 @app.get("/api/mode")
@@ -1728,8 +1736,10 @@ async def admin_queue(_: None = Depends(require_admin)):
     Failed = status FAILED — visible so they're never silently lost.
     """
     from db.audit_run_store import fetch_failed
-    failed_rows = fetch_failed() if _USE_SUPABASE else [
-        j.to_dict() for j in _jobs_fallback.values() if j.status.value == "failed"
+    source = "dev" if is_dev() else "live"
+    failed_rows = fetch_failed(source=source) if _USE_SUPABASE else [
+        j.to_dict() for j in _jobs_fallback.values()
+        if j.status.value == "failed" and j.source == source
     ]
     return JSONResponse({
         "pending": [j.to_dict() for j in list_pending_review()],
@@ -1751,13 +1761,22 @@ async def admin_recent_jobs(_: None = Depends(require_admin)):
 
 @app.get("/api/admin/result/{job_id}")
 async def admin_get_result(job_id: str, _: None = Depends(require_admin)):
-    """Full audit result for a job — for display in the reviewer panel."""
+    """Full audit result for a job — for display in the reviewer panel.
+    Re-attaches stage_costs and stage_timings from the job row (they are stripped
+    from the findings JSONB and stored in separate DB columns to keep findings lean).
+    """
     job = get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status != JobStatus.COMPLETE:
         raise HTTPException(status_code=409, detail="Job not complete")
-    return JSONResponse(get_job_result(job_id) or {})
+    findings = get_job_result(job_id) or {}
+    # Re-attach cost + timing data from job row (stripped from findings JSONB)
+    if job.stage_costs:
+        findings = {**findings, "stage_costs": job.stage_costs}
+    if job.stage_timings:
+        findings = {**findings, "stage_timings": job.stage_timings}
+    return JSONResponse(findings)
 
 
 # ── Kill switch ───────────────────────────────────────────────────────────────

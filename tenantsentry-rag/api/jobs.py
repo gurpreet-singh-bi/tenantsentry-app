@@ -432,13 +432,14 @@ def cancel_job(job_id: str, action: str = "fail") -> dict:
 def list_active() -> list[Job]:
     """Return jobs currently queued or processing — for the kill switch panel."""
     active_statuses = {JobStatus.QUEUED, JobStatus.PROCESSING}
+    source = _current_source()
     if _supabase_ok():
         try:
-            return [Job.from_row(r) for r in _store.fetch_active()]
+            return [Job.from_row(r) for r in _store.fetch_active(source=source)]
         except Exception as e:
             logger.error(f"Supabase list_active failed, using fallback: {e}")
     return sorted(
-        [j for j in _jobs_fallback.values() if j.status in active_statuses],
+        [j for j in _jobs_fallback.values() if j.status in active_statuses and j.source == source],
         key=lambda j: j.created_at or "",
     )
 
