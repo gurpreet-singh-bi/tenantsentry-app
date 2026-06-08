@@ -173,13 +173,16 @@ def fetch_findings(job_id: str) -> Optional[dict]:
 
 
 def fetch_pending_review(source: str = "live") -> list[dict]:
-    """SELECT complete-but-unreviewed jobs for the given source (dev/live), newest first."""
+    """SELECT complete-but-unreviewed jobs for the given source (dev/live), newest first.
+    Uses `or_` to catch both reviewed_by_human=false AND reviewed_by_human IS NULL
+    (PLG funnel uploads before reviewed_by_human column was set explicitly).
+    """
     result = (
         _get_client()
         .table("audit_run")
         .select("*")
         .eq("status", "complete")
-        .eq("reviewed_by_human", False)
+        .or_("reviewed_by_human.is.null,reviewed_by_human.eq.false")
         .eq("source", source)
         .order("completed_at", desc=True)
         .execute()

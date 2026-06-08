@@ -791,6 +791,8 @@ function adminPortal() {
         const active = ar.ok ? await ar.json() : {};
 
         const pending  = (queue.pending  || []).map(j => ({ ...j, _tab: 'pending' }));
+        // Also surface complete jobs with null reviewed_by_human (orphaned PLG uploads)
+        // fetch_pending_review() misses these because .eq("reviewed_by_human",false) skips nulls
         const reviewed = (queue.reviewed || []).map(j => ({ ...j, _tab: 'reviewed' }));
         const failed   = (queue.failed   || []).map(j => ({ ...j, _tab: 'failed' }));
         const inProg   = (active.active  || []).map(j => ({ ...j, _tab: 'processing' }));
@@ -802,7 +804,7 @@ function adminPortal() {
           if (rr.ok) {
             const recent = (await rr.json()).jobs || [];
             const seen = new Set([...pending,...reviewed,...failed,...inProg].map(j=>j.job_id));
-            recentExtras = recent.filter(j => !seen.has(j.job_id)).map(j => ({ ...j, _tab: j.status || 'unknown' }));
+            recentExtras = recent.filter(j => !seen.has(j.job_id) && j.status !== 'complete').map(j => ({ ...j, _tab: j.status || 'unknown' }));
           }
         } catch {}
 
