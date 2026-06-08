@@ -28,6 +28,12 @@ from zoneinfo import ZoneInfo
 _SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 
 from loguru import logger
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load .env from the tenantsentry-rag root regardless of working directory
+load_dotenv(Path(__file__).parent.parent / ".env")
+
 
 # ── Detect whether Supabase is configured and reachable ──────────────────────
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
