@@ -806,7 +806,11 @@ function adminPortal() {
           }
         } catch {}
 
-        this.allAudits = [...inProg, ...pending, ...reviewed, ...failed, ...recentExtras];
+        // Filter to current mode — prevents dev jobs bleeding into live view
+        const _modeR = await fetch('/api/mode', { credentials: 'include' }).catch(() => null);
+        const _source = _modeR && _modeR.ok ? ((await _modeR.json()).mode || 'live').toLowerCase() : 'live';
+        const _all = [...inProg, ...pending, ...reviewed, ...failed, ...recentExtras];
+        this.allAudits = _all.filter(j => !j.source || j.source === _source);
 
         this.stats.inProgress = inProg.length;
         this.stats.pending    = pending.length;
