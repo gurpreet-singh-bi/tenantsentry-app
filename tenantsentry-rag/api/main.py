@@ -547,13 +547,13 @@ async def submit_audit(
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(..., description="Lease PDF plus any supporting documents"),
     doc_types: list[str] = Form(..., description="Doc type per file: lease|outgoings|invoice|amendment|other"),
-    jurisdiction: str = Form(...),
+    jurisdiction: str = Form("", description="State code (NSW/VIC/QLD/WA/SA/TAS/ACT/NT). Optional — auto-detected from lease if omitted."),
     tenant_name: str = Form(""),
     chat_session_id: str = Form(""),
-    # AQ-NEW-5: Premises classification fields (pre-audit questionnaire)
-    premises_use: str = Form("other", description="retail|office|industrial|mixed|other"),
-    entity_type: str = Form("company", description="individual|company|trust|government"),
-    gla_sqm: Optional[float] = Form(None, description="Gross lettable area in sqm (optional)"),
+    # AQ-NEW-5: Premises classification fields — all optional, auto-detected from lease if omitted
+    premises_use: str = Form("", description="retail|office|industrial|mixed|other — auto-detected if blank"),
+    entity_type: str = Form("", description="individual|company|trust|government — auto-detected if blank"),
+    gla_sqm: Optional[float] = Form(None, description="Gross lettable area in sqm — auto-detected if blank"),
 ):
     """
     Submit one or more documents for async audit.
@@ -561,28 +561,38 @@ async def submit_audit(
     files[0] must be the primary lease (doc_types[0]=="lease").
     Additional files may be outgoings schedules, invoices, or amendments.
     Returns job_id immediately; poll /api/audit/status/{job_id} for progress.
+
+    jurisdiction, premises_use, entity_type, and gla_sqm are all optional.
+    If omitted, the pipeline auto-detects them from the lease document (AG1-EARLY).
     """
-    jur = jurisdiction.upper().strip()
-    if jur not in VALID_JURISDICTIONS:
+    jur = jurisdiction.upper().strip() if jurisdiction.strip() else ""
+    if jur and jur not in VALID_JURISDICTIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid jurisdiction. Must be one of: {sorted(VALID_JURISDICTIONS)}"
+            detail=f"Invalid jurisdiction '{jur}'. Must be one of: {sorted(VALID_JURISDICTIONS)}"
         )
 
-    # AQ-NEW-5: Classify premises to determine applicable statute before creating job.
-    from services.premises_classification import classify_premises, build_statute_prompt_block
-    _classification = classify_premises(
-        premises_use=premises_use or "other",
-        jurisdiction=jur,
-        gla_sqm=gla_sqm,
-        entity_type=entity_type or "company",
-    )
-    _statute_prompt_block = build_statute_prompt_block(_classification)
-    logger.info(
-        f"AQ-NEW-5 classification: premises_use={premises_use} entity_type={entity_type} "
-        f"gla_sqm={gla_sqm} → statute={_classification.statute_code} "
-        f"is_retail={_classification.is_retail}"
-    )
+    # AQ-NEW-5: Classify premises to determine applicable statute.
+    # Only pre-classify at submit time when jurisdiction is already known.
+    # When jurisdiction is blank, classification is deferred to the pipeline (AG1-EARLY step).
+    _classification = None
+    _statute_prompt_block = ""
+    if jur:
+        from services.premises_classification import classify_premises, build_statute_prompt_block
+        _classification = classify_premises(
+            premises_use=premises_use or "other",
+            jurisdiction=jur,
+            gla_sqm=gla_sqm,
+            entity_type=entity_type or "company",
+        )
+        _statute_prompt_block = build_statute_prompt_block(_classification)
+        logger.info(
+            f"AQ-NEW-5 classification: premises_use={premises_use} entity_type={entity_type} "
+            f"gla_sqm={gla_sqm} → statute={_classification.statute_code} "
+            f"is_retail={_classification.is_retail}"
+        )
+    else:
+        logger.info("Jurisdiction not provided — classification deferred to pipeline auto-detection (AG1-EARLY)")
 
     if len(files) != len(doc_types):
         raise HTTPException(
@@ -653,15 +663,16 @@ async def submit_audit(
 
     job = create_job(
         filename=lease_data["filename"],
-        jurisdiction=jur,
+        jurisdiction=jur or "",       # empty if auto-detection deferred to pipeline
         tenant_name=tenant_name.strip() or "Unknown",
-        # AQ-NEW-5
-        premises_use=premises_use or "other",
-        entity_type=entity_type or "company",
+        # AQ-NEW-5 — populated at submit time only when jurisdiction was provided;
+        # otherwise the pipeline fills these in via AG1-EARLY auto-detection
+        premises_use=premises_use or None,
+        entity_type=entity_type or None,
         gla_sqm=gla_sqm,
-        applicable_statute=_classification.applicable_statute,
-        statute_code=_classification.statute_code,
-        is_retail_lease=_classification.is_retail,
+        applicable_statute=_classification.applicable_statute if _classification else None,
+        statute_code=_classification.statute_code if _classification else None,
+        is_retail_lease=_classification.is_retail if _classification else None,
     )
 
     # Register all uploaded doc metadata on the job immediately (visible in auditor portal)
@@ -695,18 +706,18 @@ async def submit_audit(
         job_id=job.job_id,
         pdf_bytes=lease_data["content"],
         filename=lease_data["filename"],
-        jurisdiction=jur,
+        jurisdiction=jur,              # may be "" — pipeline auto-detects via AG1-EARLY
         tenant_name=tenant_name.strip() or "Unknown",
         document_hash=document_hash,
         additional_docs_data=additional_data,
         submission_warnings=submission_warnings,
-        # AQ-NEW-5
-        premises_use=premises_use or "other",
-        entity_type=entity_type or "company",
+        # AQ-NEW-5 — may be None if jurisdiction was not provided; pipeline fills them in
+        premises_use=premises_use or None,
+        entity_type=entity_type or None,
         gla_sqm=gla_sqm,
-        applicable_statute=_classification.applicable_statute,
-        statute_code=_classification.statute_code,
-        is_retail_lease=_classification.is_retail,
+        applicable_statute=_classification.applicable_statute if _classification else None,
+        statute_code=_classification.statute_code if _classification else None,
+        is_retail_lease=_classification.is_retail if _classification else None,
         statute_prompt_block=_statute_prompt_block,
     )
 
@@ -2484,4 +2495,70 @@ async def free_check_manual(request: Request):
         raise HTTPException(status_code=400, detail=f"Invalid jurisdiction '{jurisdiction}'.")
 
     try:
-        result = _score_manual_entry({**data, "doc_type": doc_type, 
+        result = _score_manual_entry({**data, "doc_type": doc_type, "jurisdiction": jurisdiction})
+    except Exception as e:
+        logger.warning(f"[FREE-CHECK-MANUAL] Scoring failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to score manual entry.")
+
+    try:
+        from db.free_check_store import log_free_check
+        log_free_check(
+            job_id=f"manual-{id(result)}",
+            filename="manual-entry",
+            jurisdiction=jurisdiction,
+            doc_type=doc_type,
+            teaser=result,
+            full_result={},
+            pages_analysed=None,
+        )
+    except Exception as _store_err:
+        logger.debug(f"[FREE-CHECK-MANUAL] Store logging failed (non-fatal): {_store_err}")
+
+    return JSONResponse(result)
+
+
+@app.get("/api/free-check/result/{job_id}")
+def free_check_result(job_id: str):
+    """
+    Return the free-check teaser payload for a completed job.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail=f"Job not complete. Status: {job.status}")
+
+    result = _free_check_results.get(job_id) or get_job_result(job_id) or {}
+    return JSONResponse(result)
+
+
+@app.post("/api/free-check/email")
+async def free_check_email(request: Request):
+    """
+    Capture a lead email after the free check teaser.
+    Updates the free_check_run row in Supabase with the email + lead_captured_at.
+    Returns { ok: true } — never fails visibly to the user.
+    """
+    try:
+        data = await request.json()
+        email  = (data.get("email") or "").strip().lower()
+        job_id = (data.get("job_id") or "").strip()
+        jur    = (data.get("jurisdiction") or "").upper().strip()
+
+        if not email or "@" not in email:
+            raise HTTPException(status_code=400, detail="Valid email required.")
+
+        logger.info(f"[FREE-CHECK-LEAD] email={email} job_id={job_id} jur={jur}")
+
+        try:
+            from db.free_check_store import update_lead
+            update_lead(job_id, email)
+        except Exception as e:
+            logger.warning(f"[FREE-CHECK-LEAD] update_lead failed (non-fatal): {e}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"[FREE-CHECK-EMAIL] Non-fatal error: {e}")
+
+    return JSONResponse({"ok": True})

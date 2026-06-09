@@ -427,7 +427,7 @@ def _is_meaningful_gap(clause_num: str, extracted: set[str]) -> bool:
 
 def run_audit(
     pdf_path: str,
-    jurisdiction: str,
+    jurisdiction: str = "",
     tenant_name: str = None,
     job_id: str = None,
     document_hash: str = None,
@@ -480,9 +480,9 @@ def run_audit(
         AuditResult with clause analyses, risk flags, extracted lease dates,
         and reconciliation_results for any outgoings/invoice docs.
     """
-    logger.info(f"Starting audit: {pdf_path} | {jurisdiction} | vector_store={USE_VECTOR_STORE}")
+    logger.info(f"Starting audit: {pdf_path} | jurisdiction={jurisdiction or 'AUTO-DETECT'} | vector_store={USE_VECTOR_STORE}")
     cb = progress_callback
-    jur = jurisdiction.upper()
+    jur = jurisdiction.upper().strip() if jurisdiction else ""
     _t0 = time.perf_counter()
     _timings: dict = {}
     _costs = CostAccumulator()
@@ -515,6 +515,75 @@ def run_audit(
     else:
         _progress(cb, 20, "Chunking document...")
     _timings["ocr_ms"] = _ms(_t_ocr)
+
+    # 2.5. Early metadata extraction — resolve jurisdiction + premises classification
+    #      if not supplied by the caller. Runs on the first 8000 chars so it's fast.
+    #      Must happen BEFORE _build_rules_context (step 5) which needs a valid jur.
+    _early_meta: dict = {}
+    _early_meta_done = False  # flag so step 8a can skip re-extraction of scalar fields
+    if not jur:
+        _progress(cb, 18, "Auto-detecting jurisdiction and lease type...")
+        try:
+            from services.lease_metadata_extractor import extract_lease_metadata
+            _full_text_early = "\n\n".join(p.get("text", "") for p in parsed.pages)
+            _early_meta = extract_lease_metadata(
+                lease_text=_full_text_early,
+                jurisdiction="",
+                job_id=job_id,
+            )
+            _early_meta_done = True
+
+            # Resolve jurisdiction
+            detected_jur = _early_meta.get("state_territory", "")
+            if detected_jur:
+                jur = detected_jur
+                logger.info(f"[AG1-EARLY] Auto-detected jurisdiction: {jur}")
+            else:
+                jur = "NSW"  # safe fallback — most common retail tenancy jurisdiction
+                logger.warning(f"[AG1-EARLY] Could not detect jurisdiction from lease — defaulting to NSW")
+
+            # Resolve premises classification fields if not already provided
+            if not premises_use:
+                premises_use = _early_meta.get("permitted_use") or "other"
+            if not entity_type:
+                entity_type = _early_meta.get("tenant_entity_type") or "company"
+            if gla_sqm is None:
+                gla_sqm = _early_meta.get("floor_area_sqm")
+
+            # Re-classify premises with resolved values (statute selection depends on jurisdiction)
+            if not applicable_statute:
+                try:
+                    from services.premises_classification import classify_premises, build_statute_prompt_block
+                    _cls = classify_premises(
+                        premises_use=premises_use,
+                        jurisdiction=jur,
+                        gla_sqm=gla_sqm,
+                        entity_type=entity_type,
+                    )
+                    applicable_statute = _cls.applicable_statute
+                    statute_code = _cls.statute_code
+                    is_retail_lease = _cls.is_retail
+                    statute_prompt_block = build_statute_prompt_block(_cls)
+                    logger.info(
+                        f"[AG1-EARLY] Premises classification resolved: "
+                        f"use={premises_use} entity={entity_type} "
+                        f"→ statute={statute_code} retail={is_retail_lease}"
+                    )
+                except Exception as e:
+                    logger.warning(f"[AG1-EARLY] Premises re-classification failed (non-fatal): {e}")
+
+            # Resolve tenant name from lease if not provided by caller
+            if not tenant_name or tenant_name in ("Unknown", "TenantSentry"):
+                extracted_tenant = _early_meta.get("tenant_name")
+                if extracted_tenant:
+                    tenant_name = extracted_tenant
+                    logger.info(f"[AG1-EARLY] Auto-detected tenant name: {tenant_name!r}")
+
+        except Exception as e:
+            logger.error(f"[AG1-EARLY] Early metadata extraction failed (non-fatal): {e}")
+            if not jur:
+                jur = "NSW"
+                logger.warning("[AG1-EARLY] Fallback: jurisdiction set to NSW")
 
     # 2b. Free-check truncation: limit to first N pages before chunking.
     # This keeps the real engine intact -- only the input is shortened.
@@ -814,16 +883,23 @@ def run_audit(
 
     _timings["dates_ms"] = _ms(_t_dates)
 
-    # 8a. Extract key lease metadata (landlord, rent, area) from cover pages -- Haiku, fast
+    # 8a. Extract key lease metadata (landlord, rent, area) from cover pages -- Haiku, fast.
+    #     If early extraction (step 2.5) already ran, re-use those results and skip re-calling
+    #     the LLM (saves cost + latency). Otherwise run full extraction now.
     _t_meta = time.perf_counter()
     lease_metadata: dict = {}
     try:
-        from services.lease_metadata_extractor import extract_lease_metadata
-        lease_metadata = extract_lease_metadata(
-            lease_text=full_text,
-            jurisdiction=jur,
-            job_id=job_id,
-        )
+        if _early_meta_done:
+            # Re-use results from step 2.5 — already extracted from the same text window
+            lease_metadata = _early_meta
+            logger.info(f"[8a] Re-using early metadata extraction results (no re-call)")
+        else:
+            from services.lease_metadata_extractor import extract_lease_metadata
+            lease_metadata = extract_lease_metadata(
+                lease_text=full_text,
+                jurisdiction=jur,
+                job_id=job_id,
+            )
     except Exception as e:
         logger.error(f"Lease metadata extraction failed (non-fatal): {e}")
     _timings["metadata_ms"] = _ms(_t_meta)
@@ -947,4 +1023,170 @@ def run_audit(
         tenant_name=tenant_name or "Unknown",
         jurisdiction=jur,
         filename=parsed.metadata["filename"],
-        raw_clause_count=len(c
+        raw_clause_count=len(chunks),
+        haiku_triage_count=n,
+        sonnet_analysed_count=_sonnet_count,
+        opus_escalated_count=_opus_count,
+        total_clauses=len(clause_analyses),
+        stage_costs=_costs.to_dict(),
+        risk_score=risk_score,
+        clause_analyses=clause_analyses,
+        all_risk_flags=all_flags,
+        lease_dates=lease_dates,
+        extracted_rules=extracted_rules,
+        stage_timings=_timings,
+        reconciliation_results=reconciliation_results,
+        pipeline_warnings=pipeline_warnings,
+        # Key metadata from reference schedule (None when not found)
+        landlord_name=lease_metadata.get("landlord_name"),
+        base_rent_pa=lease_metadata.get("base_rent_pa"),
+        floor_area_sqm=lease_metadata.get("floor_area_sqm") or gla_sqm,
+        lease_term_years=lease_metadata.get("lease_term_years"),
+        # AQ-NEW-5: Premises classification — resolved by auto-detection or upload questionnaire
+        premises_use=premises_use,
+        entity_type=entity_type,
+        gla_sqm=gla_sqm,
+        applicable_statute=applicable_statute,
+        statute_code=statute_code,
+        is_retail_lease=is_retail_lease,
+    )
+
+    logger.info(
+        f"Audit complete -- {len(clause_analyses)} clauses, "
+        f"{len(all_flags)} flags ({len(high_flags)} high), "
+        f"risk={risk_score}/100, dates={len(lease_dates)} | "
+        f"recon_docs={len(reconciliation_results)} | "
+        f"triage={_timings.get('triage_ms')}ms "
+        f"analysis={_timings.get('analysis_ms')}ms "
+        f"total={_timings.get('total_ms')}ms"
+    )
+    return result
+        other_docs     = [d for d in additional_docs if d.get("doc_type") not in ("outgoings", "invoice", "amendment")]
+
+        if amendment_docs:
+            for ad in amendment_docs:
+                pipeline_warnings.append(
+                    f"Lease amendment '{ad['filename']}' was uploaded but amendment analysis is "
+                    "not yet implemented -- it has been noted but not cross-referenced against the lease. "
+                    "Please review it manually."
+                )
+
+        if other_docs:
+            for od in other_docs:
+                pipeline_warnings.append(
+                    f"Document '{od['filename']}' (type: {od.get('doc_type','other')}) was uploaded "
+                    "but no analysis engine exists for this document type -- it was ignored."
+                )
+
+        for i, doc in enumerate(outgoings_docs):
+            doc_path     = doc["path"]
+            doc_filename = doc["filename"]
+            doc_type     = doc["doc_type"]
+            base_pct     = 93 + int(i / max(len(outgoings_docs), 1) * 4)  # 93-97%
+
+            _progress(cb, base_pct, f"Parsing {doc_type} document: {doc_filename}...")
+            logger.info(f"Running outgoings engine on: {doc_filename} ({doc_type})")
+
+            try:
+                parsed_out = parse_outgoings_pdf(doc_path)
+
+                def _recon_cb(stage: str):
+                    _progress(cb, base_pct + 1, stage)
+
+                recon = run_outgoings_reconciliation(
+                    parsed_outgoings=parsed_out,
+                    doc_filename=doc_filename,
+                    clause_analyses=clause_analyses_dicts,
+                    jurisdiction=jur,
+                    progress_callback=_recon_cb,
+                )
+                reconciliation_results.append(reconciliation_result_to_dict(recon))
+
+            except Exception as e:
+                logger.error(f"Outgoings engine failed for {doc_filename}: {e}")
+                reconciliation_results.append({
+                    "doc_filename": doc_filename,
+                    "doc_type": doc_type,
+                    "engine_status": "failed",
+                    "warnings": [f"Processing failed: {e}. This document was not reconciled."],
+                    "findings": [],
+                    "total_claimed_cents": 0,
+                    "total_disputed_cents": 0,
+                })
+
+    _timings["total_ms"] = _ms(_t0)
+
+    result = AuditResult(
+        tenant_name=tenant_name or "Unknown",
+        jurisdiction=jur,
+        filename=parsed.metadata["filename"],
+        raw_clause_count=len(c    reconciliation_results: list[dict] = []
+    # pipeline_warnings already initialised above (after metadata extraction).
+
+    if additional_docs:
+        from ingestion.outgoings_parser import parse_outgoings_pdf
+        from pipeline.outgoings_engine import run_outgoings_reconciliation, reconciliation_result_to_dict
+
+        clause_analyses_dicts = [ca.model_dump() for ca in clause_analyses]
+
+        outgoings_docs = [d for d in additional_docs if d.get("doc_type") in ("outgoings", "invoice")]
+        amendment_docs = [d for d in additional_docs if d.get("doc_type") == "amendment"]
+        other_docs     = [d for d in additional_docs if d.get("doc_type") not in ("outgoings", "invoice", "amendment")]
+
+        if amendment_docs:
+            for ad in amendment_docs:
+                pipeline_warnings.append(
+                    f"Lease amendment '{ad['filename']}' was uploaded but amendment analysis is "
+                    "not yet implemented -- it has been noted but not cross-referenced against the lease. "
+                    "Please review it manually."
+                )
+
+        if other_docs:
+            for od in other_docs:
+                pipeline_warnings.append(
+                    f"Document '{od['filename']}' (type: {od.get('doc_type','other')}) was uploaded "
+                    "but no analysis engine exists for this document type -- it was ignored."
+                )
+
+        for i, doc in enumerate(outgoings_docs):
+            doc_path     = doc["path"]
+            doc_filename = doc["filename"]
+            doc_type     = doc["doc_type"]
+            base_pct     = 93 + int(i / max(len(outgoings_docs), 1) * 4)  # 93-97%
+
+            _progress(cb, base_pct, f"Parsing {doc_type} document: {doc_filename}...")
+            logger.info(f"Running outgoings engine on: {doc_filename} ({doc_type})")
+
+            try:
+                parsed_out = parse_outgoings_pdf(doc_path)
+
+                def _recon_cb(stage: str):
+                    _progress(cb, base_pct + 1, stage)
+
+                recon = run_outgoings_reconciliation(
+                    parsed_outgoings=parsed_out,
+                    doc_filename=doc_filename,
+                    clause_analyses=clause_analyses_dicts,
+                    jurisdiction=jur,
+                    progress_callback=_recon_cb,
+                )
+                reconciliation_results.append(reconciliation_result_to_dict(recon))
+
+            except Exception as e:
+                logger.error(f"Outgoings engine failed for {doc_filename}: {e}")
+                reconciliation_results.append({
+                    "doc_filename": doc_filename,
+                    "doc_type": doc_type,
+                    "engine_status": "failed",
+                    "warnings": [f"Processing failed: {e}. This document was not reconciled."],
+                    "findings": [],
+                    "total_claimed_cents": 0,
+                    "total_disputed_cents": 0,
+                })
+
+    _timings["total_ms"] = _ms(_t0)
+
+    result = AuditResult(
+        tenant_name=tenant_name or "Unknown",
+        jurisdiction=jur,
+        filename=parsed.metadata["filename"],
