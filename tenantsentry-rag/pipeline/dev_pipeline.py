@@ -350,6 +350,14 @@ def run_dev_audit(
     additional_docs: list = None, # accepted but ignored in mock mode
     max_pages: int = None,        # accepted but ignored — mock always uses MOCK_CLAUSES
     skip_vector_store: bool = False,  # accepted but ignored — mock never calls vector store
+    # AQ-NEW-5: accepted but defaulted to fixture values in dev mode
+    premises_use: str = None,
+    entity_type: str = None,
+    gla_sqm: float = None,
+    applicable_statute: str = None,
+    statute_code: str = None,
+    is_retail_lease: bool = None,
+    statute_prompt_block: str = "",
 ) -> AuditResult:
     """
     DEV MODE: Returns deterministic audit result for testing.
@@ -383,17 +391,6 @@ def run_dev_audit(
 
     filename = Path(pdf_path).name if pdf_path else DEV_FIXTURE_LEASE.name
 
-    return AuditResult(
-        tenant_name=tenant_name or DEV_FIXTURE_TENANT,
-        jurisdiction=jurisdiction or DEV_FIXTURE_JURISDICTION,
-        filename=filename,
-        raw_clause_count=len(MOCK_CLAUSES) * 2,  # DEV: simulate ~2x raw chunks vs analysed
-        total_clauses=len(MOCK_CLAUSES),
-        risk_score=risk_score,
-        clause_analyses=MOCK_CLAUSES,
-        all_risk_flags=all_flags,
-    )
-
-
-# Backward-compatibility alias — use run_dev_audit in new code
-run_mock_audit = run_dev_audit
+    # AQ-NEW-5: Dev fixture is Edward Millen Precinct — WA, community/civic use (non-retail),
+    # government landlord (Town of Victoria Park), commercial tenancy law applies.
+    _premises_use   = premises_use   or

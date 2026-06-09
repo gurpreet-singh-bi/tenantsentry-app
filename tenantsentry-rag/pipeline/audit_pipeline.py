@@ -435,6 +435,14 @@ def run_audit(
     additional_docs: list[dict] = None,
     max_pages: int = None,
     skip_vector_store: bool = False,
+    # AQ-NEW-5: Premises classification fields — used to determine applicable statute.
+    premises_use: str = None,
+    entity_type: str = None,
+    gla_sqm: float = None,
+    applicable_statute: str = None,    # Pre-classified statute string (from classify_premises)
+    statute_code: str = None,          # Short code e.g. "retail_wa"
+    is_retail_lease: bool = None,      # Whether retail tenancy legislation applies
+    statute_prompt_block: str = "",    # Formatted block for LLM injection
 ) -> AuditResult:
     """
     Full audit pipeline for a commercial lease PDF, with optional additional docs.
@@ -460,6 +468,13 @@ def run_audit(
         skip_vector_store: If True, skip vector store embedding/upsert even when
                            USE_VECTOR_STORE=true. Used for anonymous free checks to avoid
                            polluting the knowledge base with truncated documents.
+        premises_use:      AQ-NEW-5 — "retail"|"office"|"industrial"|"mixed"|"other"
+        entity_type:       AQ-NEW-5 — "individual"|"company"|"trust"|"government"
+        gla_sqm:           AQ-NEW-5 — gross lettable area in sqm (affects SA threshold)
+        applicable_statute: AQ-NEW-5 — full act name injected into prompts
+        statute_code:      AQ-NEW-5 — short code for DB storage
+        is_retail_lease:   AQ-NEW-5 — whether retail tenancy legislation applies
+        statute_prompt_block: AQ-NEW-5 — pre-formatted block for LLM system prompt
 
     Returns:
         AuditResult with clause analyses, risk flags, extracted lease dates,
@@ -698,8 +713,10 @@ def run_audit(
             cpi_context=cpi_ctx,
             land_tax_context=lt_ctx,
             schedule_context=sched_ctx,
-            clause_number=clause_heading,  # AG2: enables statute hint lookup
-            deal_summary=_deal_summary,    # AG1: confirmed deal terms ground truth
+            clause_number=clause_heading,   # AG2: enables statute hint lookup
+            deal_summary=_deal_summary,     # AG1: confirmed deal terms ground truth
+            statute_prompt_block=statute_prompt_block,  # AQ-NEW-5: premises classification
+            is_retail_lease=is_retail_lease,            # AQ1+AQ-NEW-5: selects correct statute list
         )
         _clause_ms = int((time.perf_counter() - _t_clause) * 1000)
         n_flags = len(analysis.get("risk_flags") or [])
@@ -930,34 +947,4 @@ def run_audit(
         tenant_name=tenant_name or "Unknown",
         jurisdiction=jur,
         filename=parsed.metadata["filename"],
-        raw_clause_count=len(chunks),
-        haiku_triage_count=n,
-        sonnet_analysed_count=_sonnet_count,
-        opus_escalated_count=_opus_count,
-        total_clauses=len(clause_analyses),
-        stage_costs=_costs.to_dict(),
-        risk_score=risk_score,
-        clause_analyses=clause_analyses,
-        all_risk_flags=all_flags,
-        lease_dates=lease_dates,
-        extracted_rules=extracted_rules,
-        stage_timings=_timings,
-        reconciliation_results=reconciliation_results,
-        pipeline_warnings=pipeline_warnings,
-        # Key metadata from reference schedule (None when not found)
-        landlord_name=lease_metadata.get("landlord_name"),
-        base_rent_pa=lease_metadata.get("base_rent_pa"),
-        floor_area_sqm=lease_metadata.get("floor_area_sqm"),
-        lease_term_years=lease_metadata.get("lease_term_years"),
-    )
-
-    logger.info(
-        f"Audit complete -- {len(clause_analyses)} clauses, "
-        f"{len(all_flags)} flags ({len(high_flags)} high), "
-        f"risk={risk_score}/100, dates={len(lease_dates)} | "
-        f"recon_docs={len(reconciliation_results)} | "
-        f"triage={_timings.get('triage_ms')}ms "
-        f"analysis={_timings.get('analysis_ms')}ms "
-        f"total={_timings.get('total_ms')}ms"
-    )
-    return result
+        raw_clause_count=len(c

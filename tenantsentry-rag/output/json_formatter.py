@@ -81,6 +81,14 @@ class AuditResult(BaseModel):
     base_rent_pa: Optional[float] = None     # Annual base rent in AUD (excl. outgoings)
     floor_area_sqm: Optional[float] = None   # Net lettable area in sqm
     lease_term_years: Optional[float] = None # Initial term in years
+    # AQ-NEW-5: Premises classification — determines which act governs this lease.
+    # Populated from pre-audit questionnaire fields submitted with the upload.
+    premises_use: Optional[str] = None       # "retail" | "office" | "industrial" | "mixed" | "other"
+    entity_type: Optional[str] = None        # "individual" | "company" | "trust" | "government"
+    gla_sqm: Optional[float] = None          # Gross lettable area (sqm) — triggers SA threshold
+    applicable_statute: Optional[str] = None # Full act name — e.g. "Retail Leases Act 2003 (VIC)"
+    statute_code: Optional[str] = None       # Short code — e.g. "retail_vic"
+    is_retail_lease: Optional[bool] = None   # True if retail tenancy legislation applies
 
     @property
     def high_risk_flags(self) -> list[dict]:
@@ -102,18 +110,4 @@ class AuditResult(BaseModel):
     def to_summary(self) -> dict:
         return {
             "tenant": self.tenant_name,
-            "jurisdiction": self.jurisdiction,
-            "file": self.filename,
-            "audit_date": self.audit_date.isoformat(),
-            "risk_level": self.risk_level,
-            "risk_score": self.risk_score,
-            "raw_clause_count": self.raw_clause_count,
-            "haiku_triage_count": self.haiku_triage_count,
-            "sonnet_analysed_count": self.sonnet_analysed_count,
-            "opus_escalated_count": self.opus_escalated_count,
-            "total_clauses_reviewed": self.total_clauses,
-            "total_flags": len(self.all_risk_flags),
-            "high_risk_flags": len(self.high_risk_flags),
-            "dates_extracted": len(self.lease_dates),
-            "critical_deadlines": len(self.critical_deadlines),
-        }
+            "jurisdiction": s

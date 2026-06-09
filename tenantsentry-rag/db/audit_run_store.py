@@ -63,7 +63,20 @@ def _now() -> str:
 
 # ── Write operations ──────────────────────────────────────────────────────────
 
-def insert_job(job_id: str, filename: str, jurisdiction: str, tenant_name: str, source: str = "live") -> dict:
+def insert_job(
+    job_id: str,
+    filename: str,
+    jurisdiction: str,
+    tenant_name: str,
+    source: str = "live",
+    # AQ-NEW-5: premises classification fields
+    premises_use: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    gla_sqm: Optional[float] = None,
+    applicable_statute: Optional[str] = None,
+    statute_code: Optional[str] = None,
+    is_retail_lease: Optional[bool] = None,
+) -> dict:
     """INSERT a new queued job row. Returns the inserted row."""
     row = {
         "job_id": job_id,
@@ -75,8 +88,21 @@ def insert_job(job_id: str, filename: str, jurisdiction: str, tenant_name: str, 
         "stage": "Queued",
         "source": source,
     }
+    # Only include classification fields when provided (columns may not exist on older schemas)
+    if premises_use is not None:
+        row["premises_use"] = premises_use
+    if entity_type is not None:
+        row["entity_type"] = entity_type
+    if gla_sqm is not None:
+        row["gla_sqm"] = gla_sqm
+    if applicable_statute is not None:
+        row["applicable_statute"] = applicable_statute
+    if statute_code is not None:
+        row["statute_code"] = statute_code
+    if is_retail_lease is not None:
+        row["is_retail_lease"] = is_retail_lease
     result = _get_client().table("audit_run").insert(row).execute()
-    logger.debug(f"[{job_id}] Inserted audit_run row (source={source})")
+    logger.debug(f"[{job_id}] Inserted audit_run row (source={source}, statute={statute_code})")
     return result.data[0] if result.data else row
 
 
@@ -292,26 +318,4 @@ def delete_job(job_id: str) -> None:
     logger.info(f"[{job_id}] audit_run row deleted")
 
 
-def fetch_released_jobs(source: str = "live") -> list[dict]:
-    """SELECT all released=True jobs for the given source, newest first."""
-    result = (
-        _get_client()
-        .table("audit_run")
-        .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, "
-                "released, released_at, reviewed_by_human, reviewer_notes, reviewed_at, "
-                "created_at, completed_at, source, stage_costs, stage_timings")
-        .eq("released", True)
-        .eq("source", source)
-        .order("released_at", desc=True)
-        .execute()
-    )
-    return result.data or []
-
-
-def fetch_jobs_for_tenant(tenant_id: str, source: str = "live") -> list[dict]:
-    """
-    SELECT released jobs for a specific tenant.
-    TODO (F-AUTH): add .eq("tenant_id", tenant_id) once tenant_id column exists.
-    Until then falls back to all released jobs for this source.
-    """
-    return fetch_released_jobs(source=source)
+def fetch_released_jobs(source: str = "live") -> li

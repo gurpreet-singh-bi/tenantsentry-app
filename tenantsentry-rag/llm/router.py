@@ -38,142 +38,224 @@ if not _api_key or _api_key.startswith("sk-ant-your"):
 
 # AQ1: Jurisdiction-specific statute map.
 # Used to (a) tell Claude which acts to cite and (b) list acts it must NOT cite.
-# Keyed by state code -- values are (primary_acts, prohibited_acts).
-_JURISDICTION_STATUTES: dict[str, tuple[list[str], list[str]]] = {
-    "WA": (
-        [
+#
+# Keyed by state code. Each entry is a dict with three lists:
+#   "retail"     -- acts that apply when is_retail_lease=True
+#   "commercial" -- acts that apply when is_retail_lease=False (common law / non-retail)
+#   "prohibited" -- acts from other states that must NEVER be cited
+#
+# When is_retail_lease is None (unknown), the union of retail+commercial is used,
+# preserving backward-compatible behaviour.
+#
+# The retail/commercial split matters most for WA and NT, where there are distinct
+# statutes for retail shops vs. general commercial tenancies. In VIC/NSW/QLD/SA the
+# retail tenancies act covers most commercial premises broadly; the commercial list
+# is used only for the rare leases explicitly outside that act's scope.
+_JURISDICTION_STATUTES: dict[str, dict[str, list[str]]] = {
+    "WA": {
+        "retail": [
+            # Retail tenancies: CTRS Act + general property law
             "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
             "Property Law Act 1969 (WA)",
             "Transfer of Land Act 1893 (WA)",
+            "Land Tax Assessment Act 2002 (WA)",
             "Planning and Development Act 2005 (WA)",
             "Land Administration Act 1997 (WA)",
+            "Work Health and Safety Act 2020 (WA)",
+            "Fair Trading Act 2010 (WA)",
+        ],
+        "commercial": [
+            # Non-retail commercial tenancies: common law + property law only.
+            # The CTRS Act does NOT apply -- do not cite it for commercial leases.
+            "Property Law Act 1969 (WA)",
+            "Transfer of Land Act 1893 (WA)",
             "Land Tax Assessment Act 2002 (WA)",
+            "Planning and Development Act 2005 (WA)",
+            "Land Administration Act 1997 (WA)",
             "Work Health and Safety Act 2020 (WA)",
             "Fair Trading Act 2010 (WA)",
             "Contaminated Sites Act 2003 (WA)",
-            "Liquor Control Act 1988 (WA)",
         ],
-        [
+        "prohibited": [
             "Retail Leases Act 2003 (VIC)",
             "Retail Leases Act 1994 (NSW)",
             "Retail Shop Leases Act 1994 (QLD)",
             "Retail and Commercial Leases Act 1995 (SA)",
             "Leases (Commercial and Retail) Act 2001 (ACT)",
         ],
-    ),
-    "VIC": (
-        [
+    },
+    "VIC": {
+        "retail": [
+            # Retail Leases Act 2003 (VIC) covers most commercial premises broadly.
             "Retail Leases Act 2003 (VIC)",
             "Property Law Act 1958 (VIC)",
             "Transfer of Land Act 1958 (VIC)",
-            "Planning and Environment Act 1987 (VIC)",
             "Land Tax Act 2005 (VIC)",
+            "Planning and Environment Act 1987 (VIC)",
             "Workplace Safety Legislation Amendment Act 2021 (VIC)",
             "Australian Consumer Law and Fair Trading Act 2012 (VIC)",
         ],
-        [
+        "commercial": [
+            # For premises explicitly excluded from Retail Leases Act 2003 (VIC).
+            "Property Law Act 1958 (VIC)",
+            "Transfer of Land Act 1958 (VIC)",
+            "Land Tax Act 2005 (VIC)",
+            "Planning and Environment Act 1987 (VIC)",
+            "Workplace Safety Legislation Amendment Act 2021 (VIC)",
+            "Australian Consumer Law and Fair Trading Act 2012 (VIC)",
+        ],
+        "prohibited": [
             "Retail Leases Act 1994 (NSW)",
             "Retail Shop Leases Act 1994 (QLD)",
             "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
             "Retail and Commercial Leases Act 1995 (SA)",
         ],
-    ),
-    "NSW": (
-        [
+    },
+    "NSW": {
+        "retail": [
             "Retail Leases Act 1994 (NSW)",
             "Conveyancing Act 1919 (NSW)",
             "Real Property Act 1900 (NSW)",
-            "Environmental Planning and Assessment Act 1979 (NSW)",
             "Land Tax Management Act 1956 (NSW)",
+            "Environmental Planning and Assessment Act 1979 (NSW)",
             "Work Health and Safety Act 2011 (NSW)",
             "Fair Trading Act 1987 (NSW)",
         ],
-        [
+        "commercial": [
+            "Conveyancing Act 1919 (NSW)",
+            "Real Property Act 1900 (NSW)",
+            "Land Tax Management Act 1956 (NSW)",
+            "Environmental Planning and Assessment Act 1979 (NSW)",
+            "Work Health and Safety Act 2011 (NSW)",
+            "Fair Trading Act 1987 (NSW)",
+        ],
+        "prohibited": [
             "Retail Leases Act 2003 (VIC)",
             "Retail Shop Leases Act 1994 (QLD)",
             "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
             "Retail and Commercial Leases Act 1995 (SA)",
         ],
-    ),
-    "QLD": (
-        [
+    },
+    "QLD": {
+        "retail": [
             "Retail Shop Leases Act 1994 (QLD)",
             "Property Law Act 1974 (QLD)",
             "Land Title Act 1994 (QLD)",
-            "Planning Act 2016 (QLD)",
             "Land Tax Act 2010 (QLD)",
+            "Planning Act 2016 (QLD)",
             "Work Health and Safety Act 2011 (QLD)",
             "Fair Trading Act 1989 (QLD)",
         ],
-        [
+        "commercial": [
+            "Property Law Act 1974 (QLD)",
+            "Land Title Act 1994 (QLD)",
+            "Land Tax Act 2010 (QLD)",
+            "Planning Act 2016 (QLD)",
+            "Work Health and Safety Act 2011 (QLD)",
+            "Fair Trading Act 1989 (QLD)",
+        ],
+        "prohibited": [
             "Retail Leases Act 1994 (NSW)",
             "Retail Leases Act 2003 (VIC)",
             "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
             "Retail and Commercial Leases Act 1995 (SA)",
         ],
-    ),
-    "SA": (
-        [
+    },
+    "SA": {
+        "retail": [
+            # SA: Retail and Commercial Leases Act 1995 covers BOTH retail AND commercial
+            # premises under 1,000 sqm. Above 1,000 sqm GLA the act does not apply.
             "Retail and Commercial Leases Act 1995 (SA)",
             "Law of Property Act 1936 (SA)",
             "Real Property Act 1886 (SA)",
             "Work Health and Safety Act 2012 (SA)",
             "Fair Trading Act 1987 (SA)",
         ],
-        [
+        "commercial": [
+            # Large-premises commercial (>= 1,000 sqm GLA) or premises excluded from RCLA.
+            "Law of Property Act 1936 (SA)",
+            "Real Property Act 1886 (SA)",
+            "Work Health and Safety Act 2012 (SA)",
+            "Fair Trading Act 1987 (SA)",
+        ],
+        "prohibited": [
             "Retail Leases Act 1994 (NSW)",
             "Retail Leases Act 2003 (VIC)",
             "Retail Shop Leases Act 1994 (QLD)",
             "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
         ],
-    ),
-    "ACT": (
-        [
+    },
+    "ACT": {
+        "retail": [
             "Leases (Commercial and Retail) Act 2001 (ACT)",
             "Civil Law (Property) Act 2006 (ACT)",
             "Land Titles Act 1925 (ACT)",
             "Work Health and Safety Act 2011 (ACT)",
         ],
-        [
+        "commercial": [
+            "Civil Law (Property) Act 2006 (ACT)",
+            "Land Titles Act 1925 (ACT)",
+            "Work Health and Safety Act 2011 (ACT)",
+        ],
+        "prohibited": [
             "Retail Leases Act 1994 (NSW)",
             "Retail Leases Act 2003 (VIC)",
             "Retail Shop Leases Act 1994 (QLD)",
             "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)",
         ],
-    ),
-    "TAS": (
-        [
+    },
+    "TAS": {
+        "retail": [
             "Fair Trading (Code of Practice for Retail Tenancies) Regulations 1998 (TAS)",
             "Conveyancing and Law of Property Act 1884 (TAS)",
             "Land Titles Act 1980 (TAS)",
             "Work Health and Safety Act 2012 (TAS)",
         ],
-        [
+        "commercial": [
+            "Conveyancing and Law of Property Act 1884 (TAS)",
+            "Land Titles Act 1980 (TAS)",
+            "Work Health and Safety Act 2012 (TAS)",
+        ],
+        "prohibited": [
             "Retail Leases Act 1994 (NSW)",
             "Retail Leases Act 2003 (VIC)",
             "Retail Shop Leases Act 1994 (QLD)",
         ],
-    ),
-    "NT": (
-        [
+    },
+    "NT": {
+        "retail": [
             "Business Tenancies (Fair Dealings) Act 2003 (NT)",
             "Law of Property Act 2000 (NT)",
             "Land Title Act 2000 (NT)",
             "Work Health and Safety (National Uniform Legislation) Act 2011 (NT)",
         ],
-        [
+        "commercial": [
+            "Law of Property Act 2000 (NT)",
+            "Land Title Act 2000 (NT)",
+            "Work Health and Safety (National Uniform Legislation) Act 2011 (NT)",
+        ],
+        "prohibited": [
             "Retail Leases Act 1994 (NSW)",
             "Retail Leases Act 2003 (VIC)",
             "Retail Shop Leases Act 1994 (QLD)",
         ],
-    ),
+    },
 }
 
 
-def _build_jurisdiction_constraint(jurisdiction: str) -> str:
+def _build_jurisdiction_constraint(
+    jurisdiction: str,
+    is_retail_lease: bool = None,
+) -> str:
     """
     AQ1: Return a hard constraint block that forces the LLM to cite only
     the correct jurisdiction's statutes and never cite other states' laws.
+
+    Args:
+        jurisdiction:   State code (WA, VIC, NSW, etc.)
+        is_retail_lease: When True, use the retail statute list.
+                         When False, use the commercial statute list.
+                         When None (unknown), use the union of both lists.
     """
     jur = jurisdiction.upper()
     entry = _JURISDICTION_STATUTES.get(jur)
@@ -183,11 +265,29 @@ def _build_jurisdiction_constraint(jurisdiction: str) -> str:
             "Do NOT cite interstate acts (VIC, NSW, QLD, SA, WA, ACT, TAS, NT) "
             "unless they are Commonwealth Acts that apply nationally."
         )
-    primary, prohibited = entry
-    primary_list  = "\n".join(f"    + {act}" for act in primary)
-    blocked_list  = "\n".join(f"    - {act}" for act in prohibited)
+
+    prohibited = entry["prohibited"]
+
+    if is_retail_lease is True:
+        primary = entry["retail"]
+        lease_type_note = "retail tenancy"
+    elif is_retail_lease is False:
+        primary = entry["commercial"]
+        lease_type_note = "commercial (non-retail) tenancy"
+    else:
+        # Unknown: union of both lists, preserving order, deduplicating.
+        seen: set[str] = set()
+        primary = []
+        for act in entry["retail"] + entry["commercial"]:
+            if act not in seen:
+                seen.add(act)
+                primary.append(act)
+        lease_type_note = "commercial tenancy"
+
+    primary_list = "\n".join(f"    + {act}" for act in primary)
+    blocked_list = "\n".join(f"    - {act}" for act in prohibited)
     return "\n".join([
-        f"JURISDICTION ENFORCEMENT -- {jur}",
+        f"JURISDICTION ENFORCEMENT -- {jur} ({lease_type_note})",
         f"  This lease is governed by {jur} law.",
         "  You MUST ONLY cite the following acts (or Commonwealth acts that apply nationally):",
         primary_list,
@@ -360,6 +460,8 @@ def analyse_clause(
     schedule_context: str = "",  # AQ2: injected schedule item content
     clause_number: str = "",     # AG2: clause heading/number for statute hint lookup
     deal_summary: str = "",      # AG1: confirmed deal terms — ground truth injected before all context
+    statute_prompt_block: str = "",  # AQ-NEW-5: premises classification block (applicable statute)
+    is_retail_lease: bool = None,    # AQ1+AQ-NEW-5: selects correct statute list (retail vs commercial)
 ) -> dict:
     """
     Analyse a single lease clause with grounded RAG context.
@@ -369,17 +471,24 @@ def analyse_clause(
     model = select_model(clause_text)
     client = get_client()
 
-    # AQ1: Build the jurisdiction enforcement block once per call.
-    _jur_constraint = _build_jurisdiction_constraint(jurisdiction)
+    # AQ1: Build the jurisdiction enforcement block, filtered to the correct statute
+    # list for this lease type (retail vs commercial). is_retail_lease comes from
+    # the AQ-NEW-5 premises classification so both constraints are coherent.
+    _jur_constraint = _build_jurisdiction_constraint(jurisdiction, is_retail_lease=is_retail_lease)
+
+    # AQ-NEW-5: Insert premises classification block after jurisdiction constraint.
+    _statute_block = statute_prompt_block or ""
 
     system_prompt = "\n".join([
         f"You are an expert Australian commercial lease auditor specialising in {jurisdiction} tenancy law.",
         "",
         _jur_constraint,
         "",
+        _statute_block,
+        "",
         "You will be given:",
         "1. A clause from a commercial lease",
-        f"2. Relevant sections from the {jurisdiction} Retail Leases Act and related legislation (may be empty)",
+        f"2. Relevant sections from the applicable legislation (may be empty)",
         "3. Known risk flag rules for this type of clause",
         "",
         "Your job is to:",
@@ -523,108 +632,4 @@ def analyse_clause(
             except json.JSONDecodeError:
                 logger.error(f"LLM returned non-JSON: {raw[:200]}")
                 return {
-                    "error": "Failed to parse LLM response", "raw": raw[:500],
-                    "_model": model,
-                    "_input_tokens": usage.input_tokens,
-                    "_output_tokens": usage.output_tokens,
-                }
-        except Exception as exc:
-            last_exc = exc
-            err_str = str(exc)
-            is_retryable = any(s in err_str for s in ("429", "529", "overloaded", "rate limit", "rate_limit"))
-            if is_retryable and attempt < _MAX_RETRIES - 1:
-                delay = _RETRY_BASE_DELAY * (2 ** attempt)
-                logger.warning(
-                    f"Claude API retryable error (attempt {attempt + 1}/{_MAX_RETRIES}): "
-                    f"{err_str[:120]} -- retrying in {delay:.0f}s"
-                )
-                time.sleep(delay)
-            else:
-                break
-
-    logger.error(f"analyse_clause failed after {_MAX_RETRIES} attempts: {last_exc}")
-    return {"error": f"API error after retries: {last_exc}"}
-
-
-def triage_clauses(
-    chunks: list,
-    batch_offset: int,
-    jurisdiction: str,
-) -> tuple[list[int], dict]:
-    """
-    Pass 1: Haiku triage -- identify clause indices that need full Sonnet/Opus analysis.
-
-    Takes a batch of chunks (slice of the full chunk list) and returns a tuple of:
-      - list of *absolute* indices (batch_offset + local_idx) to flag for deep analysis
-      - usage dict: {"input_tokens": int, "output_tokens": int} for cost tracking
-        (zeros on fallback so accumulation is always safe)
-
-    Falls back to flagging all clauses in the batch if the model returns non-JSON,
-    so a triage failure degrades gracefully to the original sequential behaviour.
-
-    Args:
-        chunks:        Slice of DocumentChunk objects for this batch.
-        batch_offset:  Index of chunks[0] in the full clause list.
-        jurisdiction:  State code -- used for model context.
-    """
-    client = get_client()
-
-    clause_list = "\n".join(
-        f"{batch_offset + i}. [{c.metadata.get('clause_heading', f'Clause {batch_offset + i}')}] "
-        f"{c.content[:200].replace(chr(10), ' ')}"
-        for i, c in enumerate(chunks)
-    )
-
-    prompt = (
-        f"You are screening {jurisdiction} commercial lease clauses for deep legal analysis.\n\n"
-        "FLAG a clause (include its number) ONLY if it contains ONE OR MORE of these HIGH-VALUE topics:\n"
-        "- Rent amount, rent review, CPI escalation, market review, rent ratchet\n"
-        "- Outgoings, land tax, rates, levies, capital expenditure\n"
-        "- Make-good, reinstatement, fitout obligations\n"
-        "- Personal guarantee, indemnity, liability cap\n"
-        "- Option to renew, option to purchase, holdover/overholding\n"
-        "- Assignment, subletting, change of control\n"
-        "- Termination, default, re-entry rights\n"
-        "- Demolition, redevelopment, relocation\n"
-        "- Exclusivity, permitted use restrictions\n\n"
-        "DO NOT FLAG (these are standard boilerplate, skip them):\n"
-        "- Definitions, interpretation, headings\n"
-        "- Notices and service of documents\n"
-        "- Entire agreement, waiver, severability\n"
-        "- Governing law, jurisdiction\n"
-        "- Counterparts, execution\n"
-        "- General repair and maintenance (standard obligations only)\n"
-        "- Insurance obligations (standard only, no unusual liability)\n"
-        "- Confidentiality (standard)\n\n"
-        "TARGET: Flag roughly 20-35% of clauses (5-9 per 25-clause batch). Be selective -- most leases "
-        "have 60-70% boilerplate. If you are flagging more than 40%, re-read the DO NOT FLAG list and "
-        "reconsider. A missed important clause is worse than a missed boilerplate clause, so when in "
-        "doubt on a HIGH-VALUE topic, flag it -- but do not flag clauses that clearly belong in DO NOT FLAG.\n\n"
-        "Return ONLY a JSON array of the clause numbers (integers) that need deep analysis. "
-        "Example: [0, 3, 7]\n\n"
-        f"CLAUSES:\n{clause_list}\n\n"
-        "JSON array of clause numbers only:"
-    )
-
-    try:
-        response = client.messages.create(
-            model=HAIKU_MODEL,
-            max_tokens=512,
-            messages=[{"role": "user", "content": prompt}],
-            timeout=30.0,
-        )
-        usage = response.usage
-        raw = response.content[0].text.strip()
-        indices = json.loads(raw)
-        valid = [int(i) for i in indices if isinstance(i, (int, float))]
-        return valid, {"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}
-    except json.JSONDecodeError:
-        logger.warning(
-            f"Haiku triage non-JSON response (offset={batch_offset}): {raw[:100]} -- flagging all"
-        )
-        fallback = list(range(batch_offset, batch_offset + len(chunks)))
-        return fallback, {"input_tokens": 0, "output_tokens": 0}
-    except Exception as exc:
-        logger.error(f"Haiku triage failed (offset={batch_offset}): {exc} -- flagging all")
-        fallback = list(range(batch_offset, batch_offset + len(chunks)))
-        return fallback, {"input_tokens": 0, "output_tokens": 0}
+                    "error": "Failed

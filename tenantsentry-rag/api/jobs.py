@@ -106,6 +106,13 @@ class Job:
         source: str = "live",
         stage_costs: Optional[dict] = None,
         stage_timings: Optional[dict] = None,
+        # AQ-NEW-5: Premises classification fields
+        premises_use: Optional[str] = None,
+        entity_type: Optional[str] = None,
+        gla_sqm: Optional[float] = None,
+        applicable_statute: Optional[str] = None,
+        statute_code: Optional[str] = None,
+        is_retail_lease: Optional[bool] = None,
     ):
         self.job_id = job_id
         self.filename = filename
@@ -126,6 +133,13 @@ class Job:
         self.source = source
         self.stage_costs = stage_costs    # small dict — included in to_dict() for admin panel
         self.stage_timings = stage_timings
+        # AQ-NEW-5
+        self.premises_use = premises_use
+        self.entity_type = entity_type
+        self.gla_sqm = gla_sqm
+        self.applicable_statute = applicable_statute
+        self.statute_code = statute_code
+        self.is_retail_lease = is_retail_lease
 
     @classmethod
     def from_row(cls, row: dict, result: Optional[dict] = None) -> "Job":
@@ -150,6 +164,13 @@ class Job:
             source=row.get("source", "live"),
             stage_costs=row.get("stage_costs"),
             stage_timings=row.get("stage_timings"),
+            # AQ-NEW-5
+            premises_use=row.get("premises_use"),
+            entity_type=row.get("entity_type"),
+            gla_sqm=row.get("gla_sqm"),
+            applicable_statute=row.get("applicable_statute"),
+            statute_code=row.get("statute_code"),
+            is_retail_lease=row.get("is_retail_lease"),
         )
 
     def to_dict(self) -> dict:
@@ -172,6 +193,13 @@ class Job:
             "source": self.source,
             "stage_costs": self.stage_costs,
             "stage_timings": self.stage_timings,
+            # AQ-NEW-5: premises classification
+            "premises_use": self.premises_use,
+            "entity_type": self.entity_type,
+            "gla_sqm": self.gla_sqm,
+            "applicable_statute": self.applicable_statute,
+            "statute_code": self.statute_code,
+            "is_retail_lease": self.is_retail_lease,
             # result/findings is large — only included in dedicated result endpoint
         }
 
@@ -195,15 +223,42 @@ def _supabase_ok() -> bool:
     return _USE_SUPABASE and _store is not None
 
 
-def create_job(filename: str, jurisdiction: str, tenant_name: str) -> Job:
+def create_job(
+    filename: str,
+    jurisdiction: str,
+    tenant_name: str,
+    premises_use: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    gla_sqm: Optional[float] = None,
+    applicable_statute: Optional[str] = None,
+    statute_code: Optional[str] = None,
+    is_retail_lease: Optional[bool] = None,
+) -> Job:
     job_id = str(uuid.uuid4())
     source = _current_source()
-    job = Job(job_id=job_id, filename=filename, jurisdiction=jurisdiction, tenant_name=tenant_name, source=source)
+    job = Job(
+        job_id=job_id,
+        filename=filename,
+        jurisdiction=jurisdiction,
+        tenant_name=tenant_name,
+        source=source,
+        premises_use=premises_use,
+        entity_type=entity_type,
+        gla_sqm=gla_sqm,
+        applicable_statute=applicable_statute,
+        statute_code=statute_code,
+        is_retail_lease=is_retail_lease,
+    )
     # Always write to fallback first so we never lose the job on a Supabase error
     _jobs_fallback[job_id] = job
     if _supabase_ok():
         try:
-            _store.insert_job(job_id, filename, jurisdiction, tenant_name, source=source)
+            _store.insert_job(
+                job_id, filename, jurisdiction, tenant_name, source=source,
+                premises_use=premises_use, entity_type=entity_type, gla_sqm=gla_sqm,
+                applicable_statute=applicable_statute, statute_code=statute_code,
+                is_retail_lease=is_retail_lease,
+            )
         except Exception as e:
             logger.error(f"[{job_id}] Supabase insert failed, using in-memory: {e}")
     return job
@@ -538,59 +593,4 @@ def store_document(job_id: str, filename: str, data: bytes, content_type: str = 
     Fallback: in-memory dict (dev mode / Supabase unavailable).
     """
     # Always keep in-memory copy for same-request access speed
-    _documents[job_id] = {"filename": filename, "content_type": content_type, "data": data}
-
-    if _supabase_ok():
-        try:
-            from db.pdf_store import upload_pdf
-            upload_pdf(job_id, filename, data)
-        except Exception as e:
-            logger.error(f"[{job_id}] PDF Storage upload failed, in-memory only: {e}")
-
-
-def get_document(job_id: str) -> Optional[dict]:
-    """
-    Retrieve original uploaded PDF.
-    Checks in-memory first (fast path), then falls back to Supabase Storage.
-    """
-    # Fast path — same process has it in memory
-    doc = _documents.get(job_id)
-    if doc:
-        return doc
-
-    # Slow path — different replica or server restarted, fetch from Storage
-    if _supabase_ok():
-        try:
-            from db.pdf_store import download_pdf
-            from db.audit_run_store import fetch_job
-            row = fetch_job(job_id)
-            if not row:
-                return None
-            filename = row["filename"]
-            data = download_pdf(job_id, filename)
-            if data:
-                doc = {"filename": filename, "content_type": "application/pdf", "data": data}
-                _documents[job_id] = doc  # cache locally for subsequent calls
-                return doc
-        except Exception as e:
-            logger.error(f"[{job_id}] PDF Storage download failed: {e}")
-
-    return None
-
-
-# ── Result accessor (fetches findings from Supabase if needed) ────────────────
-
-def get_job_result(job_id: str) -> Optional[dict]:
-    """
-    Fetch the full AuditResult findings for a completed job.
-    Separated from get_job() to avoid loading large JSONB on every status poll.
-    """
-    if _supabase_ok():
-        try:
-            result = _store.fetch_findings(job_id)
-            if result is not None:
-                return result
-        except Exception as e:
-            logger.error(f"[{job_id}] Supabase fetch_findings failed, checking fallback: {e}")
-    job = _jobs_fallback.get(job_id)
-    return job.result if job else None
+    _documents[job_id] = {"

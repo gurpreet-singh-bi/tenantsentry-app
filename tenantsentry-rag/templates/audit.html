@@ -987,6 +987,9 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
             <option value="QLD">QLD — Retail Shop Leases Act 1994</option>
             <option value="WA">WA — Commercial Tenancy Act 1985</option>
             <option value="SA">SA — Retail and Commercial Leases Act 1995</option>
+            <option value="ACT">ACT — Leases (Commercial and Retail) Act 2001</option>
+            <option value="TAS">TAS — Fair Trading (Code of Practice) Act 1998</option>
+            <option value="NT">NT — Business Tenancies Act 2003</option>
           </select>
           <div style="font-size:11px;color:var(--teal);margin-top:5px;min-height:16px" id="legislationLabel"></div>
         </div>
@@ -996,6 +999,46 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
             Lease Reference <span style="font-weight:400">(optional)</span>
           </div>
           <input type="text" id="leaseRef" placeholder="e.g. Shop 4 Collins St" style="width:100%;padding:10px 14px;background:var(--navy-light);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit" />
+        </div>
+
+      </div>
+
+      <!-- AQ-NEW-5: Premises classification questionnaire -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
+
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+            Use of Premises <span style="color:var(--red)">*</span>
+          </div>
+          <select id="premisesUse" style="width:100%;padding:10px 14px;background:var(--navy-light);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 12 12'%3E%3Cpath fill='%238fa3bf' d='M6 8L1 3h10z'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px">
+            <option value="retail">Retail / Shop</option>
+            <option value="office">Office</option>
+            <option value="industrial">Industrial / Warehouse</option>
+            <option value="mixed">Mixed Use</option>
+            <option value="other" selected>Other / Community</option>
+          </select>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Determines which act applies</div>
+        </div>
+
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+            Tenant Entity Type <span style="color:var(--red)">*</span>
+          </div>
+          <select id="entityType" style="width:100%;padding:10px 14px;background:var(--navy-light);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 12 12'%3E%3Cpath fill='%238fa3bf' d='M6 8L1 3h10z'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px">
+            <option value="company" selected>Company / Pty Ltd</option>
+            <option value="individual">Individual</option>
+            <option value="trust">Trust</option>
+            <option value="government">Government / Council</option>
+          </select>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Affects retail act eligibility</div>
+        </div>
+
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+            Floor Area (sqm) <span style="font-weight:400">(optional)</span>
+          </div>
+          <input type="number" id="glaSqm" placeholder="e.g. 250" min="1" max="99999" style="width:100%;padding:10px 14px;background:var(--navy-light);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;outline:none;font-family:inherit" />
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Gross lettable area — affects SA threshold</div>
         </div>
 
       </div>
@@ -2421,6 +2464,11 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       });
       formData.append('jurisdiction', jurisdiction);
       formData.append('tenant_name', leaseRef || 'TenantSentry');
+      // AQ-NEW-5: premises classification fields
+      formData.append('premises_use', document.getElementById('premisesUse')?.value || 'other');
+      formData.append('entity_type', document.getElementById('entityType')?.value || 'company');
+      const glaSqm = document.getElementById('glaSqm')?.value;
+      if (glaSqm) formData.append('gla_sqm', glaSqm);
 
       const res = await fetch('/api/audit/submit', { method: 'POST', body: formData });
       if (!res.ok) {
@@ -2774,89 +2822,4 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     } else {
       aeClauseTarget = Math.min(AE_SIM_CLAUSES.length, Math.floor((progress-50)/38*AE_SIM_CLAUSES.length));
     }
-    if (progress >= 88 && aeClauseIdx >= AE_SIM_CLAUSES.length && !aeEngStarted) {
-      aeEngStarted=true; setTimeout(()=>aeRunEngine(0),800);
-    }
-  }
-
-
-  function aeAppendLog(c) {
-    const log=aeGet('ae-clause-log'); if(!log) return;
-    const d=document.createElement('div');
-    const cls=c.s==='breach'?'le-breach':c.s==='flag'?'le-flag':'';
-    const lbl=c.s==='ok'?'Compliant':c.s==='flag'?'Flag':'Breach';
-    d.className='ae-le '+cls;
-    d.innerHTML='<span class="ae-le-num">'+String(c.id).padStart(2,'0')+'</span>'
-      +'<div><div class="ae-le-name">'+c.n+'</div>'
-      +(c.l?'<div class="ae-le-leg">'+c.l+'</div>':'')
-      +'<div class="ae-le-row ae-s-'+c.s+'"><div class="ae-le-dot"></div>'
-      +'<span class="ae-le-lbl">'+lbl+'</span></div>'
-      +(c.note?'<div class="ae-le-note">'+c.note+'</div>':'')+'</div>';
-    log.appendChild(d);
-    log.scrollTop=log.scrollHeight;
-  }
-
-  async function aeRunEngine(i) {
-    // Animates engine columns in both live and demo modes.
-    // In live mode, real findings are already in the DOM from _renderLiveResults();
-    // this provides the visual step-through, then restores real badge text/class after.
-    if(i>=3){ aeSimComplete(); return; }
-    const col=aeGet('ae-ec'+i), badge=aeGet('ae-eb'+i);
-    if(!col||!badge){ aeRunEngine(i+1); return; }
-
-    // In live mode, _renderReconPanel may have set a real badge (FLAGGED/COMPLIANT/etc.)
-    // Save it now so we can restore it after the RUNNING animation.
-    const savedBadgeText  = badge.textContent;
-    const savedBadgeClass = badge.className;
-    const hasRealBadge = auditMode === 'live'
-      && savedBadgeText
-      && !['PENDING','NOT SUBMITTED',''].includes(savedBadgeText);
-
-    col.classList.add('ae-running');
-    badge.textContent='RUNNING'; badge.className='ae-col-badge running';
-    const steps=AE_ENG_STEPS[i];
-    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-    let t=300;
-    for(const s of steps){
-      await sleep(t);
-      const el=aeGet(s.id);
-      if(el){ el.classList.add('active'); el.querySelector('.ae-es-icon').textContent='⟳'; }
-      await sleep(s.d*0.6);
-      if(el){ el.classList.remove('active'); el.classList.add('done'); el.querySelector('.ae-es-icon').textContent='✓'; }
-      t=s.d;
-    }
-    await sleep(500);
-    const finding=aeGet('ae-ef'+i); if(finding) finding.classList.add('show');
-    col.classList.remove('ae-running');
-    if (hasRealBadge) {
-      // Live mode: restore the real status badge set by _renderReconPanel;
-      // col class was already set correctly by _renderReconPanel so don't overwrite.
-      badge.textContent  = savedBadgeText;
-      badge.className    = savedBadgeClass;
-    } else {
-      // Demo mode or no real data (engines 0/1 in live): apply demo-style finish.
-      const done = i === 2 ? 'ae-flag' : 'ae-breach';
-      col.classList.add(done);
-      badge.textContent = 'COMPLETE';
-      badge.className   = 'ae-col-badge';
-    }
-    await sleep(400);
-    aeRunEngine(i+1);
-  }
-
-  function aeSimComplete() {
-    clearInterval(aeVTimer); clearInterval(aeCTimer);
-    const badge=aeGet('ae-badge');
-    if(badge){ badge.textContent='COMPLETE'; badge.style.background='rgba(34,197,94,0.1)'; badge.style.borderColor='rgba(34,197,94,0.3)'; badge.style.color='#4ade80'; }
-    const dot=aeGet('ae-live-dot');
-    if(dot){ dot.style.background='#22c55e'; dot.style.animation='none'; }
-    aeSet('ae-status-msg','✅ Audit Engine complete — your report has been queued for expert review. Proceeding automatically...');
-    const sr=aeGet('ae-status-right'); if(sr) sr.style.display='none';
-    const pill=aeGet('ae-cd-pill'); if(pill) pill.style.display='block';
-    let n=30; aeSet('ae-cd-num',n);
-    aeCdTimer=setInterval(()=>{ n--; aeSet('ae-cd-num',n); if(n<=0){ clearInterval(aeCdTimer); goToReview(); } },1000);
-  }
-
-</script>
-</body>
-</html>
+    if (progress >= 88 && aeC
