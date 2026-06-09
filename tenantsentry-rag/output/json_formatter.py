@@ -110,4 +110,18 @@ class AuditResult(BaseModel):
     def to_summary(self) -> dict:
         return {
             "tenant": self.tenant_name,
-            "jurisdiction": s
+            "jurisdiction": self.jurisdiction,
+            "file": self.filename,
+            "audit_date": self.audit_date.isoformat(),
+            "risk_level": self.risk_level,
+            "risk_score": self.risk_score,
+            "raw_clause_count": self.raw_clause_count,
+            "haiku_triage_count": self.haiku_triage_count,
+            "sonnet_analysed_count": self.sonnet_analysed_count,
+            "opus_escalated_count": self.opus_escalated_count,
+            "total_clauses_reviewed": self.total_clauses,
+            "total_flags": len(self.all_risk_flags),
+            "high_risk_flags": len(self.high_risk_flags),
+            "dates_extracted": len(self.lease_dates),
+            "critical_deadlines": len(self.critical_deadlines),
+        }

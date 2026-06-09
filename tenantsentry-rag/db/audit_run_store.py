@@ -318,4 +318,22 @@ def delete_job(job_id: str) -> None:
     logger.info(f"[{job_id}] audit_run row deleted")
 
 
-def fetch_released_jobs(source: str = "live") -> li
+def fetch_released_jobs(source: str = "live") -> list[dict]:
+    """SELECT all released=True jobs for the given source, newest first."""
+    result = (
+        _get_client()
+        .table("audit_run")
+        .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, "
+                "released, released_at, reviewed_by_human, reviewer_notes, reviewed_at, "
+                "created_at, completed_at, source, stage_costs, stage_timings")
+        .eq("released", True)
+        .eq("source", source)
+        .order("released_at", desc=True)
+        .execute()
+    )
+    return result.data or []
+
+
+def fetch_jobs_for_tenant(tenant_id: str, source: str = "live") -> list[dict]:
+    """SELECT released jobs for a specific tenant."""
+    return fetch_released_jobs(source=source)

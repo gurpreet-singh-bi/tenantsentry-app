@@ -593,4 +593,30 @@ def store_document(job_id: str, filename: str, data: bytes, content_type: str = 
     Fallback: in-memory dict (dev mode / Supabase unavailable).
     """
     # Always keep in-memory copy for same-request access speed
-    _documents[job_id] = {"
+    _documents[job_id] = {"filename": filename, "data": data, "content_type": content_type}
+    if _supabase_ok():
+        try:
+            from api.mode import is_live
+            if is_live():
+                from db.supabase_client import get_supabase
+                sb = get_supabase()
+                bucket_path = f"{job_id}/{filename}"
+                sb.storage.from_("lease-pdfs").upload(
+                    bucket_path, data,
+                    file_options={"content-type": content_type, "upsert": "true"},
+                )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(f"Supabase storage upload failed: {exc}")
+
+
+def get_document(job_id: str) -> Optional[dict]:
+    """Return the stored document dict {data, filename, content_type} for a job."""
+    return _documents.get(job_id)
+
+
+def get_job_result(job_id: str) -> Optional[dict]:
+    """Return the stored audit result dict for a completed job."""
+    job = get_job(job_id)
+    if job and job.status == JobStatus.COMPLETE:
+        return job.result if isinstance(job.result, dict) else None

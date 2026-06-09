@@ -393,4 +393,29 @@ def run_dev_audit(
 
     # AQ-NEW-5: Dev fixture is Edward Millen Precinct — WA, community/civic use (non-retail),
     # government landlord (Town of Victoria Park), commercial tenancy law applies.
-    _premises_use   = premises_use   or
+    _premises_use   = premises_use   or "other"
+    _entity_type    = entity_type    or "company"
+    _applicable_statute = applicable_statute or "Commercial Tenancy Act 1985 (WA)"
+    _statute_code   = statute_code   or "commercial_wa"
+    _is_retail      = is_retail_lease if is_retail_lease is not None else False
+
+    return AuditResult(
+        tenant_name=tenant_name or DEV_FIXTURE_TENANT,
+        jurisdiction=jurisdiction or DEV_FIXTURE_JURISDICTION,
+        filename=filename,
+        raw_clause_count=len(MOCK_CLAUSES) * 2,
+        total_clauses=len(MOCK_CLAUSES),
+        risk_score=risk_score,
+        clause_analyses=MOCK_CLAUSES,
+        all_risk_flags=all_flags,
+        premises_use=_premises_use,
+        entity_type=_entity_type,
+        gla_sqm=gla_sqm,
+        applicable_statute=_applicable_statute,
+        statute_code=_statute_code,
+        is_retail_lease=_is_retail,
+    )
+
+
+# Backward-compatibility alias
+run_mock_audit = run_dev_audit

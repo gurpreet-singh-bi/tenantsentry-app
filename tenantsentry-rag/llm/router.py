@@ -632,4 +632,67 @@ def analyse_clause(
             except json.JSONDecodeError:
                 logger.error(f"LLM returned non-JSON: {raw[:200]}")
                 return {
-                    "error": "Failed
+                    "error": "Failed to parse LLM response", "raw": raw[:500],
+                    "error": "Failed to parse LLM response", "raw": raw[:500],
+                    "_model": model,
+                    "_input_tokens": usage.input_tokens,
+                    "_output_tokens": usage.output_tokens,
+                }
+        except Exception as exc:
+            last_exc = exc
+            err_str = str(exc)
+            is_retryable = any(s in err_str for s in ("429", "529", "overloaded", "rate limit", "rate_limit"))
+            if is_retryable and attempt < _MAX_RETRIES - 1:
+                delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                import time
+                time.sleep(delay)
+            else:
+                break
+
+    logger.error(f"analyse_clause failed after {_MAX_RETRIES} attempts: {last_exc}")
+    return {"error": f"API error after retries: {last_exc}"}
+
+
+def triage_clauses(
+    chunks: list,
+    batch_offset: int,
+    jurisdiction: str,
+) -> tuple:
+    """Pass 1: Haiku triage. Returns (list_of_indices, usage_dict)."""
+    import json
+    client = get_client()
+
+    clause_list = "\n".join(
+        f"{batch_offset + i}. [{c.metadata.get('clause_heading', f'Clause {batch_offset + i}')}] "
+        f"{c.content[:200].replace(chr(10), ' ')}"
+        for i, c in enumerate(chunks)
+    )
+
+    prompt = (
+        f"You are screening {jurisdiction} commercial lease clauses for deep legal analysis.\n\n"
+        "FLAG a clause ONLY if it contains ONE OR MORE of these HIGH-VALUE topics:\n"
+        "- Rent, rent review, CPI, outgoings, make-good, guarantee, option to renew, "
+        "assignment, termination, demolition, exclusivity, permitted use\n\n"
+        "DO NOT FLAG: Definitions, notices, entire agreement, governing law.\n\n"
+        "TARGET: Flag roughly 20-35 percent of clauses. Be selective.\n\n"
+        "Return ONLY a JSON array of clause numbers needing deep analysis. Example: [0, 3, 7]\n\n"
+        f"CLAUSES:\n{clause_list}\n\nJSON array only:"
+    )
+
+    try:
+        response = client.messages.create(
+            model=HAIKU_MODEL,
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=30.0,
+        )
+        usage = response.usage
+        raw = response.content[0].text.strip()
+        indices = json.loads(raw)
+        valid = [int(i) for i in indices if isinstance(i, (int, float))]
+        return valid, {"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error(f"Haiku triage failed (offset={batch_offset}): {exc}")
+        fallback = list(range(batch_offset, batch_offset + len(chunks)))
+        return fallback, {"input_tokens": 0, "output_tokens": 0}
