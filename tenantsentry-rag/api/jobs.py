@@ -287,6 +287,11 @@ def complete_job(job_id: str, result: dict) -> None:
         job.stage = "Complete"
         job.result = result  # keep full result in-memory (same process, no storage cost)
         job.completed_at = datetime.now(_SYDNEY_TZ).isoformat()
+        # Mirror cost/timing data onto the job object so get_job() in-memory path
+        # can serve stage_costs even when the DB column is missing or write failed.
+        if isinstance(result, dict):
+            job.stage_costs   = result.get("stage_costs")
+            job.stage_timings = result.get("stage_timings")
     if _supabase_ok():
         try:
             stage_timings = result.get("stage_timings") if isinstance(result, dict) else None
@@ -294,13 +299,20 @@ def complete_job(job_id: str, result: dict) -> None:
             findings = _strip_clause_text(result) if isinstance(result, dict) else result
             _store.mark_complete(job_id, findings, stage_timings=stage_timings, stage_costs=stage_costs)
         except Exception as e:
-            logger.error(f"[{job_id}] Supabase complete failed: {e}")
-            # Fallback: write status+progress without findings so the DB row
-            # exits 'processing' state and status polls don't show a stale stage.
+            logger.error(f"[{job_id}] Supabase complete failed (full): {e}")
+            # Retry without cost/timing columns — saves findings even if those
+            # columns don't yet exist in the live schema.
             try:
-                _store.mark_complete_minimal(job_id)
+                findings = _strip_clause_text(result) if isinstance(result, dict) else result
+                _store.mark_complete(job_id, findings, stage_timings=None, stage_costs=None)
+                logger.info(f"[{job_id}] Supabase complete succeeded (findings only, no cost columns)")
             except Exception as e2:
-                logger.error(f"[{job_id}] Supabase minimal complete also failed: {e2}")
+                logger.error(f"[{job_id}] Supabase complete (findings-only) also failed: {e2}")
+                # Last resort: exit 'processing' state so status polls don't show a stale stage.
+                try:
+                    _store.mark_complete_minimal(job_id)
+                except Exception as e3:
+                    logger.error(f"[{job_id}] Supabase minimal complete also failed: {e3}")
 
 
 def fail_job(job_id: str, error: str) -> None:

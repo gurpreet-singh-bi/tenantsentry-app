@@ -2502,9 +2502,9 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
 
         if (data.status === 'complete' || p >= 100) {
           clearInterval(aeJobPollTimer);
-          // Fetch final results and render real findings
+          // Fetch final results and render real findings, then animate engine columns
           await _renderLiveResults(reviewJobId);
-          aeSimComplete();
+          if (!aeEngStarted) { aeEngStarted = true; aeRunEngine(0); }
         }
         if (data.status === 'failed') {
           clearInterval(aeJobPollTimer);
@@ -2797,12 +2797,21 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
   }
 
   async function aeRunEngine(i) {
-    // In live mode, engine columns are driven by _renderReconPanel() from real data.
-    // aeRunEngine is demo-only.
-    if (auditMode === 'live') { aeSimComplete(); return; }
+    // Animates engine columns in both live and demo modes.
+    // In live mode, real findings are already in the DOM from _renderLiveResults();
+    // this provides the visual step-through, then restores real badge text/class after.
     if(i>=3){ aeSimComplete(); return; }
     const col=aeGet('ae-ec'+i), badge=aeGet('ae-eb'+i);
     if(!col||!badge){ aeRunEngine(i+1); return; }
+
+    // In live mode, _renderReconPanel may have set a real badge (FLAGGED/COMPLIANT/etc.)
+    // Save it now so we can restore it after the RUNNING animation.
+    const savedBadgeText  = badge.textContent;
+    const savedBadgeClass = badge.className;
+    const hasRealBadge = auditMode === 'live'
+      && savedBadgeText
+      && !['PENDING','NOT SUBMITTED',''].includes(savedBadgeText);
+
     col.classList.add('ae-running');
     badge.textContent='RUNNING'; badge.className='ae-col-badge running';
     const steps=AE_ENG_STEPS[i];
@@ -2814,17 +2823,23 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       if(el){ el.classList.add('active'); el.querySelector('.ae-es-icon').textContent='⟳'; }
       await sleep(s.d*0.6);
       if(el){ el.classList.remove('active'); el.classList.add('done'); el.querySelector('.ae-es-icon').textContent='✓'; }
-      // s.a() previously set hardcoded values like '3.2% (ABS Q4 latest)'.
-      // These are demo-only — we do NOT call s.a() as those labels are removed.
       t=s.d;
     }
     await sleep(500);
     const finding=aeGet('ae-ef'+i); if(finding) finding.classList.add('show');
-    const done=i===2?'ae-flag':'ae-breach';
-    col.classList.remove('ae-running'); col.classList.add(done);
-    // Demo labels only — not shown in live mode
-    badge.textContent=i===2?'COMPLETE':'COMPLETE';
-    badge.className='ae-col-badge';
+    col.classList.remove('ae-running');
+    if (hasRealBadge) {
+      // Live mode: restore the real status badge set by _renderReconPanel;
+      // col class was already set correctly by _renderReconPanel so don't overwrite.
+      badge.textContent  = savedBadgeText;
+      badge.className    = savedBadgeClass;
+    } else {
+      // Demo mode or no real data (engines 0/1 in live): apply demo-style finish.
+      const done = i === 2 ? 'ae-flag' : 'ae-breach';
+      col.classList.add(done);
+      badge.textContent = 'COMPLETE';
+      badge.className   = 'ae-col-badge';
+    }
     await sleep(400);
     aeRunEngine(i+1);
   }

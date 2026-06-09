@@ -1771,11 +1771,16 @@ async def admin_get_result(job_id: str, _: None = Depends(require_admin)):
     if job.status != JobStatus.COMPLETE:
         raise HTTPException(status_code=409, detail="Job not complete")
     findings = get_job_result(job_id) or {}
-    # Re-attach cost + timing data from job row (stripped from findings JSONB)
-    if job.stage_costs:
-        findings = {**findings, "stage_costs": job.stage_costs}
-    if job.stage_timings:
-        findings = {**findings, "stage_timings": job.stage_timings}
+    # Re-attach cost + timing data.
+    # Primary source: dedicated DB columns (stage_costs / stage_timings on the job row).
+    # Fallback: the in-memory job.result dict already embeds them (the DB column may not
+    # exist yet in older schemas, or mark_complete may have retried without cost columns).
+    stage_costs   = job.stage_costs   or findings.pop("stage_costs",   None)
+    stage_timings = job.stage_timings or findings.pop("stage_timings", None)
+    if stage_costs:
+        findings["stage_costs"]   = stage_costs
+    if stage_timings:
+        findings["stage_timings"] = stage_timings
     return JSONResponse(findings)
 
 
