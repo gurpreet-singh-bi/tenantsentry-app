@@ -223,8 +223,12 @@ def _build_clause_excerpt_pdf(flag: dict, clause: dict, result: dict) -> bytes:
                                  fontName="Helvetica-Bold")
     leg_style = ParagraphStyle("Leg", fontSize=8, textColor=TEAL, fontName="Helvetica-Oblique")
 
-    story.append(Paragraph(
-        f"Clause: <b>{clause.get('clause_heading', 'Unknown')}</b>", h2))
+    clause_heading = clause.get('clause_heading', 'Unknown')
+    page_number    = clause.get('page_number')
+    # Area 1: source citation shown prominently at the top of every evidence doc
+    citation = f"{clause_heading},  Page {page_number}" if page_number else clause_heading
+
+    story.append(Paragraph(f"Clause: <b>{citation}</b>", h2))
     story.append(HRFlowable(width="100%", thickness=2, color=TEAL))
     story.append(Spacer(1, 4*mm))
 
@@ -240,10 +244,12 @@ def _build_clause_excerpt_pdf(flag: dict, clause: dict, result: dict) -> bytes:
     # Clause type + key terms
     clause_type = clause.get("clause_type", "")
     key_terms = clause.get("key_terms", [])
-    if clause_type or key_terms:
+    if clause_type or key_terms or page_number:
         meta_rows = []
         if clause_type:
             meta_rows.append(["Clause type:", clause_type])
+        if page_number:
+            meta_rows.append(["Source location:", f"Page {page_number} of the lease document"])
         if key_terms:
             meta_rows.append(["Key terms:", " · ".join(key_terms[:8])])
         meta_tbl = Table(meta_rows, colWidths=[35*mm, 135*mm])
@@ -320,19 +326,8 @@ def _build_clause_excerpt_pdf(flag: dict, clause: dict, result: dict) -> bytes:
 
 # ── Component 2: Legislative Basis ────────────────────────────────────────────
 
-def _lookup_sections_stub(legislation_ref: str, jurisdiction: str) -> list[dict]:
-    """
-    Placeholder until data/legislation_text.py is populated with bundled Act text.
-    Returns [] so the PDF falls back to the "no sections found" branch gracefully.
-    Remove this stub and uncomment the real import once the legislation data module exists.
-    """
-    return []
-
-
 def _build_legislation_pdf(flag: dict, result: dict) -> bytes:
-    # TODO: replace stub with real import when data/legislation_text.py is ready:
-    #   from data.legislation_text import lookup_sections
-    lookup_sections = _lookup_sections_stub
+    from data.legislation_text import lookup_sections
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(

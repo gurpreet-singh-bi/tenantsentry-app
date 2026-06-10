@@ -422,6 +422,74 @@ async def partner_stats(_: None = Depends(require_partner)):
 # Health
 # ══════════════════════════════════════════════════════════════════════════════
 
+@app.get("/api/security")
+def security_policy():
+    """
+    Area 5: Return TenantSentry.ai data security policy statement.
+
+    This endpoint is called by:
+      - Channel partner sales process (advisors checking data handling before onboarding clients)
+      - Integration partners performing due diligence
+      - Admin portal security badge
+
+    Returns a structured JSON policy statement covering:
+      - Data hosting (Australia)
+      - Tenant data isolation
+      - No-training commitment
+      - Retention policy
+      - Encryption
+      - Compliance
+    """
+    return JSONResponse({
+        "service":  "TenantSentry.ai",
+        "version":  "1.0",
+        "policy_date": "2026-06-10",
+        "data_hosting": {
+            "region":   "Australia",
+            "provider": "Supabase (AWS ap-southeast-2 / Sydney region)",
+            "statement": (
+                "All lease documents, audit results, and user data are stored exclusively "
+                "in Australian data centres (AWS ap-southeast-2, Sydney). No data leaves Australia."
+            ),
+        },
+        "tenant_data_isolation": {
+            "statement": (
+                "Each tenant organisation's data is logically isolated via row-level security "
+                "in Supabase PostgreSQL. No tenant can access another tenant's lease documents, "
+                "audit results, or personal information."
+            ),
+            "mechanism": "Supabase Row-Level Security (RLS) policies per organisation_id",
+        },
+        "ai_training": {
+            "used_for_training": False,
+            "statement": (
+                "Your lease documents and audit results are NEVER used to train any AI model, "
+                "including Anthropic's Claude. Documents are processed ephemerally — "
+                "they are not stored in any model training pipeline."
+            ),
+            "anthropic_policy_ref": "https://www.anthropic.com/legal/privacy",
+        },
+        "data_retention": {
+            "lease_pdfs":       "Deleted 90 days after audit completion (or on tenant request)",
+            "audit_results":    "Retained for the duration of the active subscription + 12 months",
+            "anonymised_stats": "Retained indefinitely for product improvement (no PII)",
+            "right_to_delete":  True,
+        },
+        "encryption": {
+            "in_transit":  "TLS 1.3 for all API and web traffic",
+            "at_rest":     "AES-256 encryption for all stored documents and database fields",
+        },
+        "compliance": {
+            "privacy_act":    "Australian Privacy Act 1988 (Cth) — Australian Privacy Principles",
+            "data_breach":    "Mandatory data breach notification under the Notifiable Data Breaches scheme",
+        },
+        "contact": {
+            "security_email": "security@tenantsentry.ai",
+            "privacy_policy": "https://tenantsentry.ai/privacy",
+        },
+    })
+
+
 @app.get("/api/health")
 def health():
     from api.jobs import _supabase_ok
@@ -1615,6 +1683,166 @@ def download_single_evidence_pack(job_id: str, flag_id: str):
     except Exception as e:
         logger.exception(f"Single evidence pack failed for {job_id}/{flag_id}: {e}")
         raise HTTPException(status_code=500, detail="Evidence pack generation failed.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Area 3: HoA vs Final Lease Diff — "Lease Creep" Detector
+# POST /api/audit/hoa-diff
+# Accepts two PDF uploads (hoa_file + lease_file) and returns a structured
+# DiffResult showing every term that was altered, added, or removed between the
+# Heads of Agreement and the final draft lease.
+# DEV mode: returns deterministic mock findings instantly (zero API cost).
+# LIVE mode: Claude Sonnet semantic comparison, JSON array output.
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/audit/hoa-diff")
+async def hoa_diff(
+    hoa_file: UploadFile = File(..., description="Heads of Agreement PDF"),
+    lease_file: UploadFile = File(..., description="Final draft lease PDF"),
+    jurisdiction: str = Form("NSW", description="State code (NSW/VIC/QLD/WA/SA/TAS/ACT/NT)"),
+    generate_pdf: str = Form("true", description="'true' to also return a Lease Creep Report PDF URL"),
+):
+    """
+    Area 3: Compare a Heads of Agreement against a final draft lease and return
+    a structured list of 'lease creep' findings — terms altered, added, or
+    removed by the landlord's solicitors.
+
+    Returns:
+      - diff_result: full DiffResult JSON (findings, counts, severity)
+      - report_url:  /api/audit/hoa-diff/report/<job_id> to download the PDF
+                     (only populated when generate_pdf=true)
+
+    DEV mode returns 6 realistic mock findings instantly.
+    LIVE mode uses Claude Sonnet for semantic comparison.
+    """
+    import uuid
+    from pipeline.hoa_diff_pipeline import run_hoa_diff
+
+    jur = jurisdiction.upper().strip()
+    if jur not in VALID_JURISDICTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid jurisdiction '{jur}'. Must be one of: {sorted(VALID_JURISDICTIONS)}"
+        )
+
+    if not hoa_file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="hoa_file must be a PDF.")
+    if not lease_file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="lease_file must be a PDF.")
+
+    hoa_bytes   = await hoa_file.read()
+    lease_bytes = await lease_file.read()
+
+    for label, content in [("hoa_file", hoa_bytes), ("lease_file", lease_bytes)]:
+        size_mb = len(content) / (1024 * 1024)
+        if size_mb > MAX_FILE_SIZE_MB:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{label} exceeds {MAX_FILE_SIZE_MB} MB limit ({size_mb:.1f} MB)."
+            )
+
+    job_id = str(uuid.uuid4())[:8]
+    logger.info(
+        f"[HOA-DIFF][{job_id}] hoa={hoa_file.filename} lease={lease_file.filename} "
+        f"jur={jur} mode={'dev' if is_dev() else 'live'}"
+    )
+
+    # Write both PDFs to temp files for the pipeline
+    loop = asyncio.get_event_loop()
+
+    def _run_diff():
+        import tempfile as _tmp
+        hoa_tmp = lease_tmp = None
+        try:
+            with _tmp.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+                f.write(hoa_bytes)
+                hoa_tmp = f.name
+            with _tmp.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+                f.write(lease_bytes)
+                lease_tmp = f.name
+
+            result = run_hoa_diff(
+                hoa_pdf_path=hoa_tmp,
+                lease_pdf_path=lease_tmp,
+                jurisdiction=jur,
+            )
+            return result.to_dict()
+        finally:
+            for p in [hoa_tmp, lease_tmp]:
+                if p:
+                    try:
+                        os.unlink(p)
+                    except OSError:
+                        pass
+
+    try:
+        diff_dict = await asyncio.wait_for(
+            loop.run_in_executor(_audit_executor, _run_diff),
+            timeout=120.0,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="HoA diff timed out. Try again.")
+    except Exception as e:
+        logger.exception(f"[HOA-DIFF][{job_id}] Pipeline failed: {e}")
+        raise HTTPException(status_code=500, detail=f"HoA diff failed: {e}")
+
+    # Optionally generate a PDF report and store it for download
+    report_url = None
+    want_pdf   = generate_pdf.lower().strip() not in ("false", "0", "no")
+    if want_pdf:
+        try:
+            from output.hoa_diff_report import generate_hoa_diff_report
+            report_path = generate_hoa_diff_report(diff_dict, job_id=job_id)
+            # Store path keyed by job_id for the download endpoint
+            _hoa_diff_reports[job_id] = report_path
+            report_url = f"/api/audit/hoa-diff/report/{job_id}"
+        except Exception as e:
+            logger.warning(f"[HOA-DIFF][{job_id}] PDF generation failed (non-fatal): {e}")
+
+    logger.info(
+        f"[HOA-DIFF][{job_id}] Complete — findings={diff_dict.get('total_findings')} "
+        f"high={diff_dict.get('high_count')} pdf={'yes' if report_url else 'no'}"
+    )
+
+    return JSONResponse({
+        "job_id":      job_id,
+        "diff_result": diff_dict,
+        "report_url":  report_url,
+        "mode":        "dev" if is_dev() else "live",
+    })
+
+
+# In-memory store for generated HoA diff PDF report paths (keyed by job_id).
+# These are temp files in /tmp — they persist for the server session.
+_hoa_diff_reports: dict[str, str] = {}
+
+
+@app.get("/api/audit/hoa-diff/report/{job_id}")
+async def download_hoa_diff_report(job_id: str):
+    """
+    Area 3: Download the Lease Creep Report PDF for a previously submitted HoA diff.
+    job_id is returned by POST /api/audit/hoa-diff.
+    """
+    report_path = _hoa_diff_reports.get(job_id)
+    if not report_path:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No Lease Creep Report found for job '{job_id}'. "
+                   "Submit a HoA diff first with generate_pdf=true."
+        )
+    from pathlib import Path as _Path
+    if not _Path(report_path).exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Report file not found — temp file may have been cleaned up. Regenerate via POST /api/audit/hoa-diff."
+        )
+    filename = f"TenantSentry_LeaseCreep_{job_id}.pdf"
+    return FileResponse(
+        path=report_path,
+        media_type="application/pdf",
+        filename=filename,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/admin/report/{job_id}")

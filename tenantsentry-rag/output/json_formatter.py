@@ -17,8 +17,9 @@ _SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 class RiskFlag(BaseModel):
     flag_id: str
     description: str
-    severity: str               # "high" | "medium" | "low"
+    severity: str                           # "high" | "medium" | "low"
     legislation_ref: Optional[str] = None
+    financial_impact_estimate: Optional[str] = None  # Area 4: e.g. "~$120k make-good liability"
 
 
 class ClauseAnalysis(BaseModel):
@@ -29,6 +30,12 @@ class ClauseAnalysis(BaseModel):
     risk_flags: list[dict] = Field(default_factory=list)
     plain_english_summary: Optional[str] = None
     recommended_action: Optional[str] = None
+    # Area 1: PDF page number where this clause begins (1-based).
+    # Populated by the chunker from page offset tracking.
+    page_number: Optional[int] = None
+    # Area 4: Negotiation position and email draft for this clause.
+    negotiation_position: Optional[str] = None   # What to ask for
+    negotiation_email: Optional[str] = None      # Ready-to-copy email paragraph
     # G9: ABS CPI series extracted from rent review clauses.
     # e.g. "sydney", "weighted_average". Used by cpi_calculator to pick the
     # correct ABS region rather than falling back to the jurisdiction default.
@@ -61,10 +68,10 @@ class AuditResult(BaseModel):
     clause_analyses: list[ClauseAnalysis]
     all_risk_flags: list[dict]
     lease_dates: list[LeaseDate] = Field(default_factory=list)
-    # G9: Aggregated extracted_rules — written to lease.extracted_rules in Supabase.
+    # G9: Aggregated extracted_rules -- written to lease.extracted_rules in Supabase.
     # Populated by audit_pipeline from clause-level extractions.
     extracted_rules: dict = Field(default_factory=dict)
-    # Pipeline performance instrumentation — per-stage durations in ms.
+    # Pipeline performance instrumentation -- per-stage durations in ms.
     # Stored in audit_run.stage_timings (separate column); excluded from reports.
     stage_timings: dict = Field(default_factory=dict)
     # Per-model token counts and USD costs from utils/cost_tracker.CostAccumulator.
@@ -76,18 +83,18 @@ class AuditResult(BaseModel):
     # Non-fatal pipeline warnings (e.g. unsupported doc type, amendment not analysed).
     pipeline_warnings: list[str] = Field(default_factory=list)
     # Key lease metadata extracted from the cover / reference schedule.
-    # Populated by services/lease_metadata_extractor — None when not found or MOCK_MODE.
+    # Populated by services/lease_metadata_extractor -- None when not found or MOCK_MODE.
     landlord_name: Optional[str] = None      # Full legal entity name of the landlord
     base_rent_pa: Optional[float] = None     # Annual base rent in AUD (excl. outgoings)
     floor_area_sqm: Optional[float] = None   # Net lettable area in sqm
     lease_term_years: Optional[float] = None # Initial term in years
-    # AQ-NEW-5: Premises classification — determines which act governs this lease.
+    # AQ-NEW-5: Premises classification -- determines which act governs this lease.
     # Populated from pre-audit questionnaire fields submitted with the upload.
     premises_use: Optional[str] = None       # "retail" | "office" | "industrial" | "mixed" | "other"
     entity_type: Optional[str] = None        # "individual" | "company" | "trust" | "government"
-    gla_sqm: Optional[float] = None          # Gross lettable area (sqm) — triggers SA threshold
-    applicable_statute: Optional[str] = None # Full act name — e.g. "Retail Leases Act 2003 (VIC)"
-    statute_code: Optional[str] = None       # Short code — e.g. "retail_vic"
+    gla_sqm: Optional[float] = None          # Gross lettable area (sqm) -- triggers SA threshold
+    applicable_statute: Optional[str] = None # Full act name -- e.g. "Retail Leases Act 2003 (VIC)"
+    statute_code: Optional[str] = None       # Short code -- e.g. "retail_vic"
     is_retail_lease: Optional[bool] = None   # True if retail tenancy legislation applies
 
     @property

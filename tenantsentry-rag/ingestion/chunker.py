@@ -6,6 +6,7 @@ Splits on clause headings (e.g. "1.", "2.1", "CLAUSE 5") rather than
 fixed token counts — preserves the natural unit of meaning in leases.
 """
 
+import bisect
 import re
 from dataclasses import dataclass, field
 from loguru import logger
@@ -32,6 +33,39 @@ class Chunk:
 
     def __post_init__(self):
         self.metadata.setdefault("chunk_type", "lease")
+
+
+def _build_page_offset_index(pages: list[dict]) -> list[tuple[int, int]]:
+    """
+    Build a sorted list of (start_char_offset, page_num) pairs for binary-search
+    lookup of which PDF page a character offset in full_text belongs to.
+
+    page_num is 1-based (matching the PDF page numbers a reader would see).
+    The pages list must be in document order (as supplied by pdf_parser).
+    Pages are joined with "\\n" (one char separator) in chunk_document — that
+    same separator is accounted for here so offsets stay in sync.
+    """
+    index: list[tuple[int, int]] = []
+    offset = 0
+    for page in pages:
+        page_num = page.get("page_num", 0) + 1  # pdf_parser uses 0-based page_num
+        index.append((offset, page_num))
+        offset += len(page.get("text", "")) + 1  # +1 for the "\n" separator
+    return index
+
+
+def _page_for_offset(char_offset: int, index: list[tuple[int, int]]) -> int:
+    """
+    Return the 1-based PDF page number for a given character offset in full_text.
+    Uses binary search on the pre-built page offset index.
+    """
+    if not index:
+        return 1
+    # bisect_right on the start offsets; step back one to find the containing page
+    offsets = [entry[0] for entry in index]
+    i = bisect.bisect_right(offsets, char_offset) - 1
+    i = max(0, i)
+    return index[i][1]
 
 
 def _is_toc_page(text: str) -> bool:
@@ -73,6 +107,9 @@ def chunk_document(pages: list[dict], document_metadata: dict) -> list[Chunk]:
     if toc_skipped:
         logger.info(f"Skipped {toc_skipped} TOC page(s) before chunking")
 
+    # Build page-offset index BEFORE joining so character offsets stay in sync.
+    page_offset_index = _build_page_offset_index(body_pages)
+
     full_text = "\n".join(p["text"] for p in body_pages)
     raw_chunks = _split_on_clause_headings(full_text)
 
@@ -83,7 +120,7 @@ def chunk_document(pages: list[dict], document_metadata: dict) -> list[Chunk]:
     MAX_CHUNK_CHARS = 6000
 
     chunks = []
-    for i, (heading, body) in enumerate(raw_chunks):
+    for i, (pos, heading, body) in enumerate(raw_chunks):
         content = f"{heading}\n{body}".strip()
         if len(content) < 50:   # skip boilerplate/blank chunks
             continue
@@ -95,6 +132,8 @@ def chunk_document(pages: list[dict], document_metadata: dict) -> list[Chunk]:
             )
             content = content[:MAX_CHUNK_CHARS] + "\n[...truncated — clause continues in document...]"
 
+        page_num = _page_for_offset(pos, page_offset_index)
+
         chunks.append(Chunk(
             content=content,
             metadata={
@@ -103,6 +142,7 @@ def chunk_document(pages: list[dict], document_metadata: dict) -> list[Chunk]:
                 "clause_heading": heading.strip(),
                 "chunk_index": i,
                 "char_count": len(content),
+                "page_number": page_num,   # 1-based PDF page number
             }
         ))
 
@@ -110,10 +150,12 @@ def chunk_document(pages: list[dict], document_metadata: dict) -> list[Chunk]:
     return chunks
 
 
-def _split_on_clause_headings(text: str) -> list[tuple[str, str]]:
+def _split_on_clause_headings(text: str) -> list[tuple[int, str, str]]:
     """
     Finds all clause heading positions and splits text between them.
-    Returns list of (heading, body) tuples.
+    Returns list of (char_pos, heading, body) tuples.
+    char_pos is the character offset of the heading in the full_text string —
+    used by chunk_document to map each chunk back to its PDF page number.
     """
     # Find all heading match positions
     heading_positions = []
@@ -133,13 +175,13 @@ def _split_on_clause_headings(text: str) -> list[tuple[str, str]]:
     heading_positions.sort(key=lambda x: x[0])
     heading_positions = _deduplicate_headings(heading_positions)
 
-    # Build chunks
+    # Build chunks — now include char_pos as the first element of the tuple
     chunks = []
     for i, (pos, heading) in enumerate(heading_positions):
         start = pos + len(heading)
         end = heading_positions[i + 1][0] if i + 1 < len(heading_positions) else len(text)
         body = text[start:end].strip()
-        chunks.append((heading, body))
+        chunks.append((pos, heading, body))
 
     return chunks
 
@@ -155,7 +197,13 @@ def _deduplicate_headings(positions: list[tuple]) -> list[tuple]:
     return result
 
 
-def _paragraph_fallback(text: str) -> list[tuple[str, str]]:
+def _paragraph_fallback(text: str) -> list[tuple[int, str, str]]:
     """Split by double newline when no clause headings are found."""
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-    return [("", p) for p in paragraphs]
+    results = []
+    offset = 0
+    for raw in text.split("\n\n"):
+        p = raw.strip()
+        if p:
+            results.append((offset, "", p))
+        offset += len(raw) + 2  # +2 for the "\n\n" separator
+    return results

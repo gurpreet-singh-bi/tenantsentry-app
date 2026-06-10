@@ -171,6 +171,33 @@ LEGISLATION: dict[str, dict[str, dict]] = {
                 "opens. If they fail to notify you, the window is automatically extended."
             ),
         },
+        "s.34": {
+            "title": "Demolition -- 6-month minimum notice, compensation for fitout costs (NSW)",
+            "full_ref": "Retail Leases Act 1994 (NSW) s.34",
+            "text": (
+                "34  Demolition or substantial redevelopment\n\n"
+                "(1) A lessor may terminate a retail shop lease before the end of the lease term "
+                "if the lessor intends to demolish the building or carry out substantial "
+                "redevelopment of the building, but only if--\n"
+                "    (a) the lessor gives the lessee at least 6 months written notice; and\n"
+                "    (b) the notice specifies the intended date of termination.\n\n"
+                "(2) If a lease is terminated under this section, the lessor must pay the "
+                "lessee compensation for--\n"
+                "    (a) the unamortised cost of any fitout carried out by or for the lessee "
+                "        with the lessor\'s consent; and\n"
+                "    (b) the reasonable costs of relocating the lessee\'s business; and\n"
+                "    (c) any other losses directly attributable to the early termination.\n\n"
+                "(3) A provision in a lease that purports to cap or exclude this compensation "
+                "is void."
+            ),
+            "plain": (
+                "NSW tenants cannot be forced out for demolition without 6 months\' notice. "
+                "The landlord must pay for unamortised fitout costs, relocation costs, "
+                "and other direct losses. Any lease clause that caps or removes this "
+                "compensation is void and unenforceable."
+            ),
+        },
+
     },
 
     # ══════════════════════════════════════════════════════════════════════
@@ -243,6 +270,72 @@ LEGISLATION: dict[str, dict[str, dict]] = {
                 "outgoings. The landlord must refund any such amounts plus interest."
             ),
         },
+        "s.51": {
+            "title": "Make good -- limited to commencement condition, fair wear and tear excepted (VIC)",
+            "full_ref": "Retail Leases Act 2003 (VIC) s.51",
+            "text": (
+                "51  Make good obligations\n\n"
+                "(1) A retail premises lease may require the tenant to make good the retail "
+                "premises at the end of the tenancy, but the make good obligation cannot "
+                "exceed restoring the retail premises to the condition they were in at the "
+                "commencement of the lease (fair wear and tear excepted).\n\n"
+                "(2) If the landlord consented to alterations or additions to the retail "
+                "premises during the tenancy, the tenant cannot be required to remove those "
+                "alterations or additions unless the landlord\'s consent was given on the "
+                "express condition that the tenant would remove them."
+            ),
+            "plain": (
+                "In VIC, make-good cannot require more than restoring the premises to "
+                "commencement condition, with fair wear and tear excluded. If the landlord "
+                "consented to your fitout, they cannot require you to remove it at lease end "
+                "unless that condition was expressly stated in writing when consent was given."
+            ),
+        },
+        "s.25": {
+            "title": "Relocation -- 30 days notice, comparable premises, landlord pays all costs (VIC)",
+            "full_ref": "Retail Leases Act 2003 (VIC) s.25",
+            "text": (
+                "25  Relocation of retail premises\n\n"
+                "(1) A retail premises lease may provide for the relocation of the retail "
+                "premises only if--\n"
+                "    (a) the landlord gives the tenant at least 30 days\' notice in writing; "
+                "        and\n"
+                "    (b) the relocation premises are comparable in size, quality, fit-out, "
+                "        customer access and exposure to the existing retail premises.\n\n"
+                "(2) The landlord must pay all reasonable costs of the relocation, including "
+                "the cost of refitting the relocation premises to the same standard as the "
+                "existing retail premises."
+            ),
+            "plain": (
+                "VIC landlords must give 30 days written notice to relocate a tenant. The "
+                "new premises must be comparable in size, quality and customer access. "
+                "The landlord must pay ALL relocation and refitting costs -- the tenant "
+                "should not be out of pocket at all."
+            ),
+        },
+        "s.64": {
+            "title": "Assignment -- 28-day silence = consent, no premium, financial grounds only (VIC)",
+            "full_ref": "Retail Leases Act 2003 (VIC) s.64",
+            "text": (
+                "64  Assignment of retail premises leases\n\n"
+                "(1) A landlord must not unreasonably withhold consent to an assignment "
+                "of a retail premises lease.\n\n"
+                "(2) A landlord may withhold consent to an assignment on the ground that "
+                "the proposed assignee does not have sufficient financial resources or "
+                "business experience to meet the obligations under the lease.\n\n"
+                "(3) A landlord must not require a premium as a condition of consenting "
+                "to an assignment. A provision that purports to require a premium is void.\n\n"
+                "(4) If the landlord does not respond to a written request for consent within "
+                "28 days, consent is taken to have been given unconditionally."
+            ),
+            "plain": (
+                "VIC landlords cannot demand a payment or premium to consent to a lease "
+                "assignment -- that is void. They can only refuse on financial or business "
+                "experience grounds. If they do not respond within 28 days of a written "
+                "request, consent is automatically given."
+            ),
+        },
+
     },
 
     # ══════════════════════════════════════════════════════════════════════
@@ -297,6 +390,67 @@ LEGISLATION: dict[str, dict[str, dict]] = {
                 "Non-compliance carries a statutory penalty."
             ),
         },
+        "s.36": {
+            "title": "Ratchet clauses void -- market review must be uncapped (QLD)",
+            "full_ref": "Retail Shop Leases Act 1994 (QLD) s.36",
+            "text": (
+                "36  Market rent review -- ratchet clauses void\n\n"
+                "(1) On a market rent review under a retail shop lease, the reviewed rent "
+                "may be less than, equal to, or greater than the rent payable immediately "
+                "before the review.\n\n"
+                "(2) A provision in a retail shop lease that has the effect of preventing "
+                "the rent from being reduced on a market rent review (commonly called a "
+                "\'ratchet clause\') is void."
+            ),
+            "plain": (
+                "In QLD, ratchet clauses are void in retail leases. A market rent review "
+                "can go up or down. Any lease clause preventing a downward adjustment is "
+                "unenforceable -- even if it is written in the lease."
+            ),
+        },
+        "s.50": {
+            "title": "Make good -- limited to commencement condition, fair wear and tear (QLD)",
+            "full_ref": "Retail Shop Leases Act 1994 (QLD) s.50",
+            "text": (
+                "50  Make good obligations\n\n"
+                "(1) A provision of a retail shop lease requiring the lessee to make good "
+                "the retail shop at the end of the tenancy cannot require the lessee to "
+                "do more than restore the retail shop to the condition it was in at the "
+                "commencement of the lease, fair wear and tear excepted.\n\n"
+                "(2) If the lessor consented to fitout or alterations during the tenancy, "
+                "the lessee cannot be required to restore the shop to its condition before "
+                "the fitout or alterations, unless the consent was given on the condition "
+                "that the lessee would do so."
+            ),
+            "plain": (
+                "QLD make-good is capped at commencement condition (fair wear and tear "
+                "excluded). The landlord cannot demand more. If they consented to your "
+                "fitout without an express reinstatement condition, you do not need to "
+                "strip it out at the end of the lease."
+            ),
+        },
+        "s.47": {
+            "title": "Assignment -- 28-day silence = consent, no premium (QLD)",
+            "full_ref": "Retail Shop Leases Act 1994 (QLD) s.47",
+            "text": (
+                "47  Consent to assignment\n\n"
+                "(1) A lessor must not unreasonably withhold consent to an assignment "
+                "of a retail shop lease.\n\n"
+                "(2) Consent may only be withheld on the ground that the proposed assignee "
+                "lacks the financial resources or business experience to meet the obligations "
+                "under the lease.\n\n"
+                "(3) A lessor may not charge a premium for consent to an assignment. "
+                "A provision purporting to require a premium is void.\n\n"
+                "(4) If the lessor does not respond to a written request for consent within "
+                "28 days, the lessor is taken to have consented."
+            ),
+            "plain": (
+                "QLD lessors cannot demand a premium to approve a lease assignment -- "
+                "any such clause is void. They can only refuse on financial standing or "
+                "business experience grounds. Silence for 28 days = automatic consent."
+            ),
+        },
+
     },
 
     # ══════════════════════════════════════════════════════════════════════

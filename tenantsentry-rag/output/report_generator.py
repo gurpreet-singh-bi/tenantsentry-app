@@ -87,13 +87,21 @@ def _risk_level_label(score: int) -> str:
     return "LOW RISK"
 
 
-def generate_pdf_report(result: dict, job_id: str) -> str:
+def generate_pdf_report(
+    result: dict,
+    job_id: str,
+    firm_name: Optional[str] = None,
+    firm_tagline: Optional[str] = None,
+) -> str:
     """
     Generate a PDF audit report from an AuditResult dict.
 
     Args:
-        result: AuditResult.model_dump(mode='json')
-        job_id: Used to name the output file
+        result:       AuditResult.model_dump(mode='json')
+        job_id:       Used to name the output file
+        firm_name:    White-label firm name (e.g. "Smith Advisory Group").
+                      When set, replaces "TenantSentry.ai" in the header and footer.
+        firm_tagline: One-line tagline shown under firm_name on the cover (optional).
 
     Returns:
         Absolute path to the generated PDF file
@@ -108,6 +116,13 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
         topMargin=MARGIN,
         bottomMargin=MARGIN,
     )
+
+    # ── White-label config ─────────────────────────────────────────────────
+    # When firm_name is set, replace all "TenantSentry.ai" references in the report
+    # so channel partners can deliver under their own branding.
+    brand_name    = firm_name.strip() if firm_name and firm_name.strip() else "TenantSentry.ai"
+    brand_url     = "" if firm_name else "tenantsentry.ai"
+    brand_tagline = firm_tagline.strip() if firm_tagline and firm_tagline.strip() else None
 
     styles = getSampleStyleSheet()
     story = []
@@ -136,7 +151,7 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
 
     # Brand header bar
     cover_header = Table(
-        [[ Paragraph("TenantSentry.ai", ParagraphStyle("Brand", fontSize=20,
+        [[ Paragraph(brand_name, ParagraphStyle("Brand", fontSize=20,
                      textColor=colors.white, fontName="Helvetica-Bold")),
            Paragraph("LEASE AUDIT REPORT", ParagraphStyle("Sub", fontSize=10,
                      textColor=TEAL, fontName="Helvetica-Bold", alignment=TA_RIGHT)) ]],
@@ -349,11 +364,16 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
             continue   # Skip boilerplate/empty clauses
 
         heading = ca.get("clause_heading", "Unknown Clause")
+        page_number = ca.get("page_number")
         clause_type = ca.get("clause_type", "")
         clause_text = ca.get("clause_text", "")
         summary = ca.get("plain_english_summary", "")
         action = ca.get("recommended_action", "")
         key_terms = ca.get("key_terms", [])
+        # Area 1: build citation label e.g. "Clause 14.2 · Page 45"
+        citation_label = heading
+        if page_number:
+            citation_label = f"{heading}  ·  Page {page_number}"
 
         # Max severity for this clause
         severities = [f.get("severity", "low") for f in flags]
@@ -383,7 +403,7 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
 
         header_data = [[
             [
-                Paragraph(f"<b>{heading}</b>", ParagraphStyle("ClauseH", fontSize=10, textColor=NAVY, fontName="Helvetica-Bold")),
+                Paragraph(f"<b>{citation_label}</b>", ParagraphStyle("ClauseH", fontSize=10, textColor=NAVY, fontName="Helvetica-Bold")),
                 Paragraph(flag_badge_text or "CLEAN", ParagraphStyle("ClauseBadges", fontSize=7, textColor=SLATE, fontName="Helvetica", leading=10)),
             ],
             Paragraph(f"<b>{max_sev.upper()}</b>", ParagraphStyle("Sev", fontSize=8, textColor=sev_color, fontName="Helvetica-Bold", alignment=TA_RIGHT)),
@@ -440,9 +460,16 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
                 flag_color = _severity_color(flag_sev)
                 flag_desc = flag.get("description", "")
                 flag_leg = flag.get("legislation_ref", "")
+                flag_impact = flag.get("financial_impact_estimate", "")
+                # Area 1: source citation — "Clause 14.2, Page 45"
+                page_ref = f", Page {page_number}" if page_number else ""
+                source_ref = f"{heading}{page_ref}"
                 flag_text = flag_desc
                 if flag_leg:
                     flag_text += f" <i>({flag_leg})</i>"
+                if flag_impact:
+                    flag_text += f"  <b>Est. financial exposure: {flag_impact}</b>"
+                flag_text += f'  <font color="{SLATE.hexval()}" size="7">— {source_ref}</font>'
                 flag_row = Table([[
                     Paragraph(f"● {flag_sev.upper()}", ParagraphStyle("FlagSev", fontSize=7,
                                textColor=flag_color, fontName="Helvetica-Bold")),
@@ -546,6 +573,136 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
                        borderPad=4, borderColor=MID_GREY)
     ))
 
+    # ═════════════
+
+    # ══════════════════════════════════════════════════════════════════════
+    # NEGOTIATION PLAYBOOK
+    # ══════════════════════════════════════════════════════════════════════
+    # Collect HIGH and MEDIUM flags that have a negotiation_email
+    playbook_items = []
+    for ca in result.get("clause_analyses", []):
+        heading = ca.get("clause_heading", "Unknown Clause")
+        page_num = ca.get("page_number")
+        clause_ref = f"Clause: {heading}" + (f", Page {page_num}" if page_num else "")
+
+        flags = ca.get("risk_flags") or []
+        for flag in flags:
+            sev = flag.get("severity", "").lower()
+            if sev not in ("high", "medium"):
+                continue
+            email = flag.get("negotiation_email") or ca.get("negotiation_email")
+            if not email:
+                continue
+            position = flag.get("negotiation_position") or ca.get("negotiation_position") or ""
+            impact = flag.get("financial_impact_estimate") or ""
+            playbook_items.append({
+                "severity": sev,
+                "clause_ref": clause_ref,
+                "description": flag.get("description", ""),
+                "position": position,
+                "impact": impact,
+                "email": email,
+            })
+
+    # Sort: HIGH first, then MEDIUM
+    playbook_items.sort(key=lambda x: 0 if x["severity"] == "high" else 1)
+
+    if playbook_items:
+        story.append(PageBreak())
+        story.append(Paragraph("Negotiation Playbook", h1))
+        story.append(HRFlowable(width="100%", thickness=2, color=TEAL))
+        story.append(Spacer(1, 2*mm))
+        story.append(Paragraph(
+            "Ready-to-use negotiation positions and email templates for each flagged clause. "
+            "Copy, personalise with your name and lease reference, and send to the landlord's agent.",
+            ParagraphStyle("PlaybookIntro", parent=styles["Normal"], fontSize=8,
+                           textColor=SLATE, fontName="Helvetica-Oblique", spaceAfter=4)
+        ))
+        story.append(Spacer(1, 4*mm))
+
+        for item in playbook_items:
+            sev = item["severity"]
+            if sev == "high":
+                sev_color = RED
+                sev_bg    = RED_LIGHT
+                sev_label = "HIGH RISK"
+            else:
+                sev_color = AMBER
+                sev_bg    = AMBER_LIGHT
+                sev_label = "MEDIUM RISK"
+
+            # Severity badge + clause ref header
+            badge_row = Table([[
+                Paragraph(
+                    f'<font color="{colors.white.hexval()}"><b>{sev_label}</b></font>',
+                    ParagraphStyle("Badge", fontSize=8, fontName="Helvetica-Bold",
+                                   alignment=TA_CENTER, textColor=colors.white)
+                ),
+                Paragraph(
+                    f"<b>{item['clause_ref']}</b>",
+                    ParagraphStyle("ClauseRef", fontSize=9, fontName="Helvetica-Bold",
+                                   textColor=NAVY)
+                ),
+            ]], colWidths=[22*mm, 148*mm])
+            badge_row.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (0, 0), sev_color),
+                ("BACKGROUND", (1, 0), (1, 0), sev_bg),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 3*mm),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 3*mm),
+                ("TOPPADDING", (0, 0), (-1, -1), 2*mm),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2*mm),
+            ]))
+            story.append(badge_row)
+
+            # Description + financial exposure
+            story.append(Spacer(1, 1*mm))
+            story.append(Paragraph(
+                item["description"],
+                ParagraphStyle("PlayDesc", parent=styles["Normal"], fontSize=8,
+                               textColor=TEXT, leading=11, leftIndent=4*mm)
+            ))
+            if item["impact"]:
+                story.append(Paragraph(
+                    f'<font color="{RED.hexval()}"><b>Financial exposure: {item["impact"]}</b></font>',
+                    ParagraphStyle("Impact", parent=styles["Normal"], fontSize=8,
+                                   fontName="Helvetica-Bold", leftIndent=4*mm, spaceAfter=2)
+                ))
+
+            # What to demand
+            if item["position"]:
+                story.append(Paragraph(
+                    f'<font color="{TEAL.hexval()}">&#9658;</font>  <b>What to demand:</b>  {item["position"]}',
+                    ParagraphStyle("Demand", parent=styles["Normal"], fontSize=8,
+                                   textColor=TEXT, leading=11, leftIndent=4*mm, spaceAfter=2)
+                ))
+
+            # Ready-to-copy email box
+            email_box = Table([[
+                Paragraph(
+                    "<b>Ready-to-copy email paragraph:</b>",
+                    ParagraphStyle("EmailHdr", fontSize=7, fontName="Helvetica-Bold",
+                                   textColor=SLATE, spaceAfter=3)
+                )
+            ], [
+                Paragraph(
+                    item["email"].replace('\n', '<br/>'),
+                    ParagraphStyle("EmailText", fontSize=8, fontName="Times-Roman",
+                                   textColor=TEXT, leading=12)
+                )
+            ]], colWidths=[170*mm])
+            email_box.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), LIGHT_GREY),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4*mm),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4*mm),
+                ("TOPPADDING", (0, 0), (-1, -1), 3*mm),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3*mm),
+                ("LINEAFTER", (0, 0), (0, -1), 2, TEAL),
+                ("BOX", (0, 0), (-1, -1), 0.5, MID_GREY),
+            ]))
+            story.append(email_box)
+            story.append(Spacer(1, 5*mm))
+
     # ══════════════════════════════════════════════════════════════════════
     # FOOTER DISCLAIMER
     # ══════════════════════════════════════════════════════════════════════
@@ -557,12 +714,19 @@ def generate_pdf_report(result: dict, job_id: str) -> str:
         "purposes only. It does not constitute legal advice. The analysis is based on Australian commercial "
         "leasing legislation and known risk patterns. Individual lease circumstances may vary. Always consult "
         "a qualified commercial lease solicitor before taking action on any identified risk. "
-        "TenantSentry.ai accepts no liability for decisions made based on this report.",
+        f"{brand_name} accepts no liability for decisions made based on this report.",
         caption
     ))
     story.append(Spacer(1, 2*mm))
     story.append(Paragraph(
-        f"Generated by TenantSentry.ai · {audit_date} · tenantsentry.ai",
+        "Data hosted in Australia. Your documents are not used to train any AI model.",
+        ParagraphStyle("Privacy", fontSize=7, textColor=SLATE, alignment=TA_CENTER,
+                       fontName="Helvetica-Oblique")
+    ))
+    story.append(Spacer(1, 1*mm))
+    footer_brand = brand_name + (f" \xb7 {brand_url}" if brand_url else "")
+    story.append(Paragraph(
+        f"Generated by {footer_brand} \xb7 {audit_date}",
         ParagraphStyle("Footer", fontSize=7, textColor=SLATE, alignment=TA_CENTER)
     ))
 
