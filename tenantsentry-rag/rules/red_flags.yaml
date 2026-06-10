@@ -1,485 +1,732 @@
-# TenantSentry.ai — Red Flag Rules
-# Core IP. Enrich as you learn from real leases.
-#
-# jurisdictions: list of state codes this rule applies to, or ["ALL"]
-#   Rules are filtered per-audit so VIC-specific rules don't fire on NSW leases.
-#   Use ["ALL"] for rules that apply in every Australian jurisdiction.
-
 rules:
+- id: RF001
+  name: Above-market rent review
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'Rent review mechanism allows increases exceeding CPI + 2% per annum, or uses a ratchet
+    clause preventing downward review to market. Ratchet clauses are void in NSW, VIC, and ACT by statute;
+    in other states they are challengeable under the ACL unfair contract terms regime.
 
-  - id: RF001
-    name: Above-market rent review
-    severity: high
-    jurisdictions: ["ALL"]
-    description: >
-      Rent review mechanism allows increases exceeding CPI + 2% per annum,
-      or uses a ratchet clause preventing downward review to market.
-      Ratchet clauses are void in NSW, VIC, and ACT by statute; in other
-      states they are challengeable under the ACL unfair contract terms regime.
-    trigger_keywords: ["rent review", "CPI", "fixed increase", "ratchet", "not less than"]
-    legislation_ref: "Retail Leases Act 1994 (NSW) s.35 | Retail Leases Act 2003 (VIC) s.35 | Leases (Commercial and Retail) Act 2001 (ACT)"
-    recommended_action: >
-      Negotiate to cap rent reviews at the lesser of CPI or a fixed percentage (e.g. 4%).
-      Remove any ratchet clause preventing downward adjustment on market reviews.
-      Ensure CPI references the correct capital city index for the jurisdiction.
+    '
+  trigger_keywords:
+  - rent review
+  - CPI
+  - fixed increase
+  - ratchet
+  - not less than
+  legislation_ref: Retail Leases Act 1994 (NSW) s.35 | Retail Leases Act 2003 (VIC) s.35 | Leases (Commercial
+    and Retail) Act 2001 (ACT)
+  recommended_action: 'Negotiate to cap rent reviews at the lesser of CPI or a fixed percentage (e.g.
+    4%). Remove any ratchet clause preventing downward adjustment on market reviews. Ensure CPI references
+    the correct capital city index for the jurisdiction.
 
-  - id: RF002
-    name: Demolition/redevelopment clause without compensation
-    severity: high
-    jurisdictions: ["ALL"]
-    description: >
-      Landlord can terminate the lease for demolition or redevelopment
-      without providing adequate compensation to the tenant.
-    trigger_keywords: ["demolition", "redevelopment", "terminate", "vacant possession", "structural works"]
-    legislation_ref: null
-    recommended_action: >
-      Negotiate minimum 6-month written notice and compensation covering:
-      unamortised fitout costs, relocation costs, and lost profit for the
-      remaining unexpired lease term (including option periods).
+    '
+- id: RF002
+  name: Demolition/redevelopment clause without compensation
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'Landlord can terminate the lease for demolition or redevelopment without providing adequate
+    compensation to the tenant.
 
-  - id: RF003
-    name: Unrestricted assignment prohibition
-    severity: high
-    jurisdictions: ["ALL"]
-    description: >
-      Lease prohibits assignment without landlord consent, with no obligation
-      on the landlord to act reasonably or respond within a defined timeframe.
-      All Australian state Retail Leases Acts require landlords to act reasonably
-      and respond within 28 days (deemed consent on non-response).
-    trigger_keywords: ["assignment", "transfer", "consent", "not assign", "subletting", "sublet"]
-    legislation_ref: "Retail Leases Act 1994 (NSW) s.41 | Retail Shop Leases Act 1994 (QLD)"
-    recommended_action: >
-      Add 'not to be unreasonably withheld or delayed' to the consent requirement.
-      Include a 28-day deemed-consent provision. Remove any clause allowing the
-      landlord to demand a premium or key money as a condition of consent.
+    '
+  trigger_keywords:
+  - demolition
+  - redevelopment
+  - terminate
+  - vacant possession
+  - structural works
+  legislation_ref: null
+  recommended_action: 'Negotiate minimum 6-month written notice and compensation covering: unamortised
+    fitout costs, relocation costs, and lost profit for the remaining unexpired lease term (including
+    option periods).
 
-  - id: RF004
-    name: Excessive make-good obligations
-    severity: high
-    jurisdictions: ["ALL"]
-    description: >
-      Make-good clause requires tenant to return premises to original condition
-      regardless of normal wear and tear, or to restore landlord's fitout.
-      No exclusion for fair wear and tear is a critical gap.
-    trigger_keywords: ["make good", "make-good", "reinstate", "original condition", "fitout", "strip out", "restore"]
-    legislation_ref: "Retail Leases Act 1994 (NSW) s.16"
-    recommended_action: >
-      Negotiate explicit fair wear and tear exclusion. Commission a condition
-      report with photographs at commencement. Secure the right to offer a
-      cash settlement in lieu of physical make-good works. Ensure consent to
-      alterations constitutes waiver of make-good for those alterations.
+    '
+- id: RF003
+  name: Unrestricted assignment prohibition
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'Lease prohibits assignment without landlord consent, with no obligation on the landlord
+    to act reasonably or respond within a defined timeframe. All Australian state Retail Leases Acts require
+    landlords to act reasonably and respond within 28 days (deemed consent on non-response).
 
-  - id: RF005
-    name: Capital expenditure in outgoings
-    severity: high
-    jurisdictions: ["ALL"]
-    description: >
-      Tenant is liable for outgoings that include capital expenditure items
-      such as roof replacement, structural repairs, lift replacement, or new
-      plant and equipment. Capital expenditure is not recoverable in any
-      Australian jurisdiction.
-    trigger_keywords: ["outgoings", "capital expenditure", "structural", "plant and equipment", "roof", "lifts", "escalators"]
-    legislation_ref: "Retail Leases Act 1994 (NSW) s.12 | Retail Leases Act 2003 (VIC) s.38"
-    recommended_action: >
-      Add explicit exclusion for capital expenditure from recoverable outgoings.
-      Define capital expenditure as any work that extends the useful life of
-      a building asset or is a structural repair. Retain right to audit
-      outgoings annually and dispute within 60 days of reconciliation statement.
+    '
+  trigger_keywords:
+  - assignment
+  - transfer
+  - consent
+  - not assign
+  - subletting
+  - sublet
+  legislation_ref: Retail Leases Act 1994 (NSW) s.41 | Retail Shop Leases Act 1994 (QLD)
+  recommended_action: 'Add ''not to be unreasonably withheld or delayed'' to the consent requirement.
+    Include a 28-day deemed-consent provision. Remove any clause allowing the landlord to demand a premium
+    or key money as a condition of consent.
 
-  - id: RF005b
-    name: Land tax in outgoings — VIC (void by statute)
-    severity: high
-    jurisdictions: ["VIC"]
-    description: >
-      Land tax is absolutely prohibited as a recoverable outgoing under the
-      Retail Leases Act 2003 (VIC) s.23. Any lease clause requiring a VIC
-      tenant to pay land tax is void and of no effect, regardless of how it
-      is worded. Tenants should cease paying and seek a refund immediately.
-    trigger_keywords: ["land tax", "outgoings", "rates and taxes", "government charges"]
-    legislation_ref: "Retail Leases Act 2003 (VIC) s.23"
-    recommended_action: >
-      Remove the land tax obligation entirely. The clause is legally void in Victoria.
-      Seek a refund of any land tax already paid and cease future payments immediately.
+    '
+- id: RF004
+  name: Excessive make-good obligations
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'Make-good clause requires tenant to return premises to original condition regardless of
+    normal wear and tear, or to restore landlord''s fitout. No exclusion for fair wear and tear is a critical
+    gap.
 
-  - id: RF005c
-    name: Land tax in outgoings — NSW (single-holding + disclosure required)
-    severity: high
-    jurisdictions: ["NSW"]
-    description: >
-      In NSW, land tax is only a lawful outgoing if two conditions are both met:
-      (1) the land is assessed as a single holding — not aggregated with the landlord's
-      other properties — and (2) the lease discloses the estimated land tax amount for
-      the first year. Any land tax charged on a portfolio/aggregate basis is prohibited.
-      Undisclosed land tax is not recoverable regardless of the lease wording.
-    trigger_keywords: ["land tax", "outgoings", "rates and taxes", "government charges", "portfolio", "aggregate", "landholding"]
-    legislation_ref: "Retail Leases Act 1994 (NSW) s.12"
-    recommended_action: >
-      Demand written evidence that the land is assessed as a single holding (not aggregated).
-      Verify the estimated land tax amount is disclosed in the lease.
-      If the landlord cannot produce a single-holding assessment, the charge is unlawful —
-      cease payment and seek a refund of amounts already paid.
+    '
+  trigger_keywords:
+  - make good
+  - make-good
+  - reinstate
+  - original condition
+  - fitout
+  - strip out
+  - restore
+  legislation_ref: Retail Leases Act 1994 (NSW) s.16
+  recommended_action: 'Negotiate explicit fair wear and tear exclusion. Commission a condition report
+    with photographs at commencement. Secure the right to offer a cash settlement in lieu of physical
+    make-good works. Ensure consent to alterations constitutes waiver of make-good for those alterations.
 
-  - id: RF005d
-    name: Land tax in outgoings — QLD (disclosure + single-tenancy basis required)
-    severity: high
-    jurisdictions: ["QLD"]
-    description: >
-      In Queensland, land tax is only recoverable as an outgoing if: (1) it was
-      disclosed in the lessor's disclosure statement provided before the lease was entered
-      into, and (2) it is calculated on a single-tenancy (not portfolio) basis. If land
-      tax was not disclosed pre-execution, it cannot be recovered at all, regardless of
-      what the lease document says.
-    trigger_keywords: ["land tax", "outgoings", "rates and taxes", "government charges", "disclosure statement"]
-    legislation_ref: "Retail Shop Leases Act 1994 (QLD) s.22"
-    recommended_action: >
-      Request a copy of the lessor's disclosure statement. Confirm land tax was disclosed
-      before the lease was signed. Require evidence it is calculated on a single-tenancy
-      basis. If pre-execution disclosure was not made, the charge is unlawful.
+    '
+- id: RF005
+  name: Capital expenditure in outgoings
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'Tenant is liable for outgoings that include capital expenditure items such as roof replacement,
+    structural repairs, lift replacement, or new plant and equipment. Capital expenditure is not recoverable
+    in any Australian jurisdiction.
 
-  - id: RF005e
-    name: Land tax in outgoings — SA (prohibited by statute)
-    severity: high
-    jurisdictions: ["SA"]
-    description: >
-      Land tax is prohibited as a recoverable outgoing in South Australian retail
-      leases under the Retail and Commercial Leases Act 1995 (SA) s.20. This mirrors
-      the Victorian prohibition — any clause requiring the tenant to contribute to land
-      tax is void regardless of how it is worded or how the outgoings schedule is structured.
-    trigger_keywords: ["land tax", "outgoings", "rates and taxes", "government charges"]
-    legislation_ref: "Retail and Commercial Leases Act 1995 (SA) s.20"
-    recommended_action: >
-      Remove the land tax obligation entirely. The clause is void in South Australia.
-      Seek a refund of any land tax already paid. Report persistent demands to
-      Consumer and Business Services SA (CBS) — 131 882.
+    '
+  trigger_keywords:
+  - outgoings
+  - capital expenditure
+  - structural
+  - plant and equipment
+  - roof
+  - lifts
+  - escalators
+  legislation_ref: Retail Leases Act 1994 (NSW) s.12 | Retail Leases Act 2003 (VIC) s.38
+  recommended_action: 'Add explicit exclusion for capital expenditure from recoverable outgoings. Define
+    capital expenditure as any work that extends the useful life of a building asset or is a structural
+    repair. Retain right to audit outgoings annually and dispute within 60 days of reconciliation statement.
 
-  - id: RF005f
-    name: Land tax in outgoings — WA (single-holding, itemised disclosure required)
-    severity: high
-    jurisdictions: ["WA"]
-    description: >
-      In Western Australia, land tax is a restricted outgoing under the Commercial
-      Tenancy (Retail Shops) Agreements Act 1985 (WA). It may only be charged on a
-      single-holding basis and must be itemised separately in the outgoings schedule —
-      it cannot be buried in a general "rates and taxes" line item. Aggregate or
-      portfolio-based land tax charges are not recoverable.
-    trigger_keywords: ["land tax", "outgoings", "rates and taxes", "government charges", "aggregate"]
-    legislation_ref: "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.13"
-    recommended_action: >
-      Require land tax to be itemised separately in the outgoings schedule.
-      Demand evidence of single-holding assessment. Any portfolio-basis charge
-      is not recoverable. Contact Commerce WA (1300 304 054) if landlord disputes.
+    '
+- id: RF005b
+  name: Land tax in outgoings — VIC (void by statute)
+  severity: high
+  jurisdictions:
+  - VIC
+  description: 'Land tax is absolutely prohibited as a recoverable outgoing under the Retail Leases Act
+    2003 (VIC) s.23. Any lease clause requiring a VIC tenant to pay land tax is void and of no effect,
+    regardless of how it is worded. Tenants should cease paying and seek a refund immediately.
 
-  - id: RF005g
-    name: Land tax in outgoings — ACT (single-holding + disclosure required)
-    severity: high
-    jurisdictions: ["ACT"]
-    description: >
-      In the ACT, land tax is only recoverable as an outgoing if calculated on a
-      single-holding basis and disclosed in the lease. The Leases (Commercial and
-      Retail) Act 2001 (ACT) applies restrictions equivalent to NSW. Portfolio-basis
-      land tax is prohibited. Undisclosed land tax is not recoverable.
-    trigger_keywords: ["land tax", "outgoings", "rates and taxes", "government charges"]
-    legislation_ref: "Leases (Commercial and Retail) Act 2001 (ACT) s.28"
-    recommended_action: >
-      Verify single-holding basis and disclosure in the lease. If neither condition
-      is met, the charge is unlawful. Contact ACT Access Canberra for complaints.
+    '
+  trigger_keywords:
+  - land tax
+  - outgoings
+  - rates and taxes
+  - government charges
+  legislation_ref: Retail Leases Act 2003 (VIC) s.23
+  recommended_action: 'Remove the land tax obligation entirely. The clause is legally void in Victoria.
+    Seek a refund of any land tax already paid and cease future payments immediately.
 
-  - id: RF005h
-    name: Land tax in outgoings — TAS (code of practice restrictions)
-    severity: medium
-    jurisdictions: ["TAS"]
-    description: >
-      Tasmania's retail tenancy protections are less prescriptive than mainland states.
-      Land tax charges should be scrutinised under the Fair Trading (Code of Practice
-      for Retail Tenancies) Regulations 1998 (TAS). The Code requires outgoings to be
-      itemised and reasonable. Portfolio-basis land tax should be challenged contractually
-      as an unreasonable and undisclosed charge.
-    trigger_keywords: ["land tax", "outgoings", "rates and taxes", "government charges"]
-    legislation_ref: "Fair Trading (Code of Practice for Retail Tenancies) Regulations 1998 (TAS)"
-    recommended_action: >
-      Require land tax to be itemised separately. Negotiate single-holding basis
-      and prior written disclosure as a lease condition. Contact Consumer, Building
-      and Occupational Services TAS for guidance.
+    '
+- id: RF005c
+  name: Land tax in outgoings — NSW (single-holding + disclosure required)
+  severity: high
+  jurisdictions:
+  - NSW
+  description: 'In NSW, land tax is only a lawful outgoing if two conditions are both met: (1) the land
+    is assessed as a single holding — not aggregated with the landlord''s other properties — and (2) the
+    lease discloses the estimated land tax amount for the first year. Any land tax charged on a portfolio/aggregate
+    basis is prohibited. Undisclosed land tax is not recoverable regardless of the lease wording.
 
-  - id: RF005i
-    name: Land tax in outgoings — NT (limited statutory protections)
-    severity: medium
-    jurisdictions: ["NT"]
-    description: >
-      The Northern Territory's Business Tenancies (Fair Dealings) Act 2003 (NT) provides
-      limited retail tenancy protections compared to eastern states. There is no express
-      statutory prohibition on land tax as an outgoing, but common law fairness principles
-      apply. Portfolio-basis land tax should be challenged, and single-holding basis with
-      itemised disclosure should be negotiated into any new lease.
-    trigger_keywords: ["land tax", "outgoings", "rates and taxes", "government charges"]
-    legislation_ref: "Business Tenancies (Fair Dealings) Act 2003 (NT)"
-    recommended_action: >
-      Negotiate single-holding basis and itemised land tax disclosure as express
-      lease conditions. Without statutory protections, contractual language is your
-      primary defence. Seek legal advice from an NT commercial lease solicitor.
+    '
+  trigger_keywords:
+  - land tax
+  - outgoings
+  - rates and taxes
+  - government charges
+  - portfolio
+  - aggregate
+  - landholding
+  legislation_ref: Retail Leases Act 1994 (NSW) s.12
+  recommended_action: 'Demand written evidence that the land is assessed as a single holding (not aggregated).
+    Verify the estimated land tax amount is disclosed in the lease. If the landlord cannot produce a single-holding
+    assessment, the charge is unlawful — cease payment and seek a refund of amounts already paid.
 
-  - id: RF006
-    name: Unrestricted relocation right
-    severity: medium
-    jurisdictions: ["ALL"]
-    description: >
-      Landlord has an unfettered right to relocate the tenant within the
-      building or centre without adequate notice, comparable premises,
-      or compensation for disruption and relocation costs.
-    trigger_keywords: ["relocation", "relocate", "alternative premises", "move", "new premises"]
-    legislation_ref: "Retail Leases Act 1994 (NSW) s.34A"
-    recommended_action: >
-      Require minimum 3-month written notice. New premises must be comparable
-      in size, location, and configuration. Landlord must pay all relocation
-      costs and compensate for trade disruption during the move.
+    '
+- id: RF005d
+  name: Land tax in outgoings — QLD (disclosure + single-tenancy basis required)
+  severity: high
+  jurisdictions:
+  - QLD
+  description: 'In Queensland, land tax is only recoverable as an outgoing if: (1) it was disclosed in
+    the lessor''s disclosure statement provided before the lease was entered into, and (2) it is calculated
+    on a single-tenancy (not portfolio) basis. If land tax was not disclosed pre-execution, it cannot
+    be recovered at all, regardless of what the lease document says.
 
-  - id: RF007
-    name: Personal guarantee without cap
-    severity: high
-    jurisdictions: ["ALL"]
-    description: >
-      Directors or individuals are required to provide unlimited personal
-      guarantees over the full lease term without any monetary cap, time
-      limit, or sunset clause. Market standard is a 6-month rent cap with
-      a 2-year sunset on clean payment history.
-    trigger_keywords: ["personal guarantee", "guarantee", "guarantor", "indemnify", "jointly and severally"]
-    legislation_ref: null
-    recommended_action: >
-      Cap the guarantee at 6-12 months' total rent (base + outgoings estimate).
-      Add a sunset clause releasing the guarantee after 24 months of clean payment.
-      Limit scope to base rent only — exclude make-good, legal costs, outgoings.
+    '
+  trigger_keywords:
+  - land tax
+  - outgoings
+  - rates and taxes
+  - government charges
+  - disclosure statement
+  legislation_ref: Retail Shop Leases Act 1994 (QLD) s.22
+  recommended_action: 'Request a copy of the lessor''s disclosure statement. Confirm land tax was disclosed
+    before the lease was signed. Require evidence it is calculated on a single-tenancy basis. If pre-execution
+    disclosure was not made, the charge is unlawful.
 
-  - id: RF008
-    name: Turnover rent with low base threshold
-    severity: medium
-    jurisdictions: ["ALL"]
-    description: >
-      Turnover rent clause kicks in at a threshold that is unrealistically low
-      relative to the tenant's expected trading performance, resulting in the
-      landlord sharing upside without any downside risk sharing.
-    trigger_keywords: ["turnover rent", "percentage rent", "gross turnover", "base rent", "natural breakpoint"]
-    legislation_ref: null
-    recommended_action: >
-      Set the turnover breakpoint at or above the tenant's realistic annual
-      revenue forecast. Negotiate confidentiality protections for turnover data.
+    '
+- id: RF005e
+  name: Land tax in outgoings — SA (prohibited by statute)
+  severity: high
+  jurisdictions:
+  - SA
+  description: 'Land tax is prohibited as a recoverable outgoing in South Australian retail leases under
+    the Retail and Commercial Leases Act 1995 (SA) s.20. This mirrors the Victorian prohibition — any
+    clause requiring the tenant to contribute to land tax is void regardless of how it is worded or how
+    the outgoings schedule is structured.
 
-  - id: RF009
-    name: Holdover at penalty rate
-    severity: medium
-    jurisdictions: ["ALL"]
-    description: >
-      Lease specifies that holding over after expiry is at a substantially
-      higher rent rate (e.g. 150-200% of passing rent) with little or no
-      notice requirement, creating punitive exit pressure.
-    trigger_keywords: ["holdover", "overholding", "holding over", "month to month", "double rent"]
-    legislation_ref: null
-    recommended_action: >
-      Negotiate holdover to revert to month-to-month at the passing contract rent.
-      If a penalty rate is unavoidable, cap it at 110-115%.
+    '
+  trigger_keywords:
+  - land tax
+  - outgoings
+  - rates and taxes
+  - government charges
+  legislation_ref: Retail and Commercial Leases Act 1995 (SA) s.20
+  recommended_action: 'Remove the land tax obligation entirely. The clause is void in South Australia.
+    Seek a refund of any land tax already paid. Report persistent demands to Consumer and Business Services
+    SA (CBS) — 131 882.
 
-  - id: RF010
-    name: No exclusivity in retail centre
-    severity: medium
-    jurisdictions: ["ALL"]
-    description: >
-      Lease in a shopping centre or multi-tenancy building has no exclusivity
-      provision preventing the landlord from leasing to direct competitors in
-      the same product/service category.
-    trigger_keywords: ["exclusivity", "exclusive", "competing business", "similar business", "permitted use"]
-    legislation_ref: null
-    recommended_action: >
-      Negotiate an exclusivity clause for your specific product/service
-      category within the centre or building precinct.
+    '
+- id: RF005f
+  name: Land tax in outgoings — WA (single-holding, itemised disclosure required)
+  severity: high
+  jurisdictions:
+  - WA
+  description: 'In Western Australia, land tax is a restricted outgoing under the Commercial Tenancy (Retail
+    Shops) Agreements Act 1985 (WA). It may only be charged on a single-holding basis and must be itemised
+    separately in the outgoings schedule — it cannot be buried in a general "rates and taxes" line item.
+    Aggregate or portfolio-based land tax charges are not recoverable.
 
-  - id: RF011
-    name: Option to renew — inadequate exercise window
-    severity: high
-    jurisdictions: ["ALL"]
-    description: >
-      Option to renew exercise window is too short (less than 3 months) or
-      the lease does not require the landlord to notify the tenant when the
-      window opens. Missing an option deadline is generally irreversible.
-    trigger_keywords: ["option", "option to renew", "renewal", "exercise", "notice period", "option period"]
-    legislation_ref: "Retail Leases Act 1994 (NSW) s.44"
-    recommended_action: >
-      Negotiate a 6-9 month exercise window before expiry. Require the landlord
-      to give written notice at least 3 months before the window opens.
-      Set a calendar alert well before the window — this is the single most
-      time-critical obligation in any lease.
+    '
+  trigger_keywords:
+  - land tax
+  - outgoings
+  - rates and taxes
+  - government charges
+  - aggregate
+  legislation_ref: Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.13
+  recommended_action: 'Require land tax to be itemised separately in the outgoings schedule. Demand evidence
+    of single-holding assessment. Any portfolio-basis charge is not recoverable. Contact Commerce WA (1300
+    304 054) if landlord disputes.
 
-  - id: RF012
-    name: No outgoings audit right
-    severity: medium
-    jurisdictions: ["ALL"]
-    description: >
-      Lease does not give the tenant the right to audit the landlord's outgoings
-      calculations, or does not require the landlord to provide an annual
-      reconciliation statement. Without audit rights, overcharges go undetected.
-    trigger_keywords: ["outgoings", "management fee", "administration fee", "reconciliation", "estimate", "audit"]
-    legislation_ref: "Retail Leases Act 2003 (VIC) s.38 | Retail Shop Leases Act 1994 (QLD) s.37"
-    recommended_action: >
-      Require: (1) annual reconciliation within 3 months of EOFY; (2) right to
-      inspect records within 60 days of the statement; (3) right to appoint an
-      independent auditor if overcharge exceeds 5%; (4) landlord reimburses
-      audit cost if overcharge is confirmed.
+    '
+- id: RF005g
+  name: Land tax in outgoings — ACT (single-holding + disclosure required)
+  severity: high
+  jurisdictions:
+  - ACT
+  description: 'In the ACT, land tax is only recoverable as an outgoing if calculated on a single-holding
+    basis and disclosed in the lease. The Leases (Commercial and Retail) Act 2001 (ACT) applies restrictions
+    equivalent to NSW. Portfolio-basis land tax is prohibited. Undisclosed land tax is not recoverable.
 
-  - id: RF013
-    name: Key money or premium for consent
-    severity: high
-    jurisdictions: ["ALL"]
-    description: >
-      Landlord charges a fee, premium, or key money as a condition of granting
-      the lease, renewing it, or consenting to assignment. Key money is
-      prohibited in VIC by statute and is restricted or challengeable in all
-      other Australian jurisdictions.
-    trigger_keywords: ["key money", "premium", "goodwill", "consent fee", "assignment fee", "renewal premium"]
-    legislation_ref: "Retail Leases Act 2003 (VIC) — Key Money Prohibition"
-    recommended_action: >
-      Refuse payment. In VIC, report to Consumer Affairs Victoria — the landlord
-      has committed a criminal offence. In other states, challenge under ACL
-      unconscionable conduct provisions.
+    '
+  trigger_keywords:
+  - land tax
+  - outgoings
+  - rates and taxes
+  - government charges
+  legislation_ref: Leases (Commercial and Retail) Act 2001 (ACT) s.28
+  recommended_action: 'Verify single-holding basis and disclosure in the lease. If neither condition is
+    met, the charge is unlawful. Contact ACT Access Canberra for complaints.
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # WA-specific statutory rules (AQ-NEW-23: RF_WA001/002/005 use VOID severity)
-  # ─────────────────────────────────────────────────────────────────────────────
+    '
+- id: RF005h
+  name: Land tax in outgoings — TAS (code of practice restrictions)
+  severity: medium
+  jurisdictions:
+  - TAS
+  description: 'Tasmania''s retail tenancy protections are less prescriptive than mainland states. Land
+    tax charges should be scrutinised under the Fair Trading (Code of Practice for Retail Tenancies) Regulations
+    1998 (TAS). The Code requires outgoings to be itemised and reasonable. Portfolio-basis land tax should
+    be challenged contractually as an unreasonable and undisclosed charge.
 
-  - id: RF_WA001
-    name: Contracting-out of CTRS Act — void by statute (WA)
-    severity: void
-    jurisdictions: ["WA"]
-    description: >
-      A lease clause purporting to exclude, restrict, or modify the operation of the
-      Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) — or any right it
-      confers on the tenant — is void by operation of s.27 of the Act. This applies
-      regardless of how the clause is worded, whether it is buried in a general
-      exclusions clause, or whether both parties have signed the lease. If the tenancy
-      is in fact a retail shop agreement, the Act applies as a matter of law.
-      Commonly found in long-form commercial leases where the landlord seeks to disclaim
-      the CTRS Act's application (e.g. Clause 26.16(a) patterns).
-    trigger_keywords:
-      - "commercial tenancy act does not apply"
-      - "retail shops act does not apply"
-      - "CTRS Act"
-      - "contracting out"
-      - "excluded by agreement"
-      - "parties agree the act"
-      - "waive the provisions"
-    legislation_ref: "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.27"
-    recommended_action: >
-      Delete any clause purporting to exclude the CTRS Act. The exclusion is void in
-      any event, but leaving it in creates ambiguity and opens the door to disputes.
-      If the landlord insists, obtain written legal advice confirming the clause's
-      invalidity and ensure the advice is disclosed to both parties.
+    '
+  trigger_keywords:
+  - land tax
+  - outgoings
+  - rates and taxes
+  - government charges
+  legislation_ref: Fair Trading (Code of Practice for Retail Tenancies) Regulations 1998 (TAS)
+  recommended_action: 'Require land tax to be itemised separately. Negotiate single-holding basis and
+    prior written disclosure as a lease condition. Contact Consumer, Building and Occupational Services
+    TAS for guidance.
 
-  - id: RF_WA002
-    name: Quiet enjoyment excluded — TLA s.92(b) removed (WA)
-    severity: void
-    jurisdictions: ["WA"]
-    description: >
-      In WA registered land leases, the Transfer of Land Act 1893 (WA) s.92(b) implies
-      a covenant of quiet enjoyment in favour of the tenant. A clause expressly excluding
-      s.92(b) removes this statutory protection entirely. Combined with the absence of an
-      express quiet enjoyment covenant in the lease, this leaves the tenant with NO
-      enforceable right to peaceful occupation. This is particularly dangerous in long-term
-      development leases where continuity of occupation is critical to the tenant's
-      investment.
-    trigger_keywords:
-      - "s.92(b)"
-      - "section 92(b)"
-      - "Transfer of Land Act"
-      - "quiet enjoyment excluded"
-      - "covenant of quiet enjoyment"
-      - "excluded"
-      - "does not apply"
-    legislation_ref: "Transfer of Land Act 1893 (WA) s.92(b)"
-    recommended_action: >
-      Reject the exclusion of s.92(b). Insist on either: (a) removing the exclusion
-      clause so s.92(b) applies, or (b) replacing it with an express quiet enjoyment
-      covenant of at least equivalent protection. The covenant must cover interference
-      by the landlord, mortgagees, and any person claiming through the landlord.
+    '
+- id: RF005i
+  name: Land tax in outgoings — NT (limited statutory protections)
+  severity: medium
+  jurisdictions:
+  - NT
+  description: 'The Northern Territory''s Business Tenancies (Fair Dealings) Act 2003 (NT) provides limited
+    retail tenancy protections compared to eastern states. There is no express statutory prohibition on
+    land tax as an outgoing, but common law fairness principles apply. Portfolio-basis land tax should
+    be challenged, and single-holding basis with itemised disclosure should be negotiated into any new
+    lease.
 
-  - id: RF_WA003
-    name: Outgoings estimates or landlord readings final and binding — void (WA)
-    severity: high
-    jurisdictions: ["WA"]
-    description: >
-      A clause making the landlord's outgoings estimates, meter readings, calculations,
-      or reconciliation statements 'final and binding', 'conclusive', or 'not subject to
-      dispute' on the tenant violates ss.12A-12B of the Commercial Tenancy (Retail Shops)
-      Agreements Act 1985 (WA), which mandate annual itemised estimates and tenant audit
-      rights. Such a clause is void under s.27 (anti-contracting-out). The tenant retains
-      the right to dispute any outgoing calculation through the statutory reconciliation
-      process regardless of the lease wording.
-    trigger_keywords:
-      - "binding on the tenant"
-      - "conclusive evidence"
-      - "final and binding"
-      - "landlord's reading"
-      - "meter reading final"
-      - "not subject to challenge"
-      - "outgoings statement"
-      - "binding estimate"
-    legislation_ref: "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) ss.12A-12B, s.27"
-    recommended_action: >
-      Delete any 'final and binding' or 'conclusive' language from the outgoings clause.
-      Replace with: landlord to provide annual itemised estimate before the year commences,
-      annual reconciliation statement within 3 months of EOFY, tenant right to inspect
-      all underlying records, and right to dispute within 60 days of the reconciliation
-      statement.
+    '
+  trigger_keywords:
+  - land tax
+  - outgoings
+  - rates and taxes
+  - government charges
+  legislation_ref: Business Tenancies (Fair Dealings) Act 2003 (NT)
+  recommended_action: 'Negotiate single-holding basis and itemised land tax disclosure as express lease
+    conditions. Without statutory protections, contractual language is your primary defence. Seek legal
+    advice from an NT commercial lease solicitor.
 
-  - id: RF_WA004
-    name: Sub-lease indemnity for CTRS Act breaches (WA)
-    severity: high
-    jurisdictions: ["WA"]
-    description: >
-      A clause requiring the tenant to indemnify the landlord for any liability arising
-      from the landlord's own failure to comply with the CTRS Act in respect of sub-leases
-      or licences granted by the tenant. This is a particularly aggressive landlord tactic
-      in development leases where the tenant intends to sub-let portions of the premises
-      to retail operators. The clause attempts to shift the landlord's statutory compliance
-      obligations to the tenant. In a 70-year development lease with multiple retail
-      sub-tenancies, this indemnity exposure could be significant.
-    trigger_keywords:
-      - "indemnify the landlord"
-      - "sub-lease"
-      - "sub-tenant"
-      - "retail shop"
-      - "CTRS Act"
-      - "licensed premises"
-      - "indemnity"
-      - "liability arising"
-    legislation_ref: "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) ss.27, 22"
-    recommended_action: >
-      Negotiate a carve-out so the indemnity covers ONLY the tenant's own breaches,
-      not the landlord's failure to discharge its statutory obligations under the CTRS Act.
-      Limit to direct losses caused by the tenant's acts or omissions; expressly exclude
-      indirect, consequential, or statutory-breach liability.
+    '
+- id: RF006
+  name: Unrestricted relocation right
+  severity: medium
+  jurisdictions:
+  - ALL
+  description: 'Landlord has an unfettered right to relocate the tenant within the building or centre
+    without adequate notice, comparable premises, or compensation for disruption and relocation costs.
 
-  - id: RF_WA005
-    name: PDA s.136 — deemed subdivision, lease void without WAPC approval (WA)
-    severity: void
-    jurisdictions: ["WA"]
-    description: >
-      Under Planning and Development Act 2005 (WA) s.136, a lease of a PORTION of land
-      (not the whole of a lot) for a total term exceeding 20 years — including all options
-      to renew — constitutes a deemed subdivision. The lease is invalid and of no legal
-      effect unless and until Western Australian Planning Commission (WAPC) approval is
-      obtained. Failure to obtain approval renders the entire lease void ab initio. This
-      applies to long-term commercial development leases over part of a lot (e.g.
-      20-year initial term plus five 10-year options = 70 years total = deemed subdivision).
-    trigger_keywords:
-      - "WAPC"
-      - "Western Australian Planning Commission"
-      - "Planning and Development Act"
-      - "portion of the land"
-      - "subdivision approval"
-      - "planning approval"
-      - "s.136"
-      - "deemed subdivision"
-    legislation_ref: "Planning and Development Act 2005 (WA) s.136"
-    recommended_action: >
-      Immediately establish whether the lease is over a portion of a lot and whether the
-      cumulative term (initial term plus all options) exceeds 20 years. If so, the lease
-      must be conditional on WAPC subdivision approval, with a 90-120 day sunset clause
-      and all costs borne by the landlord. The tenant must not commence fitout or any
-      works until written WAPC approval is confirmed. Obtain specialist WA planning advice.
+    '
+  trigger_keywords:
+  - relocation
+  - relocate
+  - alternative premises
+  - move
+  - new premises
+  legislation_ref: Retail Leases Act 1994 (NSW) s.34A
+  recommended_action: 'Require minimum 3-month written notice. New premises must be comparable in size,
+    location, and configuration. Landlord must pay all relocation costs and compensate for trade disruption
+    during the move.
+
+    '
+- id: RF007
+  name: Personal guarantee without cap
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'Directors or individuals are required to provide unlimited personal guarantees over the
+    full lease term without any monetary cap, time limit, or sunset clause. Market standard is a 6-month
+    rent cap with a 2-year sunset on clean payment history.
+
+    '
+  trigger_keywords:
+  - personal guarantee
+  - guarantee
+  - guarantor
+  - indemnify
+  - jointly and severally
+  legislation_ref: null
+  recommended_action: 'Cap the guarantee at 6-12 months'' total rent (base + outgoings estimate). Add
+    a sunset clause releasing the guarantee after 24 months of clean payment. Limit scope to base rent
+    only — exclude make-good, legal costs, outgoings.
+
+    '
+- id: RF008
+  name: Turnover rent with low base threshold
+  severity: medium
+  jurisdictions:
+  - ALL
+  description: 'Turnover rent clause kicks in at a threshold that is unrealistically low relative to the
+    tenant''s expected trading performance, resulting in the landlord sharing upside without any downside
+    risk sharing.
+
+    '
+  trigger_keywords:
+  - turnover rent
+  - percentage rent
+  - gross turnover
+  - base rent
+  - natural breakpoint
+  legislation_ref: null
+  recommended_action: 'Set the turnover breakpoint at or above the tenant''s realistic annual revenue
+    forecast. Negotiate confidentiality protections for turnover data.
+
+    '
+- id: RF009
+  name: Holdover at penalty rate
+  severity: medium
+  jurisdictions:
+  - ALL
+  description: 'Lease specifies that holding over after expiry is at a substantially higher rent rate
+    (e.g. 150-200% of passing rent) with little or no notice requirement, creating punitive exit pressure.
+
+    '
+  trigger_keywords:
+  - holdover
+  - overholding
+  - holding over
+  - month to month
+  - double rent
+  legislation_ref: null
+  recommended_action: 'Negotiate holdover to revert to month-to-month at the passing contract rent. If
+    a penalty rate is unavoidable, cap it at 110-115%.
+
+    '
+- id: RF010
+  name: No exclusivity in retail centre
+  severity: medium
+  jurisdictions:
+  - ALL
+  description: 'Lease in a shopping centre or multi-tenancy building has no exclusivity provision preventing
+    the landlord from leasing to direct competitors in the same product/service category.
+
+    '
+  trigger_keywords:
+  - exclusivity
+  - exclusive
+  - competing business
+  - similar business
+  - permitted use
+  legislation_ref: null
+  recommended_action: 'Negotiate an exclusivity clause for your specific product/service category within
+    the centre or building precinct.
+
+    '
+- id: RF011
+  name: Option to renew — inadequate exercise window
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'Option to renew exercise window is too short (less than 3 months) or the lease does not
+    require the landlord to notify the tenant when the window opens. Missing an option deadline is generally
+    irreversible.
+
+    '
+  trigger_keywords:
+  - option
+  - option to renew
+  - renewal
+  - exercise
+  - notice period
+  - option period
+  legislation_ref: Retail Leases Act 1994 (NSW) s.44
+  recommended_action: 'Negotiate a 6-9 month exercise window before expiry. Require the landlord to give
+    written notice at least 3 months before the window opens. Set a calendar alert well before the window
+    — this is the single most time-critical obligation in any lease.
+
+    '
+- id: RF012
+  name: No outgoings audit right
+  severity: medium
+  jurisdictions:
+  - ALL
+  description: 'Lease does not give the tenant the right to audit the landlord''s outgoings calculations,
+    or does not require the landlord to provide an annual reconciliation statement. Without audit rights,
+    overcharges go undetected.
+
+    '
+  trigger_keywords:
+  - outgoings
+  - management fee
+  - administration fee
+  - reconciliation
+  - estimate
+  - audit
+  legislation_ref: Retail Leases Act 2003 (VIC) s.38 | Retail Shop Leases Act 1994 (QLD) s.37
+  recommended_action: 'Require: (1) annual reconciliation within 3 months of EOFY; (2) right to inspect
+    records within 60 days of the statement; (3) right to appoint an independent auditor if overcharge
+    exceeds 5%; (4) landlord reimburses audit cost if overcharge is confirmed.
+
+    '
+- id: RF013
+  name: Key money or premium for consent
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'Landlord charges a fee, premium, or key money as a condition of granting the lease, renewing
+    it, or consenting to assignment. Key money is prohibited in VIC by statute and is restricted or challengeable
+    in all other Australian jurisdictions.
+
+    '
+  trigger_keywords:
+  - key money
+  - premium
+  - goodwill
+  - consent fee
+  - assignment fee
+  - renewal premium
+  legislation_ref: Retail Leases Act 2003 (VIC) — Key Money Prohibition
+  recommended_action: 'Refuse payment. In VIC, report to Consumer Affairs Victoria — the landlord has
+    committed a criminal offence. In other states, challenge under ACL unconscionable conduct provisions.
+
+    '
+- id: RF014
+  name: No outgoings cap in commercial/industrial lease
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'Commercial and industrial leases lack statutory limits on outgoings recovery — unlike
+    retail tenancies, the tenant''s only protection is the lease contract itself. Without an annual outgoings
+    cap (e.g. "capped at 5% per annum, cumulative"), the landlord can pass through unlimited cost increases,
+    including insurance spikes, rates increases, and — if the lease is poorly drafted — capital expenditure.
+    80% of office and industrial outgoings leakage occurs through absent or ambiguous cap provisions,
+    typically discovered only at reconciliation.
+
+    '
+  trigger_keywords:
+  - outgoings
+  - recoverable outgoings
+  - gross outgoings
+  - proportionate share
+  - outgoings cap
+  - capped
+  legislation_ref: null
+  recommended_action: 'Negotiate an outgoings cap of 5% per annum (cumulative / compounding) on total
+    recoverable outgoings, with the base year anchored to the execution date. Explicitly exclude capital
+    expenditure (any item with useful life >5 years) and require annual itemised reconciliation within
+    3 months of EOFY with 60-day tenant dispute rights.
+
+    '
+- id: RF015
+  name: CapEx included or undefined in outgoings definition (commercial/industrial)
+  severity: high
+  jurisdictions:
+  - ALL
+  description: 'In commercial and industrial leases, the definition of outgoings or recoverable outgoings
+    does not expressly exclude capital expenditure. Landlords routinely include roof replacement, HVAC
+    unit replacement, lift motor upgrades, and structural repairs as maintenance or building repairs in
+    the outgoings schedule. Without a contractual CapEx exclusion, tenants have limited grounds to dispute
+    these charges (unlike retail tenants who have statutory protection). Detection without a GL transaction
+    audit is nearly impossible — reconciliation summaries only show category totals.
+
+    '
+  trigger_keywords:
+  - outgoings
+  - capital
+  - repairs and maintenance
+  - building maintenance
+  - plant and equipment
+  legislation_ref: null
+  recommended_action: 'Add an express definition: Outgoings does not include any item of capital expenditure
+    or capital works — defined as any expense for an asset with useful life exceeding 5 years, any structural
+    repair, or any replacement (as opposed to repair) of plant or building components. Retain the right
+    to request the landlord''s General Ledger transaction detail (not just the reconciliation summary)
+    within 30 days of the annual statement.
+
+    '
+- id: RF016
+  name: Prohibited landlord admin/leasing fees in outgoings (VIC/QLD/WA)
+  severity: high
+  jurisdictions:
+  - VIC
+  - QLD
+  - WA
+  description: 'Under Australian retail tenancy legislation, landlords are strictly prohibited from recovering
+    leasing commissions, lease preparation solicitor fees, marketing startup costs, and sinking fund contributions
+    labelled as administration costs from tenants. These amounts are routinely bundled into administrative
+    charges, sundry costs, or management fee line items in outgoings schedules. Only GL transaction detail
+    reveals them. VIC: Retail Leases Act 2003 s.14. QLD: Retail Shop Leases Act 1994 s.24. WA: CTRS Act
+    1985 s.14B.
+
+    '
+  trigger_keywords:
+  - administration fee
+  - admin fee
+  - management fee
+  - leasing fee
+  - leasing commission
+  - marketing levy
+  - sundry costs
+  - outgoings
+  legislation_ref: 'Retail Leases Act 2003 (VIC) s.14 | Retail Shop Leases Act 1994 (QLD) s.24 | Commercial
+    Tenancy (Retail Shops) Agreements Act 1985 (WA) s.14B
+
+    '
+  recommended_action: 'Request the landlord''s General Ledger detail for the management fee and admin
+    outgoings categories. Any amounts attributable to leasing commissions, lease preparation costs, or
+    agent startup fees are unlawful and must be refunded. If the landlord refuses to provide GL detail,
+    escalate to the relevant tribunal: VCAT (VIC), QCAT (QLD), or State Administrative Tribunal (WA).
+
+    '
+- id: RF017
+  name: Marketing levy without annual audited statement or roll-forward
+  severity: medium
+  jurisdictions:
+  - NSW
+  - VIC
+  - QLD
+  - WA
+  - SA
+  description: 'In shopping centre retail leases, the marketing levy (typically 1-5% of base rent) is
+    a statutory trust. Funds must be spent solely on marketing for the specific centre. The landlord must
+    provide an independent audited marketing fund statement within 3 months of EOFY and carry forward
+    any unspent funds. Landlords frequently divert marketing levies to general corporate expenses or neglect
+    the audit requirement. Where no audited statement is provided or where the lease is silent on roll-forward,
+    the tenant is likely funding undisclosed expenditure. NSW: Retail Leases Act 1994 s.55.
+
+    '
+  trigger_keywords:
+  - marketing levy
+  - marketing fund
+  - promotional fund
+  - marketing contribution
+  - promotion levy
+  - centre management
+  legislation_ref: 'Retail Leases Act 1994 (NSW) s.55 | Retail Leases Act 2003 (VIC) s.46 | Retail Shop
+    Leases Act 1994 (QLD) s.55
+
+    '
+  recommended_action: 'Demand annual audited marketing fund statements within 3 months of 30 June. Require
+    the lease to state that unspent marketing funds roll forward to the following year. Add a right to
+    inspect marketing expenditure invoices and to dispute within 60 days of the statement. If statements
+    have not been provided, request retrospective statements for all years and seek a refund of overpayments.
+
+    '
+- id: RF_WA001
+  name: Contracting-out of CTRS Act — void by statute (WA)
+  severity: void
+  jurisdictions:
+  - WA
+  description: 'A lease clause purporting to exclude, restrict, or modify the operation of the Commercial
+    Tenancy (Retail Shops) Agreements Act 1985 (WA) — or any right it confers on the tenant — is void
+    by operation of s.27 of the Act. This applies regardless of how the clause is worded, whether it is
+    buried in a general exclusions clause, or whether both parties have signed the lease. If the tenancy
+    is in fact a retail shop agreement, the Act applies as a matter of law. Commonly found in long-form
+    commercial leases where the landlord seeks to disclaim the CTRS Act''s application (e.g. Clause 26.16(a)
+    patterns).
+
+    '
+  trigger_keywords:
+  - commercial tenancy act does not apply
+  - retail shops act does not apply
+  - CTRS Act
+  - contracting out
+  - excluded by agreement
+  - parties agree the act
+  - waive the provisions
+  legislation_ref: Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.27
+  recommended_action: 'Delete any clause purporting to exclude the CTRS Act. The exclusion is void in
+    any event, but leaving it in creates ambiguity and opens the door to disputes. If the landlord insists,
+    obtain written legal advice confirming the clause''s invalidity and ensure the advice is disclosed
+    to both parties.
+
+    '
+- id: RF_WA002
+  name: Quiet enjoyment excluded — TLA s.92(b) removed (WA)
+  severity: void
+  jurisdictions:
+  - WA
+  description: 'In WA registered land leases, the Transfer of Land Act 1893 (WA) s.92(b) implies a covenant
+    of quiet enjoyment in favour of the tenant. A clause expressly excluding s.92(b) removes this statutory
+    protection entirely. Combined with the absence of an express quiet enjoyment covenant in the lease,
+    this leaves the tenant with NO enforceable right to peaceful occupation. This is particularly dangerous
+    in long-term development leases where continuity of occupation is critical to the tenant''s investment.
+
+    '
+  trigger_keywords:
+  - s.92(b)
+  - section 92(b)
+  - Transfer of Land Act
+  - quiet enjoyment excluded
+  - covenant of quiet enjoyment
+  - excluded
+  - does not apply
+  legislation_ref: Transfer of Land Act 1893 (WA) s.92(b)
+  recommended_action: 'Reject the exclusion of s.92(b). Insist on either: (a) removing the exclusion clause
+    so s.92(b) applies, or (b) replacing it with an express quiet enjoyment covenant of at least equivalent
+    protection. The covenant must cover interference by the landlord, mortgagees, and any person claiming
+    through the landlord.
+
+    '
+- id: RF_WA003
+  name: Outgoings estimates or landlord readings final and binding — void (WA)
+  severity: high
+  jurisdictions:
+  - WA
+  description: 'A clause making the landlord''s outgoings estimates, meter readings, calculations, or
+    reconciliation statements final and binding, conclusive, or not subject to dispute on the tenant violates
+    ss.12A-12B of the Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA), which mandate annual
+    itemised estimates and tenant audit rights. Such a clause is void under s.27 (anti-contracting-out).
+    The tenant retains the right to dispute any outgoing calculation through the statutory reconciliation
+    process regardless of the lease wording.
+
+    '
+  trigger_keywords:
+  - binding on the tenant
+  - conclusive evidence
+  - final and binding
+  - landlord's reading
+  - meter reading final
+  - not subject to challenge
+  - outgoings statement
+  - binding estimate
+  legislation_ref: Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) ss.12A-12B, s.27
+  recommended_action: 'Delete any final and binding or conclusive language from the outgoings clause.
+    Replace with: landlord to provide annual itemised estimate before the year commences, annual reconciliation
+    statement within 3 months of EOFY, tenant right to inspect all underlying records, and right to dispute
+    within 60 days of the reconciliation statement.
+
+    '
+- id: RF_WA004
+  name: Sub-lease indemnity for CTRS Act breaches (WA)
+  severity: high
+  jurisdictions:
+  - WA
+  description: 'A clause requiring the tenant to indemnify the landlord for any liability arising from
+    the landlord''s own failure to comply with the CTRS Act in respect of sub-leases or licences granted
+    by the tenant. This is a particularly aggressive landlord tactic in development leases where the tenant
+    intends to sub-let portions of the premises to retail operators. The clause attempts to shift the
+    landlord''s statutory compliance obligations to the tenant. In a 70-year development lease with multiple
+    retail sub-tenancies, this indemnity exposure could be significant.
+
+    '
+  trigger_keywords:
+  - indemnify the landlord
+  - sub-lease
+  - sub-tenant
+  - retail shop
+  - CTRS Act
+  - licensed premises
+  - indemnity
+  - liability arising
+  legislation_ref: Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) ss.27, 22
+  recommended_action: 'Negotiate a carve-out so the indemnity covers ONLY the tenant''s own breaches,
+    not the landlord''s failure to discharge its statutory obligations under the CTRS Act. Limit to direct
+    losses caused by the tenant''s acts or omissions; expressly exclude indirect, consequential, or statutory-breach
+    liability.
+
+    '
+- id: RF_WA005
+  name: PDA s.136 — deemed subdivision, lease void without WAPC approval (WA)
+  severity: void
+  jurisdictions:
+  - WA
+  description: 'Under Planning and Development Act 2005 (WA) s.136, a lease of a PORTION of land (not
+    the whole of a lot) for a total term exceeding 20 years — including all options to renew — constitutes
+    a deemed subdivision. The lease is invalid and of no legal effect unless and until Western Australian
+    Planning Commission (WAPC) approval is obtained. Failure to obtain approval renders the entire lease
+    void ab initio. This applies to long-term commercial development leases over part of a lot (e.g. 20-year
+    initial term plus five 10-year options = 70 years total = deemed subdivision).
+
+    '
+  trigger_keywords:
+  - WAPC
+  - Western Australian Planning Commission
+  - Planning and Development Act
+  - portion of the land
+  - subdivision approval
+  - planning approval
+  - s.136
+  - deemed subdivision
+  legislation_ref: Planning and Development Act 2005 (WA) s.136
+  recommended_action: 'Immediately establish whether the lease is over a portion of a lot and whether
+    the cumulative term (initial term plus all options) exceeds 20 years. If so, the lease must be conditional
+    on WAPC subdivision approval, with a 90-120 day sunset clause and all costs borne by the landlord.
+    The tenant must not commence fitout or any works until written WAPC approval is confirmed. Obtain
+    specialist WA planning advice.
+
+    '

@@ -22,6 +22,7 @@ from loguru import logger
 
 from ingestion.outgoings_parser import ParsedOutgoings, OutgoingsLineItem
 from llm.router import get_client, SONNET_MODEL, HAIKU_MODEL
+from services.outgoings_cap_calculator import run_cap_verification  # AQ-NEW-28
 
 
 # ── Data models ───────────────────────────────────────────────────────────────
@@ -167,6 +168,11 @@ def run_outgoings_reconciliation(
     clause_analyses: list[dict],
     jurisdiction: str,
     progress_callback=None,
+    # AQ-NEW-28: multi-year outgoings history for deterministic cap verification.
+    # Keys are year labels (e.g. "FY2023"), values are total charged amount in cents.
+    # Pass {} or None to skip cap verification (e.g. when only one year of data available).
+    yearly_outgoings_history: Optional[dict] = None,
+    job_id: Optional[str] = None,
 ) -> ReconciliationResult:
     """
     Cross-reference a parsed outgoings document against lease clause analyses.
@@ -290,9 +296,38 @@ def run_outgoings_reconciliation(
     result.lease_clauses_used = data.get("lease_clauses_referenced", [])
     result.engine_status = "complete" if result.findings else "partial"
 
+    # ── AQ-NEW-28: Deterministic cap verification ─────────────────────────────
+    # If multi-year history was supplied, verify the cap arithmetic.
+    # This is SEPARATE from the LLM reconciliation above — pure math, no hallucinations.
+    if yearly_outgoings_history and len(yearly_outgoings_history) >= 2:
+        _cb("Verifying outgoings cap arithmetic...")
+        try:
+            cap_result = run_cap_verification(
+                clause_analyses=clause_analyses,
+                yearly_actuals=yearly_outgoings_history,
+                job_id=job_id,
+            )
+            if cap_result.cap_found and (cap_result.has_overcharge or cap_result.base_year_reset_detected):
+                cap_finding_dict = cap_result.to_finding_dict()
+                if cap_finding_dict:
+                    finding = ReconciliationFinding(**{
+                        k: v for k, v in cap_finding_dict.items()
+                        if k in ReconciliationFinding.__dataclass_fields__
+                    })
+                    result.findings.append(finding)
+                    result.total_disputed_cents += finding.disputed_amount_cents
+                    logger.info(
+                        f"outgoings_engine: cap overcharge ${finding.disputed_amount_cents/100:,.2f} "
+                        f"added as finding"
+                    )
+            result.warnings.extend(cap_result.warnings)
+        except Exception as cap_err:
+            result.warnings.append(f"Outgoings cap verification error: {cap_err}")
+            logger.error(f"outgoings_engine: cap verification failed: {cap_err}")
+
     logger.info(
         f"outgoings_engine: {doc_filename} — {len(result.findings)} findings, "
-        f"disputed=${disputed_total/100:,.2f}, status={result.engine_status}"
+        f"disputed=${result.total_disputed_cents/100:,.2f}, status={result.engine_status}"
     )
     return result
 
