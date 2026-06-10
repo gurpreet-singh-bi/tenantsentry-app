@@ -805,6 +805,9 @@ def run_audit(
             risk_flags=analysis.get("risk_flags", []),
             plain_english_summary=analysis.get("plain_english_summary"),
             recommended_action=analysis.get("recommended_action"),
+            page_number=chunk.metadata.get("page_number"),           # Area 1: PDF page
+            negotiation_position=analysis.get("negotiation_position"),  # Area 4
+            negotiation_email=analysis.get("negotiation_email"),        # Area 4
             cpi_index_series=analysis.get("cpi_index_series"),
             error=analysis.get("error"),
         ), _model_used, _input_tokens, _output_tokens
@@ -816,6 +819,7 @@ def run_audit(
                 clause_heading=chunk.metadata.get("clause_heading", f"Clause {idx + 1}"),
                 clause_text=chunk.content,
                 clause_type="other",
+                page_number=chunk.metadata.get("page_number"),
                 plain_english_summary="Standard clause -- screened by triage, no material risk identified.",
             )
 
@@ -837,6 +841,7 @@ def run_audit(
                 ca = ClauseAnalysis(
                     clause_heading=chunks[idx].metadata.get("clause_heading", f"Clause {idx + 1}"),
                     clause_text=chunks[idx].content,
+                    page_number=chunks[idx].metadata.get("page_number"),
                     error=str(e),
                 )
             clause_analyses[idx] = ca
