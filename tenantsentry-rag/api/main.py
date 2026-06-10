@@ -1596,6 +1596,111 @@ def download_report(job_id: str):
         raise HTTPException(status_code=500, detail="Report generation failed.")
 
 
+@app.get("/api/audit/playbook/{job_id}")
+def get_negotiation_playbook(job_id: str, format: str = "json"):
+    """
+    AQ-NEW-4: Get the negotiation playbook for a completed, released audit.
+
+    Returns structured playbook with:
+    - Priority-ordered negotiation positions (VOID → HIGH → MEDIUM)
+    - Ready-to-send email templates per flag
+    - Confidence tiers (CONFIRMED / PROBABLE / VERIFY)
+
+    Query params:
+        format: "json" (default) | "text" (plain text for copy-paste)
+
+    JSON schema:
+    {
+      "tenant_name": "...",
+      "jurisdiction": "VIC",
+      "total_audit_flags": 12,
+      "summary_stats": {...},
+      "playbook_items": [{
+        "priority": 1,
+        "severity": "high",
+        "confidence": "confirmed",
+        "clause_heading": "Clause 14 — Make Good",
+        "page_number": 28,
+        "flag_description": "...",
+        "negotiation_position": "...",
+        "negotiation_email": "..."
+      }, ...]
+    }
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail=f"Job not complete. Status: {job.status}")
+
+    try:
+        from output.negotiation_playbook import generate_playbook, playbook_to_dict, playbook_to_text
+        result = get_job_result(job_id) or {}
+        playbook = generate_playbook(result)
+
+        if format.lower() == "text":
+            text = playbook_to_text(playbook)
+            safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
+            from fastapi.responses import PlainTextResponse
+            return PlainTextResponse(
+                content=text,
+                media_type="text/plain",
+                headers={"Content-Disposition": f'attachment; filename="TenantSentry_Playbook_{safe_name}.txt"'},
+            )
+
+        return JSONResponse(playbook_to_dict(playbook))
+    except Exception as e:
+        logger.exception(f"Playbook generation failed for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail="Playbook generation failed.")
+
+
+@app.get("/api/audit/calendar/{job_id}")
+def download_ics_calendar(job_id: str):
+    """
+    AQ-NEW-9: Download an RFC 5545 .ics calendar file of all critical lease dates.
+
+    The .ics file can be imported directly into:
+      - Microsoft Outlook (File > Open & Export > Import/Export)
+      - Google Calendar (Settings > Import & Export)
+      - Apple Calendar (File > Import)
+      - Any CalDAV-compatible calendar application
+
+    Each critical date becomes a calendar event with:
+      - Advance warning alarms (alert_days_before the event)
+      - Full context in the event description (clause reference, notes)
+      - Recurrence rules for annual/monthly review dates
+
+    Relative dates (e.g. market rent dispute window) are included as
+    "Watch For" events anchored to today, with notes explaining that
+    the real deadline clock starts on receipt of the landlord's notice.
+
+    Response:
+        Content-Type: text/calendar
+        Content-Disposition: attachment; filename="TenantSentry_Calendar_<name>.ics"
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job.status != JobStatus.COMPLETE:
+        raise HTTPException(status_code=409, detail="Audit not yet complete.")
+
+    try:
+        from output.ics_exporter import generate_ics_from_result
+        from fastapi.responses import Response
+        result = get_job_result(job_id) or {}
+        ics_bytes = generate_ics_from_result(result, job_id=job_id)
+        safe_name = job.tenant_name.replace(" ", "_").replace("/", "_")
+        filename = f"TenantSentry_Calendar_{safe_name}_{job.jurisdiction}.ics"
+        return Response(
+            content=ics_bytes,
+            media_type="text/calendar",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.exception(f"ICS calendar generation failed for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail="Calendar generation failed.")
+
+
 @app.get("/api/audit/evidence/{job_id}")
 async def download_evidence_pack(job_id: str):
     """
@@ -2490,303 +2595,21 @@ async def admin_get_document(job_id: str, _: None = Depends(require_admin)):
     from fastapi.responses import Response as _Resp
     stored = get_document(job_id)
     pdf_bytes = None
-    filename = f"lease_{job_id}.pdf"
-
     if stored:
         pdf_bytes = stored.get("pdf_bytes") or stored.get("data")
-        filename  = stored.get("filename", filename)
-
-    if not pdf_bytes and _USE_SUPABASE:
-        # V1: try to fetch from Supabase Storage 'lease-pdfs' bucket
-        try:
-            from db.audit_run_store import fetch_pdf_bytes as _fetch_pdf
-            pdf_bytes = _fetch_pdf(job_id)
-        except Exception as e:
-            logger.warning(f"[{job_id}] Supabase PDF fetch failed: {e}")
-
     if not pdf_bytes:
-        raise HTTPException(
-            status_code=404,
-            detail="Original PDF not available — in-memory buffer may have been cleared after server restart. "
-                   "PDF is preserved in Supabase Storage when USE_SUPABASE=true.",
-        )
-
+        # Try Supabase Storage fallback
+        try:
+            from db.supabase_client import get_supabase_client
+            sb = get_supabase_client()
+            dl = sb.storage.from_("lease-pdfs").download(f"{job_id}/lease.pdf")
+            pdf_bytes = dl
+        except Exception:
+            pass
+    if not pdf_bytes:
+        raise HTTPException(status_code=404, detail="Original lease PDF not available")
     return _Resp(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        headers={"Content-Disposition": f'attachment; filename="{job_id}_lease.pdf"'},
     )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Tenant jobs API — feeds the Tenant Portal live mode
-# Returns all complete+released jobs visible to the current tenant session.
-# Auth: session cookie (tenant_id) — in LIVE mode backed by Supabase.
-#       DEV mode: returns all released jobs in the fallback store.
-# ══════════════════════════════════════════════════════════════════════════════
-
-@app.get("/api/tenant/jobs")
-async def tenant_jobs(request: Request):
-    """
-    List audit jobs for the tenant portal.
-    DEV:  all complete + released jobs in fallback store (for test visibility).
-    LIVE: jobs for the authenticated tenant (filtered by tenant_id cookie).
-    Returns summary list — no clause_analyses payload (use /api/audit/result/{id}).
-    """
-    if is_dev():
-        jobs = [
-            j.to_dict() for j in _jobs_fallback.values()
-            if j.status == JobStatus.COMPLETE
-        ]
-        return JSONResponse({"jobs": sorted(jobs, key=lambda x: x.get("completed_at") or "", reverse=True)})
-
-    # LIVE: pull released jobs from Supabase (pre-auth: returns all released live jobs)
-    # TODO (F-AUTH): filter .eq("tenant_id", tenant_id) once auth column exists
-    if _USE_SUPABASE:
-        try:
-            from db.audit_run_store import fetch_released_jobs
-            rows = fetch_released_jobs(source="live")
-            return JSONResponse({"jobs": rows})
-        except Exception as e:
-            logger.error(f"tenant_jobs Supabase query failed: {e}")
-    # Fallback: released jobs from in-memory store
-    jobs = [
-        j.to_dict() for j in _jobs_fallback.values()
-        if j.status == JobStatus.COMPLETE and j.released
-    ]
-    return JSONResponse({"jobs": sorted(jobs, key=lambda x: x.get("completed_at") or "", reverse=True)})
-
-
-@app.get("/free-check", response_class=HTMLResponse)
-async def free_check_page(request: Request):
-    """
-    Free Lease Risk Check page — served from the backend app at /free-check.
-    Uses the same UI as the website version but calls relative API URLs (same-origin).
-    """
-    return templates.TemplateResponse("free_lease_check.html", {"request": request})
-
-
-@app.post("/api/free-check/submit")
-async def free_check_submit(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    jurisdiction: str = Form(...),
-    doc_type: str = Form("lease"),
-):
-    """
-    Submit a PDF for the free risk check.
-    Returns job_id immediately; poll /api/audit/status/{job_id} for progress.
-    On complete, fetch /api/free-check/result/{job_id} for the teaser payload.
-
-    No auth required. No payment required. Max 50 MB.
-    Runs the real audit pipeline truncated to the first 5 pages.
-    """
-    jur = jurisdiction.upper().strip()
-    if jur not in VALID_JURISDICTIONS:
-        raise HTTPException(status_code=400, detail=f"Invalid jurisdiction '{jur}'.")
-
-    doc_type = doc_type.lower().strip()
-    if doc_type not in ("lease", "hoa"):
-        doc_type = "lease"
-
-    if not file.filename.lower().endswith((".pdf", ".docx")):
-        raise HTTPException(status_code=400, detail="Only PDF or DOCX files are accepted.")
-
-    content = await file.read()
-    size_mb = len(content) / (1024 * 1024)
-    if size_mb > MAX_FILE_SIZE_MB:
-        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE_MB} MB limit.")
-
-    job = create_job(
-        filename=file.filename,
-        jurisdiction=jur,
-        tenant_name="Free Check",
-    )
-
-    logger.info(f"[FREE-CHECK] Job {job.job_id} created: {file.filename} | {jur} | {doc_type}")
-
-    background_tasks.add_task(
-        _run_free_check_job,
-        job_id=job.job_id,
-        pdf_bytes=content,
-        filename=file.filename,
-        jurisdiction=jur,
-        doc_type=doc_type,
-    )
-
-    return JSONResponse({"job_id": job.job_id, "status": "queued"})
-
-
-async def _run_free_check_job(
-    job_id: str,
-    pdf_bytes: bytes,
-    filename: str,
-    jurisdiction: str,
-    doc_type: str,
-) -> None:
-    """
-    Async wrapper — runs the real audit pipeline in the bounded thread pool,
-    truncated to FREE_CHECK_MAX_PAGES pages. Logs to free_check_run Supabase table.
-    """
-    loop = asyncio.get_event_loop()
-
-    def _run():
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            tmp.write(pdf_bytes)
-            tmp_path = tmp.name
-        try:
-            cb = lambda pct, stage: update_job_progress(job_id, pct, stage)
-
-            if is_dev():
-                result_obj = run_dev_audit(
-                    pdf_path=tmp_path,
-                    jurisdiction=jurisdiction,
-                    tenant_name="Free Check",
-                    job_id=job_id,
-                    progress_callback=cb,
-                )
-            else:
-                result_obj = run_live_audit(
-                    pdf_path=tmp_path,
-                    jurisdiction=jurisdiction,
-                    tenant_name="Free Check",
-                    job_id=job_id,
-                    max_pages=FREE_CHECK_MAX_PAGES,
-                    skip_vector_store=True,
-                    progress_callback=cb,
-                )
-
-            full_result = (
-                result_obj.model_dump(mode="json")
-                if hasattr(result_obj, "model_dump")
-                else (result_obj if isinstance(result_obj, dict) else result_obj.__dict__)
-            )
-            full_result["source"] = "dev" if is_dev() else "live"
-
-            pages_analysed = min(FREE_CHECK_MAX_PAGES, len(pdf_bytes) // 3000 + 1)
-            teaser = _slice_for_teaser(full_result, doc_type, pages_analysed)
-            _free_check_results[job_id] = teaser
-
-            try:
-                from db.free_check_store import log_free_check
-                log_free_check(
-                    job_id=job_id,
-                    filename=filename,
-                    jurisdiction=jurisdiction,
-                    doc_type=doc_type,
-                    teaser=teaser,
-                    full_result=full_result,
-                    pages_analysed=pages_analysed,
-                )
-            except Exception as _store_err:
-                logger.warning(f"[FREE-CHECK][{job_id}] Store logging failed (non-fatal): {_store_err}")
-
-            complete_job(job_id, teaser)
-
-        except Exception as e:
-            logger.exception(f"[FREE-CHECK][{job_id}] Pipeline failed: {e}")
-            fail_job(job_id, str(e))
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-
-    try:
-        await asyncio.wait_for(
-            loop.run_in_executor(_audit_executor, _run),
-            timeout=300,
-        )
-    except asyncio.TimeoutError:
-        logger.error(f"[FREE-CHECK][{job_id}] Timed out after 300s")
-        fail_job(job_id, "Free check timed out")
-    except Exception as e:
-        logger.exception(f"[FREE-CHECK][{job_id}] Executor dispatch failed: {e}")
-        fail_job(job_id, str(e))
-
-
-@app.post("/api/free-check/manual")
-async def free_check_manual(request: Request):
-    """
-    Score a free check from manual form field entry — no PDF required.
-    Synchronous (fast rule-based scoring). Returns the teaser payload directly.
-    """
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body.")
-
-    doc_type     = (data.get("doc_type") or "lease").lower().strip()
-    jurisdiction = (data.get("jurisdiction") or "").upper().strip()
-
-    if jurisdiction not in VALID_JURISDICTIONS:
-        raise HTTPException(status_code=400, detail=f"Invalid jurisdiction '{jurisdiction}'.")
-
-    try:
-        result = _score_manual_entry({**data, "doc_type": doc_type, "jurisdiction": jurisdiction})
-    except Exception as e:
-        logger.warning(f"[FREE-CHECK-MANUAL] Scoring failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to score manual entry.")
-
-    try:
-        from db.free_check_store import log_free_check
-        log_free_check(
-            job_id=f"manual-{id(result)}",
-            filename="manual-entry",
-            jurisdiction=jurisdiction,
-            doc_type=doc_type,
-            teaser=result,
-            full_result={},
-            pages_analysed=None,
-        )
-    except Exception as _store_err:
-        logger.debug(f"[FREE-CHECK-MANUAL] Store logging failed (non-fatal): {_store_err}")
-
-    return JSONResponse(result)
-
-
-@app.get("/api/free-check/result/{job_id}")
-def free_check_result(job_id: str):
-    """
-    Return the free-check teaser payload for a completed job.
-    """
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    if job.status != JobStatus.COMPLETE:
-        raise HTTPException(status_code=409, detail=f"Job not complete. Status: {job.status}")
-
-    result = _free_check_results.get(job_id) or get_job_result(job_id) or {}
-    return JSONResponse(result)
-
-
-@app.post("/api/free-check/email")
-async def free_check_email(request: Request):
-    """
-    Capture a lead email after the free check teaser.
-    Updates the free_check_run row in Supabase with the email + lead_captured_at.
-    Returns { ok: true } — never fails visibly to the user.
-    """
-    try:
-        data = await request.json()
-        email  = (data.get("email") or "").strip().lower()
-        job_id = (data.get("job_id") or "").strip()
-        jur    = (data.get("jurisdiction") or "").upper().strip()
-
-        if not email or "@" not in email:
-            raise HTTPException(status_code=400, detail="Valid email required.")
-
-        logger.info(f"[FREE-CHECK-LEAD] email={email} job_id={job_id} jur={jur}")
-
-        try:
-            from db.free_check_store import update_lead
-            update_lead(job_id, email)
-        except Exception as e:
-            logger.warning(f"[FREE-CHECK-LEAD] update_lead failed (non-fatal): {e}")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.warning(f"[FREE-CHECK-EMAIL] Non-fatal error: {e}")
-
-    return JSONResponse({"ok": True})

@@ -551,6 +551,14 @@ def generate_pdf_report(
                 flag_desc = flag.get("description", "")
                 flag_leg = flag.get("legislation_ref", "")
                 flag_impact = flag.get("financial_impact_estimate", "")
+                # AQ-NEW-11: Confidence tier badge
+                confidence = (flag.get("confidence") or "confirmed").lower()
+                _conf_labels = {
+                    "confirmed": ("✓ CONFIRMED", TEAL),
+                    "probable":  ("~ PROBABLE",  AMBER),
+                    "flag":      ("? VERIFY",    RED),
+                }
+                _conf_label, _conf_color = _conf_labels.get(confidence, _conf_labels["confirmed"])
                 # Area 1: source citation — "Clause 14.2, Page 45"
                 page_ref = f", Page {page_number}" if page_number else ""
                 source_ref = f"{heading}{page_ref}"
@@ -560,9 +568,24 @@ def generate_pdf_report(
                 if flag_impact:
                     flag_text += f"  <b>Est. financial exposure: {flag_impact}</b>"
                 flag_text += f'  <font color="{SLATE.hexval()}" size="7">— {source_ref}</font>'
+                # Human review note for PROBABLE/FLAG tiers
+                if confidence == "flag":
+                    flag_text += (
+                        f'<br/><font color="{RED.hexval()}" size="7">'
+                        f"⚠ Professional review required before acting on this finding.</font>"
+                    )
+                elif confidence == "probable":
+                    flag_text += (
+                        f'<br/><font color="{AMBER.hexval()}" size="7">'
+                        f"Interpretation required — confirm with your legal advisor.</font>"
+                    )
                 flag_row = Table([[
-                    Paragraph(f"● {flag_sev.upper()}", ParagraphStyle("FlagSev", fontSize=7,
-                               textColor=flag_color, fontName="Helvetica-Bold")),
+                    [
+                        Paragraph(f"● {flag_sev.upper()}", ParagraphStyle("FlagSev", fontSize=7,
+                                   textColor=flag_color, fontName="Helvetica-Bold")),
+                        Paragraph(_conf_label, ParagraphStyle("ConfBadge", fontSize=6,
+                                   textColor=_conf_color, fontName="Helvetica", leading=8)),
+                    ],
                     Paragraph(flag_text, ParagraphStyle("FlagDesc", fontSize=8, textColor=TEXT, leading=11)),
                 ]], colWidths=[18*mm, 152*mm])
                 flag_row.setStyle(TableStyle([
@@ -650,6 +673,53 @@ def generate_pdf_report(
         ]))
         story.append(def_row)
         story.append(Spacer(1, 2*mm))
+
+    # AQ-NEW-11: Confidence tier glossary
+    story.append(Spacer(1, 4*mm))
+    story.append(Paragraph("Finding Confidence Tiers", ParagraphStyle(
+        "ConfH", parent=styles["Normal"], fontSize=9, textColor=NAVY,
+        fontName="Helvetica-Bold", spaceBefore=4, spaceAfter=2)))
+    story.append(Paragraph(
+        "Each risk flag carries a confidence indicator showing how certain the automated analysis is. "
+        "All findings — regardless of confidence tier — should be reviewed with your legal advisor "
+        "before making lease decisions.",
+        ParagraphStyle("ConfIntro", parent=styles["Normal"], fontSize=8,
+                       textColor=SLATE, fontName="Helvetica-Oblique", spaceAfter=3)
+    ))
+    conf_defs = [
+        (TEAL,  TEAL_LIGHT,  "✓ CONFIRMED",
+         "The clause text is explicit and unambiguous. The risk is clearly stated and no "
+         "further interpretation is required to understand the exposure."),
+        (AMBER, AMBER_LIGHT, "~ PROBABLE",
+         "The clause strongly suggests this risk but professional interpretation is required "
+         "to confirm. Your legal advisor should review before you act on this finding."),
+        (RED,   RED_LIGHT,   "? VERIFY",
+         "A possible risk has been identified that cannot be confirmed from the clause text "
+         "alone. <b>Do not act on this finding without first verifying it with a qualified "
+         "commercial property lawyer.</b>"),
+    ]
+    for c_col, c_bg, c_label, c_def in conf_defs:
+        c_row = Table([[
+            Paragraph(f"<b>{c_label}</b>",
+                      ParagraphStyle("CLabel", fontSize=8, textColor=c_col,
+                                     fontName="Helvetica-Bold", alignment=TA_CENTER)),
+            Paragraph(c_def, ParagraphStyle("CDef", fontSize=8, textColor=TEXT,
+                                            leading=11, fontName="Helvetica")),
+        ]], colWidths=[28*mm, 142*mm])
+        c_row.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (0, 0), c_bg),
+            ("BACKGROUND", (1, 0), (1, 0), LIGHT_GREY),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 2*mm),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2*mm),
+            ("LEFTPADDING", (0, 0), (0, 0), 3*mm),
+            ("LEFTPADDING", (1, 0), (1, 0), 3*mm),
+            ("RIGHTPADDING", (-1, 0), (-1, 0), 3*mm),
+            ("BOX", (0, 0), (-1, -1), 0.5, MID_GREY),
+            ("LINEAFTER", (0, 0), (0, 0), 0.5, MID_GREY),
+        ]))
+        story.append(c_row)
+        story.append(Spacer(1, 1*mm))
 
     story.append(Spacer(1, 3*mm))
     story.append(Paragraph(
@@ -820,7 +890,7 @@ def generate_pdf_report(
         ParagraphStyle("Footer", fontSize=7, textColor=SLATE, alignment=TA_CENTER)
     ))
 
-    # ── Build PDF ──────────────────────────────────────────────────────────
+    # ── Build PDF ──────────────────────────────────────────────────────
     doc.build(story)
     logger.info(f"PDF report generated: {output_path}")
     return output_path

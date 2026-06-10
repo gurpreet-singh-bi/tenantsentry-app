@@ -887,6 +887,22 @@ def run_audit(
 
         cpi_ctx      = _get_cpi_context(chunk, series_override=_cpi_series_used)
         lt_ctx       = _land_tax_context if _is_land_tax_clause(chunk) else ""
+
+        # AQ-NEW-8: Inject make-good context when clause contains make-good obligations.
+        # The prompt block adds jurisdiction-specific benchmarks and cost estimates so
+        # the LLM can flag exploitative provisions with dollar-calibrated impact estimates.
+        _make_good_ctx = ""
+        try:
+            from services.make_good_rules import is_make_good_clause, build_make_good_prompt_block
+            if is_make_good_clause(chunk):
+                _make_good_ctx = build_make_good_prompt_block(
+                    jurisdiction=jur,
+                    lease_term_years=_total_potential_term,
+                    floor_area_sqm=_early_meta.get("floor_area_sqm") if _early_meta_done else None,
+                )
+        except Exception as _mg_err:
+            logger.debug(f"[clause:{idx}] make_good context injection skipped: {_mg_err}")
+
         # AQ2: Inject schedule items referenced by this clause
         sched_ctx    = _get_schedule_context(clause_text, _schedule_index)
         # AQ-NEW-19: Inject cross-referenced clause bodies
@@ -897,6 +913,9 @@ def run_audit(
         )
         if _clause_ctx:
             sched_ctx = "\n\n".join(filter(None, [sched_ctx, _clause_ctx]))
+        # Merge make-good context into schedule_context channel (reuses existing param)
+        if _make_good_ctx:
+            sched_ctx = "\n\n".join(filter(None, [sched_ctx, _make_good_ctx]))
 
         analysis = analyse_clause(
             clause_text=clause_text,

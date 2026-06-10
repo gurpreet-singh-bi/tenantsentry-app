@@ -21,6 +21,18 @@ class RiskFlag(BaseModel):
     # "void" = clause/lease is void ab initio or void by statute (above HIGH)
     legislation_ref: Optional[str] = None
     financial_impact_estimate: Optional[str] = None  # Area 4: e.g. "~$120k make-good liability"
+    # AQ-NEW-11: Confidence tier — how certain is the LLM about this finding?
+    #   "confirmed" — clause text makes the risk explicit and unambiguous; no interpretation needed
+    #   "probable"  — strong indicators present but requires professional interpretation to confirm
+    #   "flag"      — possible risk; must be reviewed by a qualified advisor before acting
+    # Human review gate: "flag" items are visually distinguished in the report and auditor portal.
+    # Never suppress a finding due to low confidence — surface it with the right tier.
+    confidence: str = "confirmed"           # "confirmed" | "probable" | "flag"
+    # AQ-NEW-4: Per-flag negotiation guidance (complements ClauseAnalysis-level fields).
+    # Populated for HIGH/VOID/MEDIUM flags. The flag-level fields are the authoritative
+    # source for the negotiation playbook — ClauseAnalysis-level fields are legacy stubs.
+    negotiation_position: Optional[str] = None   # What to demand in one sentence
+    negotiation_email: Optional[str] = None      # Ready-to-copy email paragraph
 
 
 class ClauseAnalysis(BaseModel):
@@ -108,6 +120,27 @@ class AuditResult(BaseModel):
         """HIGH severity findings (excludes VOID — use void_risk_flags for those)."""
         return [f for f in self.all_risk_flags if f.get("severity") == "high"]
 
+    # AQ-NEW-11: Confidence tier accessors
+    @property
+    def confirmed_flags(self) -> list[dict]:
+        """Findings the LLM is certain about — clause text is explicit and unambiguous."""
+        return [f for f in self.all_risk_flags if f.get("confidence", "confirmed") == "confirmed"]
+
+    @property
+    def probable_flags(self) -> list[dict]:
+        """Findings that are strongly indicated but require professional interpretation."""
+        return [f for f in self.all_risk_flags if f.get("confidence") == "probable"]
+
+    @property
+    def flag_items(self) -> list[dict]:
+        """Possible risks that MUST be reviewed by a qualified advisor before acting."""
+        return [f for f in self.all_risk_flags if f.get("confidence") == "flag"]
+
+    @property
+    def needs_human_review(self) -> bool:
+        """True when any probable/flag-tier finding requires professional sign-off."""
+        return bool(self.probable_flags or self.flag_items)
+
     @property
     def risk_level(self) -> str:
         if self.risk_score >= 60:
@@ -138,4 +171,9 @@ class AuditResult(BaseModel):
             "high_risk_flags": len(self.high_risk_flags),
             "dates_extracted": len(self.lease_dates),
             "critical_deadlines": len(self.critical_deadlines),
+            # AQ-NEW-11: Confidence breakdown
+            "confirmed_flags": len(self.confirmed_flags),
+            "probable_flags": len(self.probable_flags),
+            "flag_items": len(self.flag_items),
+            "needs_human_review": self.needs_human_review,
         }
