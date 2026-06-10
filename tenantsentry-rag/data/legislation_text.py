@@ -509,9 +509,164 @@ LEGISLATION: dict[str, dict[str, dict]] = {
                 "is not legally recoverable."
             ),
         },
+        "s.11": {
+            "title": "Capital costs — prohibition on recovery (WA)",
+            "full_ref": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.11",
+            "text": (
+                "11  Capital expenditure not recoverable\n\n"
+                "(1) A lessor cannot recover capital expenditure from the lessee, including\n"
+                "    (a) major plant and equipment replacement (air con, lifts, escalators);\n"
+                "    (b) structural repairs (roof, foundations, facade);\n"
+                "    (c) any works extending the useful life of a capital asset.\n\n"
+                "(2) Any clause passing capital expenditure to the lessee is void."
+            ),
+            "plain": (
+                "In WA retail tenancies, the landlord cannot charge capital costs to the tenant "
+                "through outgoings or any other mechanism. Any such clause is void (s.11)."
+            ),
+        },
+        "s.12A": {
+            "title": "Outgoings estimates — landlord must provide itemised estimate (WA)",
+            "full_ref": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.12A",
+            "text": (
+                "12A  Estimates of outgoings\n\n"
+                "(1) Before the lease is entered into, the lessor must provide a written "
+                "itemised estimate of outgoings payable by the lessee in the first year.\n\n"
+                "(2) The estimate must itemise each category of outgoing separately.\n\n"
+                "(3) A clause making the lessor's estimates binding or conclusive on the "
+                "lessee without any dispute right is void under s.27."
+            ),
+            "plain": (
+                "Before a WA retail lease is signed, the landlord must give an itemised written "
+                "estimate of year-one outgoings. A clause making estimates final and binding "
+                "without any dispute right is void."
+            ),
+        },
+        "s.12B": {
+            "title": "Outgoings audit rights — annual statement and inspection (WA)",
+            "full_ref": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.12B",
+            "text": (
+                "12B  Annual outgoings statements and inspection rights\n\n"
+                "(1) The lessor must provide an annual statement of actual outgoings "
+                "within 3 months of the end of each lease year.\n\n"
+                "(2) The lessee has the right to inspect all underlying records.\n\n"
+                "(3) A lease clause excluding or restricting these inspection rights is void "
+                "under s.27 of this Act."
+            ),
+            "plain": (
+                "WA retail tenants have a statutory right to an annual outgoings reconciliation "
+                "and to inspect all supporting records. A clause blocking these rights is void."
+            ),
+        },
+        "s.14C": {
+            "title": "Trading hours — landlord cannot compel beyond agreed hours (WA)",
+            "full_ref": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.14C",
+            "text": (
+                "14C  Trading hours\n\n"
+                "A lessor under a retail shop agreement cannot require a lessee to trade during "
+                "hours beyond those voluntarily agreed. A clause giving the landlord unilateral "
+                "power to extend or vary trading hours is void."
+            ),
+            "plain": (
+                "In WA, the landlord cannot force the tenant to trade beyond the hours agreed "
+                "in the lease. Unilateral trading-hours variation clauses contravene s.14C."
+            ),
+        },
+        "s.22": {
+            "title": "Assignment — 28-day deemed consent, release of outgoing tenant (WA)",
+            "full_ref": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.22",
+            "text": (
+                "22  Assignment of retail shop agreements\n\n"
+                "(1) The lessor must not unreasonably withhold or delay consent.\n\n"
+                "(2) Failure to respond to an assignment request within 28 days = "
+                "unconditional consent by operation of law.\n\n"
+                "(3) On valid assignment, the outgoing lessee is released from all obligations "
+                "after the assignment date. Cannot be held as ongoing guarantor.\n\n"
+                "(4) Only permissible refusal grounds: assignee financial standing or "
+                "business experience."
+            ),
+            "plain": (
+                "WA retail: landlord cannot block assignment unreasonably; 28-day silence = "
+                "consent; outgoing tenant fully released on valid assignment."
+            ),
+        },
+        "s.27": {
+            "title": "Anti-contracting-out — any attempt to exclude the Act is void (WA)",
+            "full_ref": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.27",
+            "text": (
+                "27  Avoidance of Act\n\n"
+                "A provision purporting to exclude, restrict, or modify this Act or any right "
+                "conferred on a lessee is void.\n\n"
+                "A clause stating the CTRS Act does not apply is void — if the tenancy is a "
+                "retail shop agreement, the Act applies as a matter of law. The tenant cannot "
+                "waive statutory rights by contract. An indemnity requiring the tenant to cover "
+                "the landlord's CTRS Act breaches in sub-leases is also void to the extent "
+                "it conflicts with the Act's protections."
+            ),
+            "plain": (
+                "Any lease clause trying to opt out of the WA CTRS Act is void. The Act applies "
+                "regardless of what the lease says. A contracting-out clause is unenforceable."
+            ),
+        },
     },
 
-    # ══════════════════════════════════════════════════════════════════════
+    # ======================================================================
+    # WESTERN AUSTRALIA — Transfer of Land Act 1893 (WA)
+    # ======================================================================
+    "WA_TLA": {
+        "s.92b": {
+            "title": "Quiet enjoyment — implied covenant (WA)",
+            "full_ref": "Transfer of Land Act 1893 (WA) s.92(b)",
+            "text": (
+                "92  Implied covenants in leases of land under this Act\n\n"
+                "In every lease of land under this Act there shall be implied the following "
+                "covenants by the lessor:\n\n"
+                "(b) that the lessee paying the rent thereby reserved and observing and "
+                "performing the several covenants and conditions on the lessee's part contained "
+                "shall peaceably hold and enjoy the demised premises during the term without "
+                "any interruption by the lessor or any person rightfully claiming through or "
+                "under the lessor.\n\n"
+                "CRITICAL: A clause expressly excluding s.92(b) removes the implied quiet "
+                "enjoyment covenant entirely. Without this and without an express quiet "
+                "enjoyment covenant, the tenant has no enforceable right to peaceful occupation."
+            ),
+            "plain": (
+                "WA registered land leases imply a quiet enjoyment covenant under TLA s.92(b). "
+                "A clause excluding s.92(b) removes this protection. The tenant must insist on "
+                "keeping s.92(b) or inserting an express quiet enjoyment covenant."
+            ),
+        },
+    },
+
+    # ======================================================================
+    # WESTERN AUSTRALIA — Planning and Development Act 2005 (WA)
+    # ======================================================================
+    "WA_PDA": {
+        "s.136": {
+            "title": "Deemed subdivision — portion-of-land lease > 20 years requires WAPC approval (WA)",
+            "full_ref": "Planning and Development Act 2005 (WA) s.136",
+            "text": (
+                "136  Subdivision approval required for long-term portion leases\n\n"
+                "(2) A lease of a portion of land (not the whole of a lot) constitutes a "
+                "deemed subdivision if the term, including all options to renew, exceeds "
+                "20 years.\n\n"
+                "(3) A lease constituting a deemed subdivision is invalid and of no legal "
+                "effect unless and until WAPC approval is obtained.\n\n"
+                "EXAMPLE: Lease of part of Lot 9000 — 20yr initial term + 5x10yr options = "
+                "70yr cumulative term. DEEMED SUBDIVISION. VOID without WAPC approval.\n\n"
+                "RECOMMENDED: Condition the lease on WAPC approval with 90-120 day sunset. "
+                "Landlord bears costs. Tenant must not commence fitout before written "
+                "WAPC approval is confirmed."
+            ),
+            "plain": (
+                "In WA, a lease of PART of a lot for more than 20 years total (initial term + "
+                "all options) is a deemed subdivision requiring WAPC approval or the lease is "
+                "VOID. Condition the lease on WAPC approval with a sunset clause."
+            ),
+        },
+    },
+
+    # ======================================================================
     # ACT — Leases (Commercial and Retail) Act 2001 (ACT)
     # ══════════════════════════════════════════════════════════════════════
     "ACT_LCRA": {
@@ -618,7 +773,7 @@ _JUR_TO_ACTS = {
     "VIC": ["VIC_RLA"],
     "QLD": ["QLD_RSLA"],
     "SA":  ["SA_RCLA"],
-    "WA":  ["WA_CTA"],
+    "WA":  ["WA_CTA", "WA_TLA", "WA_PDA"],
     "TAS": ["TAS_COP"],
     "NT":  ["NT_BTFDA"],
     "ACT": ["ACT_LCRA"],
@@ -628,6 +783,9 @@ _JUR_TO_ACTS = {
 _REF_TO_ACT: list[tuple[str, str]] = [
     # Order matters — more specific strings first
     ("retail and commercial leases act", "SA_RCLA"),
+    ("planning and development act 2005",   "WA_PDA"),
+    ("transfer of land act 1893",           "WA_TLA"),
+    ("ctrs act",                            "WA_CTA"),
     ("commercial tenancy (retail shops)", "WA_CTA"),
     ("commercial tenancy",               "WA_CTA"),
     ("fair trading (code of practice",   "TAS_COP"),

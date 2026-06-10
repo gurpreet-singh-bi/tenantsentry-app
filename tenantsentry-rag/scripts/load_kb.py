@@ -294,12 +294,12 @@ LEGISLATION = [
         "text": (
             "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA)\n"
             "Applies to retail shops in shopping centres and certain standalone retail premises.\n\n"
-            "Key provisions: capital expenditure not recoverable; land tax is a restricted "
-            "outgoing — only recoverable on a single-holding basis and must be separately "
-            "itemised (not bundled in 'rates and taxes'); no explicit ratchet clause prohibition "
-            "but ACL unconscionable conduct provisions apply; landlord must act reasonably on "
-            "assignment (28-day deemed consent); disclosure statement required and tenant has "
-            "7 business days to rescind after receiving it; disputes handled by SAT."
+            "Key provisions: capital expenditure not recoverable (s.11); outgoings estimates and "
+            "reconciliation required (ss.12A-12B); land tax is a restricted outgoing — only "
+            "recoverable on a single-holding basis and must be separately itemised (s.13); "
+            "mandatory trading hours restrictions (s.14C); assignment with 28-day deemed consent "
+            "and release of outgoing tenant (s.22); anti-contracting-out — any lease clause "
+            "excluding the Act is void (s.27); disclosure statement required; disputes at SAT."
         ),
     },
     {
@@ -319,6 +319,271 @@ LEGISLATION = [
             "properties owned by the landlord) is not recoverable under any circumstances.\n\n"
             "If the charge is buried in a lump-sum 'rates and taxes' line without separate "
             "itemisation, it is not lawfully recoverable. Contact Commerce WA on 1300 304 054."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_CTRSA1985_2026-06-CAPEX",
+        "title": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) -- Capital Costs Prohibition (s.11)",
+        "text": (
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) -- Section 11: "
+            "Capital expenditure not recoverable\n\n"
+            "A landlord under a WA retail shop agreement CANNOT recover from the tenant, "
+            "whether as an outgoing or otherwise, any capital expenditure including:\n"
+            "(a) replacement or refurbishment of major plant and equipment (air conditioning, "
+            "lifts, escalators, hot water systems);\n"
+            "(b) structural repairs — roof replacement, foundation works, facade restoration;\n"
+            "(c) any works that extend the useful life of a capital asset.\n\n"
+            "Any lease clause purporting to impose capital costs on the tenant is void to that "
+            "extent by operation of s.11.\n\n"
+            "HERITAGE BUILDING CONTEXT: For leases of heritage-listed buildings, s.11 is "
+            "particularly critical. Heritage structures routinely require expensive structural "
+            "remediation, roof repair, and plant replacement. A broad maintenance clause in a "
+            "heritage lease (e.g. 'maintain the Building in good condition') could expose the "
+            "tenant to hundreds of thousands of dollars in capital works if s.11 is not "
+            "properly applied. The tenant must insist that structural/capital obligations are "
+            "expressly carved out to the landlord."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_CTRSA1985_2026-06-OUTGOINGS",
+        "title": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) -- Outgoings Disclosure and Audit Rights (ss.12A-12B)",
+        "text": (
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) -- Sections 12A-12B: "
+            "Outgoings estimates and audit rights\n\n"
+            "SECTION 12A — Estimates:\n"
+            "Before execution, the lessor must provide an itemised written estimate of outgoings "
+            "for the first year. A clause making the lessor's readings, estimates, or outgoings "
+            "calculations 'final and binding' or 'conclusive' on the lessee without statutory "
+            "reconciliation is void under s.27 (anti-contracting-out). The lessee must have the "
+            "right to dispute outgoings through the statutory reconciliation process.\n\n"
+            "SECTION 12B — Annual statements and inspection:\n"
+            "The lessor must provide an annual statement of actual outgoings within 3 months of "
+            "year-end. The lessee has the right to inspect all underlying records. A clause "
+            "excluding or restricting these inspection rights is void under s.27.\n\n"
+            "LANDLORD'S READINGS PREVAIL — VOID CLAUSE: Any lease term stating that the "
+            "landlord's meter readings or outgoings estimates are 'final and binding' without "
+            "right of dispute contravenes ss.12A-12B and is void in a WA retail tenancy."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_CTRSA1985_2026-06-ASSIGN",
+        "title": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) -- Assignment Rights (s.22)",
+        "text": (
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) -- Section 22: "
+            "Assignment — 28-day deemed consent, release of outgoing tenant\n\n"
+            "Key protections for WA retail tenants on assignment:\n\n"
+            "1. REASONABLE CONSENT: The landlord cannot unreasonably withhold or delay consent "
+            "to an assignment. Refusal is only permissible on grounds of the assignee's "
+            "financial standing or business experience.\n\n"
+            "2. DEEMED CONSENT: If the landlord fails to respond within 28 days of a written "
+            "request for consent, consent is taken to have been given unconditionally.\n\n"
+            "3. RELEASE OF OUTGOING TENANT: On a valid assignment, the outgoing tenant "
+            "(assignor) is released from all obligations arising after the date of assignment. "
+            "The outgoing tenant must not be required to remain as guarantor for the assignee's "
+            "future performance.\n\n"
+            "4. ANTI-CONTRACTING-OUT: The exclusion of ss.80-82 of the Property Law Act 1969 "
+            "(WA) in a lease does NOT override s.22 of the CTRS Act in a retail tenancy, "
+            "because s.27 makes any such exclusion void.\n\n"
+            "CRITICAL FOR LONG-TERM LEASES: For a 70-year lease (including options), the "
+            "right to assign is how the developer/tenant realises the value of its capital "
+            "investment. Any clause blocking assignment without reasonable grounds is a "
+            "deal-breaker that must be resisted."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_CTRSA1985_2026-06-CONTRACTING-OUT",
+        "title": "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) -- Anti-Contracting-Out (s.27) + Sub-Lease Indemnity Risk",
+        "text": (
+            "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) -- Section 27: "
+            "Contracting out void + Sub-lease indemnity risk\n\n"
+            "SECTION 27 — ANY ATTEMPT TO EXCLUDE THE ACT IS VOID:\n"
+            "A provision of any agreement that purports to exclude, restrict, or modify the "
+            "operation of the CTRS Act — or any right it confers on a lessee — is void. "
+            "This includes a clause stating: 'The parties agree the Commercial Tenancy "
+            "(Retail Shops) Agreements Act 1985 (WA) does not apply to this lease.'\n\n"
+            "If the tenancy is in fact a retail shop agreement (because the permitted use "
+            "includes a café, restaurant, tavern, brewery, or retail shop), the Act applies "
+            "as a matter of law regardless of what the parties have agreed in the lease.\n\n"
+            "SUB-LEASE INDEMNITY RISK:\n"
+            "A common landlord tactic: after including a clause purporting to contract out of "
+            "the CTRS Act (void), the same clause requires the tenant to INDEMNIFY the landlord "
+            "for any CTRS Act breaches arising from sub-leases or licences granted by the tenant. "
+            "If the tenant is a developer who will sub-let space to retail operators (cafés, "
+            "galleries, breweries), this indemnity exposes the tenant to massive liability for "
+            "the landlord's own CTRS Act non-compliance in those sub-tenancies.\n\n"
+            "RECOMMENDED ACTION: Delete any clause purporting to contract out of the Act. "
+            "Negotiate the indemnity in the sub-lease clause to be limited to breaches "
+            "directly caused by the tenant's own acts or omissions — not the landlord's "
+            "non-compliance with its statutory obligations."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_TLA1893_2026-06",
+        "title": "Transfer of Land Act 1893 (WA) -- Quiet Enjoyment (s.92(b)) and Lease Registration",
+        "text": (
+            "Transfer of Land Act 1893 (WA) -- Sections 91-92: Implied covenants in registered leases\n\n"
+            "SECTION 92(b) — QUIET ENJOYMENT:\n"
+            "In every lease of Torrens title land (registered under the Transfer of Land Act 1893 "
+            "(WA)), there is an implied covenant by the lessor that the lessee, paying rent and "
+            "observing lease conditions, shall peaceably hold and enjoy the demised premises "
+            "during the term without any interruption by the lessor or any person rightfully "
+            "claiming through or under the lessor.\n\n"
+            "CRITICAL: This implied covenant is frequently EXCLUDED by landlords. A clause "
+            "stating 'the operation of s.92(b) of the Transfer of Land Act 1893 (WA) is "
+            "excluded' removes this protection entirely. Without s.92(b) AND without an express "
+            "quiet enjoyment covenant in the lease, the tenant has no statutory or contractual "
+            "protection against landlord interference.\n\n"
+            "LEASE REGISTRATION AND CAVEATS:\n"
+            "For a long-term commercial lease (especially 70-year term including options), the "
+            "tenant should register the lease at Landgate (WA Land Registry) to protect its "
+            "leasehold interest against third parties (mortgagees, purchasers). "
+            "Pending registration, the tenant should lodge a caveat on the Certificate of Title "
+            "to protect its interest. A lease clause prohibiting caveats without a carve-out "
+            "for lease registration is inappropriate for a long-term development lease and "
+            "should be resisted."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_PDA2005_2026-06",
+        "title": "Planning and Development Act 2005 (WA) -- Deemed Subdivision (s.136) -- WAPC Approval Required for 20+ Year Portion Leases",
+        "text": (
+            "Planning and Development Act 2005 (WA) -- Section 136: Subdivision approval\n\n"
+            "CRITICAL STATUTORY REQUIREMENT — VOID LEASE RISK:\n\n"
+            "Under s.136 of the Planning and Development Act 2005 (WA), a lease of a "
+            "PORTION of a lot (not the whole lot) for a cumulative term exceeding 20 years "
+            "(counting the initial term PLUS all options to renew combined) constitutes a "
+            "DEEMED SUBDIVISION and requires Western Australian Planning Commission (WAPC) "
+            "approval as a condition of the lease being legally valid.\n\n"
+            "WITHOUT WAPC APPROVAL:\n"
+            "- The lease is VOID AB INITIO (illegal and of no legal effect from the start);\n"
+            "- The tenant has no legal right of occupation;\n"
+            "- Neither party can enforce the lease;\n"
+            "- The tenant's entire investment (fitout, development, business) is at risk.\n\n"
+            "EXAMPLE CALCULATION:\n"
+            "A lease of Lot 9000 for part of the lot only (the Premises), with:\n"
+            "  - Initial term: 20 years\n"
+            "  - 5 x 10-year options to renew\n"
+            "  = Total potential term: 70 years\n"
+            "  = DEEMED SUBDIVISION — WAPC APPROVAL IS COMPULSORY.\n\n"
+            "RECOMMENDED ACTION:\n"
+            "1. The lease must be expressly conditioned on WAPC approval being obtained;\n"
+            "2. Include a sunset clause: if WAPC approval is not obtained within 90-120 days "
+            "of execution, either party may terminate the lease with all pre-paid monies "
+            "(rent, deposits, bank guarantees) refunded to the tenant;\n"
+            "3. The landlord must bear the cost of the WAPC application and must cooperate "
+            "fully with the process;\n"
+            "4. The tenant must not begin fitout or development works before WAPC approval "
+            "is confirmed in writing."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_LAA1997_2026-06",
+        "title": "Land Administration Act 1997 (WA) -- Minister's Consent for Crown/Council Land Dealings",
+        "text": (
+            "Land Administration Act 1997 (WA) -- Minister for Lands consent requirement\n\n"
+            "When land is vested in a local government (council) under Crown tenure or managed "
+            "under a management order issued by the Minister for Lands, any dealing with that "
+            "land — including a lease, mortgage, charge, or transfer of leasehold interest — "
+            "requires the prior written consent of the Minister for Lands under the Land "
+            "Administration Act 1997 (WA).\n\n"
+            "In practice, this means:\n"
+            "1. The lease itself requires Ministerial consent to be valid;\n"
+            "2. Any assignment, sub-lease, or mortgage of the tenant's interest also requires "
+            "Ministerial consent;\n"
+            "3. The Minister's response time is not statutorily fixed — delays of 3-12 months "
+            "are common on complex or contentious applications;\n"
+            "4. The Minister may impose conditions on consent, which become conditions of the lease.\n\n"
+            "RECOMMENDED LEASE PROTECTIONS:\n"
+            "- The lease must be conditional on Ministerial consent being obtained;\n"
+            "- Include a sunset clause for Ministerial consent (e.g. 90-120 days);\n"
+            "- Specify that the tenant's right to assign or sub-lease is subject to the "
+            "  Minister's consent, but the landlord must actively assist in obtaining it;\n"
+            "- The landlord must bear the costs of applying for Ministerial consent."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_FTA2010_2026-06",
+        "title": "Fair Trading Act 2010 (WA) -- ACL Application and Unfair Contract Terms",
+        "text": (
+            "Fair Trading Act 2010 (WA) -- Part 1A: Australian Consumer Law (ACL) in Western Australia\n\n"
+            "The Australian Consumer Law (ACL) — Schedule 2 of the Competition and Consumer "
+            "Act 2010 (Cth) — applies in Western Australia as a law of the State by virtue of "
+            "Part 1A of the Fair Trading Act 2010 (WA). The ACL's consumer protections, "
+            "unconscionable conduct provisions, and (since November 2023) unfair contract terms "
+            "regime apply to standard form business-to-business contracts in WA.\n\n"
+            "KEY ACL PROVISIONS FOR WA COMMERCIAL LEASES:\n\n"
+            "1. UNFAIR CONTRACT TERMS (s.23 ACL): Since 9 November 2023, standard form "
+            "commercial leases with a small business party (annual turnover < $10M or fewer "
+            "than 100 employees) are subject to the unfair contract terms regime. A term is "
+            "unfair if it: (a) causes significant imbalance in the parties' rights and "
+            "obligations; (b) is not reasonably necessary to protect the landlord's legitimate "
+            "interests; and (c) would cause detriment to the tenant.\n\n"
+            "2. UNCONSCIONABLE CONDUCT (s.21 ACL): The ACL prohibits unconscionable conduct "
+            "in trade or commerce. A landlord exercising its lease rights in a manner that is "
+            "unconscionable — e.g. unreasonably exploiting a power imbalance — is actionable "
+            "under the ACL via the Fair Trading Act 2010 (WA).\n\n"
+            "3. APPLICATION: This is the correct WA citation for ACL-based arguments. "
+            "DO NOT cite the Competition and Consumer Act 2010 (Cth) alone — always pair it "
+            "with 'via Part 1A of the Fair Trading Act 2010 (WA)' for a WA lease."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_LTAA2002_2026-06",
+        "title": "Land Tax Assessment Act 2002 (WA) -- Single-Holding Basis for Non-Retail Commercial Leases",
+        "text": (
+            "Land Tax Assessment Act 2002 (WA) -- Land tax in commercial (non-retail) leases\n\n"
+            "For commercial tenancies in WA that are NOT governed by the CTRS Act (i.e. where "
+            "the CTRS Act does not apply because the tenancy is not a retail shop agreement), "
+            "land tax is a matter of general contract law. There is no statutory prohibition on "
+            "land tax as an outgoing in a non-retail WA commercial lease.\n\n"
+            "However, the Land Tax Assessment Act 2002 (WA) governs HOW land tax is assessed. "
+            "Key rules for non-retail WA commercial leases:\n\n"
+            "1. SINGLE-HOLDING BASIS: Even in non-retail leases, land tax passed to a tenant "
+            "must be calculated on a single-holding basis — assessed as if the land is the "
+            "only property owned by the landlord. Portfolio-basis land tax (aggregating all "
+            "the landlord's properties) is not a reasonable contractual obligation.\n\n"
+            "2. DOCUMENTATION: The tenant should request the current land tax assessment "
+            "from the Western Australian Office of State Revenue to verify the single-holding "
+            "calculation and the amount being charged.\n\n"
+            "3. NEGOTIATION: Tenants should negotiate a cap on land tax recovery to the single- "
+            "holding assessed amount, exclude land tax from the definition of 'outgoings' or "
+            "require separate itemised invoicing, and reserve the right to audit the assessment."
+        ),
+    },
+    {
+        "jurisdiction": "WA",
+        "source_version": "WA_PLA1969_2026-06",
+        "title": "Property Law Act 1969 (WA) -- Key Sections for Commercial Leases",
+        "text": (
+            "Property Law Act 1969 (WA) -- Key sections relevant to commercial lease analysis\n\n"
+            "SECTION 81 — RE-ENTRY AND FORFEITURE:\n"
+            "Before a landlord can re-enter leased premises for a breach of covenant "
+            "(other than non-payment of rent), the landlord must serve a formal notice on "
+            "the tenant specifying:\n"
+            "(a) the particular breach complained of;\n"
+            "(b) if the breach is capable of remedy, what the tenant must do to remedy it;\n"
+            "(c) a reasonable time within which the tenant must remedy the breach.\n"
+            "The landlord cannot re-enter until the notice has been served and the time for "
+            "remedy has expired. Any clause removing this protection is void in WA.\n\n"
+            "SECTIONS 80-82 — ASSIGNMENT:\n"
+            "ss.80-82 contain statutory rights relating to assignment and covenant transmission. "
+            "Landlords frequently attempt to exclude these sections in commercial leases. "
+            "In a retail tenancy, s.22 of the CTRS Act provides mandatory assignment rights "
+            "that override any such exclusion (by operation of s.27 CTRS Act). In a non-retail "
+            "commercial lease, the exclusion of ss.80-82 is legally possible but highly "
+            "prejudicial for the tenant — assignment rights become entirely contractual.\n\n"
+            "IMPORTANT NOTE: s.66 of the Property Law Act 1969 (WA) does NOT imply a "
+            "covenant of quiet enjoyment. Quiet enjoyment in WA is implied by s.92(b) of the "
+            "Transfer of Land Act 1893 (WA) for registered land, not by the PLA."
         ),
     },
 
