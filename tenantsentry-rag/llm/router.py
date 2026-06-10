@@ -355,6 +355,35 @@ _WA_CTRS_HINTS: list[tuple[list[str], str, str]] = [
         ),
     ),
     (
+        [r"\b6\.\d+\b", r"outgoing(s)?\s+(estimate|reconcil|budg)", r"landlord.{0,30}reading", r"binding.*estimate", r"estimate.*binding", r"conclusive.*outgoing", r"outgoing.*conclusive"],
+        "CTRS Act (WA) ss.12A-12B -- Outgoings Estimates and Audit Rights",
+        (
+            "Under ss.12A-12B of the Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA): "
+            "(a) the landlord must provide an itemised written estimate of outgoings before the "
+            "lease year commences; (b) the tenant has statutory audit rights over all outgoings "
+            "calculations, and the landlord must provide an annual reconciliation statement "
+            "within 3 months of year-end. "
+            "ANY clause making the landlord's readings, estimates, or outgoings figures 'final "
+            "and binding' or 'conclusive' on the tenant is VOID under s.27 (anti-contracting-out). "
+            "Flag 'binding on tenant' or 'landlord's readings prevail' language at HIGH severity."
+        ),
+    ),
+    (
+        [r"\b12\.7\b", r"minister.{0,30}consent", r"crown\s+land", r"ministerial\s+(approval|consent)", r"land\s+administration\s+act"],
+        "Land Administration Act 1997 (WA) -- Minister for Lands Consent",
+        (
+            "Under the Land Administration Act 1997 (WA), where land is vested in a local "
+            "government or council under Crown tenure or a Ministerial management order, any "
+            "dealing — including this lease, any sub-lease, assignment, or mortgage — requires "
+            "the PRIOR WRITTEN CONSENT of the Minister for Lands. "
+            "Check whether this lease is conditional on Ministerial consent and whether the "
+            "landlord's obligations to obtain consent are clearly stated. "
+            "Missing Ministerial consent can invalidate the lease entirely. "
+            "A clause giving the landlord discretion to withhold assistance in obtaining "
+            "Ministerial consent should be flagged at HIGH severity for a government-landlord lease."
+        ),
+    ),
+    (
         [r"\b26\.16\b", r"contract(ing)?\s+out", r"\bretail\s+shop\b", r"\bCTRS\b"],
         "CTRS Act (WA) s.27 -- Anti-Contracting-Out",
         (
@@ -450,6 +479,54 @@ def select_model(clause_text: str) -> str:
     return SONNET_MODEL
 
 
+def _build_long_lease_modifier(total_term: float) -> str:
+    """AQ-NEW-20: Extra scrutiny block injected when total potential term >= 10 years.
+    Tells the model to escalate risks that compound over long tenures."""
+    if total_term < 10.0:
+        return ""
+    tier = "VERY LONG" if total_term >= 20 else "LONG"
+    extra_line = (
+        "\n- Demolition/redevelopment clauses (landlord has stronger incentive to reclaim after 20+ years)"
+        if total_term >= 20 else ""
+    )
+    return (
+        f"LEASE TERM CALIBRATION ({tier} LEASE — {total_term:.0f} YEARS TOTAL POTENTIAL TERM):\n"
+        f"This lease has a total potential term of {total_term:.0f} years (initial term + options). "
+        f"Apply heightened scrutiny to:\n"
+        f"- Make-good and reinstatement obligations (liability compounds significantly over long terms)\n"
+        f"- Rent review mechanisms (CPI compounding over {total_term:.0f} years can far exceed market rent)\n"
+        f"- Assignment and subletting restrictions (exit risk is real over a long tenure)\n"
+        f"- Option exercise deadlines (forfeiture of valuable long-term options is catastrophic)\n"
+        f"- Land tax and outgoings recovery clauses (financial exposure accumulates over long terms)"
+        f"{extra_line}\n"
+        f"Escalate to HIGH (not MEDIUM) any risk that would be MEDIUM in a short lease but "
+        f"compounds materially over a {total_term:.0f}-year term."
+    )
+
+
+def _build_commercial_lease_modifier(is_retail_lease) -> str:
+    """AQ-NEW-12: Extra scrutiny block injected for commercial/industrial leases
+    (where is_retail_lease is explicitly False — retail tenancy legislation does NOT apply)."""
+    if is_retail_lease is True or is_retail_lease is None:
+        return ""
+    return (
+        "COMMERCIAL/INDUSTRIAL LEASE CALIBRATION:\n"
+        "This lease is NOT governed by retail tenancy legislation. Apply commercial lease standards:\n"
+        "- Outgoings recovery is primarily contractual (not statutory). Scrutinise every outgoings "
+        "  clause: 'gross outgoings', 'net outgoings', 'proportionate share' — all are negotiable "
+        "  and must be verified against the lease definition of 'outgoings'.\n"
+        "- Land tax IS recoverable from commercial tenants in most Australian states (unlike retail "
+        "  tenancies). Flag any clause requiring the tenant to pay the landlord's land tax as HIGH.\n"
+        "- CapEx recovery: Commercial landlords routinely attempt to recover capital expenditure "
+        "  (roof replacement, HVAC, lifts) as outgoings. Flag any 'capital works' or "
+        "  'capital expenditure' inclusion in outgoings definitions as HIGH.\n"
+        "- Make-good obligations are typically more extensive than retail — 'strip-out and reinstate "
+        "  to base building condition' is standard but very costly. Flag vague make-good clauses as HIGH.\n"
+        "- No statutory cooling-off period, no maximum bank guarantee cap, no statutory rent review "
+        "  floor. Flag any provision where a retail tenant would have had statutory protection."
+    )
+
+
 def analyse_clause(
     clause_text: str,
     legislation_context: str,
@@ -460,8 +537,9 @@ def analyse_clause(
     schedule_context: str = "",  # AQ2: injected schedule item content
     clause_number: str = "",     # AG2: clause heading/number for statute hint lookup
     deal_summary: str = "",      # AG1: confirmed deal terms — ground truth injected before all context
-    statute_prompt_block: str = "",  # AQ-NEW-5: premises classification block (applicable statute)
-    is_retail_lease: bool = None,    # AQ1+AQ-NEW-5: selects correct statute list (retail vs commercial)
+    statute_prompt_block: str = "",    # AQ-NEW-5: premises classification block (applicable statute)
+    is_retail_lease: bool = None,      # AQ1+AQ-NEW-5: selects correct statute list (retail vs commercial)
+    total_potential_term_years: float = None,  # AQ-NEW-20: initial term + options years (enables long-lease calibration)
 ) -> dict:
     """
     Analyse a single lease clause with grounded RAG context.
@@ -479,12 +557,25 @@ def analyse_clause(
     # AQ-NEW-5: Insert premises classification block after jurisdiction constraint.
     _statute_block = statute_prompt_block or ""
 
+    # AQ-NEW-20: Long-lease risk calibration modifier (fires when total term >= 10 years).
+    _long_lease_mod = (
+        _build_long_lease_modifier(float(total_potential_term_years))
+        if total_potential_term_years is not None else ""
+    )
+
+    # AQ-NEW-12: Commercial/industrial modifier (fires when is_retail_lease=False).
+    _commercial_mod = _build_commercial_lease_modifier(is_retail_lease)
+
     system_prompt = "\n".join([
         f"You are an expert Australian commercial lease auditor specialising in {jurisdiction} tenancy law.",
         "",
         _jur_constraint,
         "",
         _statute_block,
+        "",
+        _long_lease_mod,   # AQ-NEW-20: long-lease calibration (empty string when not applicable)
+        "",
+        _commercial_mod,   # AQ-NEW-12: commercial/industrial calibration (empty string for retail)
         "",
         "You will be given:",
         "1. A clause from a commercial lease",
@@ -508,6 +599,11 @@ def analyse_clause(
         '- "risk_flags" must be an empty array [] only if the clause is genuinely fair and standard.',
         "",
         "SEVERITY CALIBRATION -- use the right level, not always HIGH:",
+        "- VOID: The clause is void by statute, OR the lease itself may be unenforceable without a mandatory pre-condition being met.",
+        "  Reserved for: (a) clause voided by legislation (e.g. contracting-out void under CTRS Act s.27, TLA s.92(b) exclusion),",
+        "  (b) lease void ab initio without statutory approval (e.g. PDA 2005 s.136 deemed subdivision without WAPC consent),",
+        "  (c) statutory right that cannot be waived by contract.",
+        "  VOID is ABOVE HIGH -- use it only when you can cite the specific statutory provision that renders the clause void.",
         "- HIGH: Direct financial exposure, clear legislative breach, or terms likely unenforceable as written.",
         "  Examples: make-good overriding fair wear and tear, uncapped personal guarantee, rent ratchet, no renewal option on a capital-investment lease.",
         "- MEDIUM: Tenant-adverse terms that are legal but negotiable; missing protections that are not mandatory.",
@@ -532,7 +628,7 @@ def analyse_clause(
         '    {',
         '      "flag_id": "RF001",',
         '      "description": "...",',
-        '      "severity": "high|medium|low",',
+        '      "severity": "void|high|medium|low",',
         '      "legislation_ref": "...",',
         '      "financial_impact_estimate": "~$80k–$150k make-good liability" (HIGH/MEDIUM only, null for low)',
         '      "negotiation_position": "What to demand from the landlord in one sentence" (HIGH/MEDIUM only, null for low)',

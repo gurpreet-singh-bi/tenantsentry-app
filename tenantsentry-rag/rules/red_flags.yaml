@@ -338,3 +338,148 @@ rules:
       Refuse payment. In VIC, report to Consumer Affairs Victoria — the landlord
       has committed a criminal offence. In other states, challenge under ACL
       unconscionable conduct provisions.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # WA-specific statutory rules (AQ-NEW-23: RF_WA001/002/005 use VOID severity)
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - id: RF_WA001
+    name: Contracting-out of CTRS Act — void by statute (WA)
+    severity: void
+    jurisdictions: ["WA"]
+    description: >
+      A lease clause purporting to exclude, restrict, or modify the operation of the
+      Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) — or any right it
+      confers on the tenant — is void by operation of s.27 of the Act. This applies
+      regardless of how the clause is worded, whether it is buried in a general
+      exclusions clause, or whether both parties have signed the lease. If the tenancy
+      is in fact a retail shop agreement, the Act applies as a matter of law.
+      Commonly found in long-form commercial leases where the landlord seeks to disclaim
+      the CTRS Act's application (e.g. Clause 26.16(a) patterns).
+    trigger_keywords:
+      - "commercial tenancy act does not apply"
+      - "retail shops act does not apply"
+      - "CTRS Act"
+      - "contracting out"
+      - "excluded by agreement"
+      - "parties agree the act"
+      - "waive the provisions"
+    legislation_ref: "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) s.27"
+    recommended_action: >
+      Delete any clause purporting to exclude the CTRS Act. The exclusion is void in
+      any event, but leaving it in creates ambiguity and opens the door to disputes.
+      If the landlord insists, obtain written legal advice confirming the clause's
+      invalidity and ensure the advice is disclosed to both parties.
+
+  - id: RF_WA002
+    name: Quiet enjoyment excluded — TLA s.92(b) removed (WA)
+    severity: void
+    jurisdictions: ["WA"]
+    description: >
+      In WA registered land leases, the Transfer of Land Act 1893 (WA) s.92(b) implies
+      a covenant of quiet enjoyment in favour of the tenant. A clause expressly excluding
+      s.92(b) removes this statutory protection entirely. Combined with the absence of an
+      express quiet enjoyment covenant in the lease, this leaves the tenant with NO
+      enforceable right to peaceful occupation. This is particularly dangerous in long-term
+      development leases where continuity of occupation is critical to the tenant's
+      investment.
+    trigger_keywords:
+      - "s.92(b)"
+      - "section 92(b)"
+      - "Transfer of Land Act"
+      - "quiet enjoyment excluded"
+      - "covenant of quiet enjoyment"
+      - "excluded"
+      - "does not apply"
+    legislation_ref: "Transfer of Land Act 1893 (WA) s.92(b)"
+    recommended_action: >
+      Reject the exclusion of s.92(b). Insist on either: (a) removing the exclusion
+      clause so s.92(b) applies, or (b) replacing it with an express quiet enjoyment
+      covenant of at least equivalent protection. The covenant must cover interference
+      by the landlord, mortgagees, and any person claiming through the landlord.
+
+  - id: RF_WA003
+    name: Outgoings estimates or landlord readings final and binding — void (WA)
+    severity: high
+    jurisdictions: ["WA"]
+    description: >
+      A clause making the landlord's outgoings estimates, meter readings, calculations,
+      or reconciliation statements 'final and binding', 'conclusive', or 'not subject to
+      dispute' on the tenant violates ss.12A-12B of the Commercial Tenancy (Retail Shops)
+      Agreements Act 1985 (WA), which mandate annual itemised estimates and tenant audit
+      rights. Such a clause is void under s.27 (anti-contracting-out). The tenant retains
+      the right to dispute any outgoing calculation through the statutory reconciliation
+      process regardless of the lease wording.
+    trigger_keywords:
+      - "binding on the tenant"
+      - "conclusive evidence"
+      - "final and binding"
+      - "landlord's reading"
+      - "meter reading final"
+      - "not subject to challenge"
+      - "outgoings statement"
+      - "binding estimate"
+    legislation_ref: "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) ss.12A-12B, s.27"
+    recommended_action: >
+      Delete any 'final and binding' or 'conclusive' language from the outgoings clause.
+      Replace with: landlord to provide annual itemised estimate before the year commences,
+      annual reconciliation statement within 3 months of EOFY, tenant right to inspect
+      all underlying records, and right to dispute within 60 days of the reconciliation
+      statement.
+
+  - id: RF_WA004
+    name: Sub-lease indemnity for CTRS Act breaches (WA)
+    severity: high
+    jurisdictions: ["WA"]
+    description: >
+      A clause requiring the tenant to indemnify the landlord for any liability arising
+      from the landlord's own failure to comply with the CTRS Act in respect of sub-leases
+      or licences granted by the tenant. This is a particularly aggressive landlord tactic
+      in development leases where the tenant intends to sub-let portions of the premises
+      to retail operators. The clause attempts to shift the landlord's statutory compliance
+      obligations to the tenant. In a 70-year development lease with multiple retail
+      sub-tenancies, this indemnity exposure could be significant.
+    trigger_keywords:
+      - "indemnify the landlord"
+      - "sub-lease"
+      - "sub-tenant"
+      - "retail shop"
+      - "CTRS Act"
+      - "licensed premises"
+      - "indemnity"
+      - "liability arising"
+    legislation_ref: "Commercial Tenancy (Retail Shops) Agreements Act 1985 (WA) ss.27, 22"
+    recommended_action: >
+      Negotiate a carve-out so the indemnity covers ONLY the tenant's own breaches,
+      not the landlord's failure to discharge its statutory obligations under the CTRS Act.
+      Limit to direct losses caused by the tenant's acts or omissions; expressly exclude
+      indirect, consequential, or statutory-breach liability.
+
+  - id: RF_WA005
+    name: PDA s.136 — deemed subdivision, lease void without WAPC approval (WA)
+    severity: void
+    jurisdictions: ["WA"]
+    description: >
+      Under Planning and Development Act 2005 (WA) s.136, a lease of a PORTION of land
+      (not the whole of a lot) for a total term exceeding 20 years — including all options
+      to renew — constitutes a deemed subdivision. The lease is invalid and of no legal
+      effect unless and until Western Australian Planning Commission (WAPC) approval is
+      obtained. Failure to obtain approval renders the entire lease void ab initio. This
+      applies to long-term commercial development leases over part of a lot (e.g.
+      20-year initial term plus five 10-year options = 70 years total = deemed subdivision).
+    trigger_keywords:
+      - "WAPC"
+      - "Western Australian Planning Commission"
+      - "Planning and Development Act"
+      - "portion of the land"
+      - "subdivision approval"
+      - "planning approval"
+      - "s.136"
+      - "deemed subdivision"
+    legislation_ref: "Planning and Development Act 2005 (WA) s.136"
+    recommended_action: >
+      Immediately establish whether the lease is over a portion of a lot and whether the
+      cumulative term (initial term plus all options) exceeds 20 years. If so, the lease
+      must be conditional on WAPC subdivision approval, with a 90-120 day sunset clause
+      and all costs borne by the landlord. The tenant must not commence fitout or any
+      works until written WAPC approval is confirmed. Obtain specialist WA planning advice.

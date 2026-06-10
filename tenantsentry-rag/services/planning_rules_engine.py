@@ -39,7 +39,7 @@ Public API
 
     Each returned dict is a planning finding:
         rule_id:        str   e.g. "PR-WA-001"
-        severity:       str   "critical" | "high" | "medium"
+        severity:       str   "void" | "high" | "medium"  # AQ-NEW-23 adds void tier
         title:          str
         description:    str   plain-English explanation
         legislation:    str   Act + section
@@ -384,7 +384,7 @@ _PLANNING_RULES: list[dict] = [
     {
         "id": "PR-WA-001",
         "jurisdiction": "WA",
-        "severity": "critical",
+        "severity": "void",   # AQ3: PDA s.136 = void ab initio — same tier as VOID statute findings
         "title": "WAPC Approval Required — Deemed Subdivision (PDA 2005 s.136)",
         "description": (
             "Under Section 136 of the Planning and Development Act 2005 (WA), "

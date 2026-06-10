@@ -163,6 +163,13 @@ _SCHEDULE_REF_RE = re.compile(
 # Matches item lines inside a schedule chunk, e.g. "Item 6" or "6." at start of line
 _ITEM_LINE_RE = re.compile(r"^\s*(?:Item\s*)?(\d+)[.\s]", re.IGNORECASE | re.MULTILINE)
 
+# AQ-NEW-19: Matches clause cross-references, e.g. "clause 5.1", "clauses 8.1 to 8.3"
+_CLAUSE_REF_RE = re.compile(
+    r"\bclauses?\s+(\d+(?:\.\d+)*)"
+    r"(?:\s*(?:to|and|or|through|[-–])\s*(\d+(?:\.\d+)*))?",
+    re.IGNORECASE,
+)
+
 
 def _build_schedule_index(chunks) -> dict[tuple[int, int], str]:
     """
@@ -180,11 +187,20 @@ def _build_schedule_index(chunks) -> dict[tuple[int, int], str]:
 
     for chunk in chunks:
         heading = chunk.metadata.get("clause_heading", "")
-        # Only process chunks that are schedule pages
+        # Match "SCHEDULE 1", "Schedule 1", etc. (numbered)
         sched_match = re.search(r"SCHEDULE\s*(\d+)", heading, re.IGNORECASE)
-        if not sched_match:
-            continue
-        sched_num = int(sched_match.group(1))
+        if sched_match:
+            sched_num = int(sched_match.group(1))
+        elif re.search(r"\bSCHEDULE\b|\bREFERENCE\s+SCHEDULE\b", heading, re.IGNORECASE):
+            # Unnumbered schedule (e.g. "REFERENCE SCHEDULE", "THE SCHEDULE") — default to 1
+            sched_num = 1
+        else:
+            # Not a schedule chunk — but also check the content itself for dense item patterns
+            # (catches schedules where the chunker strips the heading or titles them differently)
+            item_hits = _ITEM_LINE_RE.findall(chunk.content)
+            if len(item_hits) < 3:
+                continue
+            sched_num = 1  # unlabelled schedule content — default to 1
 
         body = chunk.content
         # Find all item positions in the body
@@ -202,6 +218,25 @@ def _build_schedule_index(chunks) -> dict[tuple[int, int], str]:
                 logger.debug(f"[AQ2] Indexed Schedule {sched_num} Item {item_num}: {item_text[:60]!r}")
 
     logger.info(f"[AQ2] Schedule index built: {len(index)} items across {len({k[0] for k in index})} schedule(s)")
+    return index
+
+
+def _build_clause_index(chunks) -> dict[str, str]:
+    """
+    AQ-NEW-19: Build an index mapping clause number strings (e.g. "5.1", "26.16")
+    to clause text, for cross-clause reference injection.
+
+    Used by _get_clause_context() to retrieve the text of a clause that is
+    referenced by the clause currently being analysed (e.g. "subject to clause 12.7").
+    """
+    index: dict[str, str] = {}
+    num_re = re.compile(r"^(\d+(?:\.\d+)*)")
+    for chunk in chunks:
+        heading = chunk.metadata.get("clause_heading", "").strip()
+        m = num_re.match(heading)
+        if m:
+            index[m.group(1)] = chunk.content
+    logger.info(f"[AQ-NEW-19] Clause index built: {len(index)} entries")
     return index
 
 
@@ -247,6 +282,42 @@ def _get_schedule_context(clause_text: str, schedule_index: dict[tuple[int, int]
             )
             logger.debug(f"[AQ2] Schedule {sched_num} Item {item_num} referenced but not in index")
 
+    return "\n\n".join(found)
+
+
+def _get_clause_context(
+    clause_text: str,
+    clause_index: dict[str, str],
+    current_clause_num: str = "",
+) -> str:
+    """
+    AQ-NEW-19: Detect clause cross-references in clause_text and return
+    the referenced clause bodies as injected context.
+
+    Example: if the clause says "subject to clause 12.7", this function
+    fetches the text of clause 12.7 and returns it so the LLM can evaluate
+    the obligation in its full context.
+    """
+    if not clause_index:
+        return ""
+    found: list[str] = []
+    seen: set[str] = set()
+    for m in _CLAUSE_REF_RE.finditer(clause_text):
+        for num in filter(None, [m.group(1), m.group(2)]):
+            if num in seen or num == current_clause_num:
+                continue
+            seen.add(num)
+            body = clause_index.get(num, "")
+            if len(body) >= 20:
+                snippet = body[:400] + ("..." if len(body) > 400 else "")
+                found.append(f"Clause {num} (cross-referenced):\n{snippet}")
+                logger.debug(f"[AQ-NEW-19] Injecting Clause {num} into clause context")
+            elif body:
+                found.append(f"Clause {num} (cross-referenced):\n{body}")
+            else:
+                found.append(
+                    f"Clause {num}: [Referenced but not extracted — review manually]"
+                )
     return "\n\n".join(found)
 
 
@@ -615,6 +686,8 @@ def run_audit(
 
     # AQ2: Build schedule index for cross-reference injection
     _schedule_index = _build_schedule_index(chunks)
+    # AQ-NEW-19: Build clause index for cross-clause reference injection
+    _clause_index = _build_clause_index(chunks)
 
     # AG1: Build deal summary anchor from schedule items.
     # Metadata isn't available yet (extracted post-analysis), but schedule items
@@ -625,6 +698,49 @@ def run_audit(
         logger.info("[AG1] Deal summary anchor built -- injecting confirmed terms into all clause prompts")
     else:
         logger.info("[AG1] No schedule items found -- clause prompts run without deal anchor")
+
+    # AQ-NEW-20: Compute total potential term (initial + options) for long-lease risk calibration.
+    # Sources in priority order: (1) early metadata extraction (step 2.5), (2) schedule index regex.
+    # Falls back to None if neither source has term data -- modifier simply won't fire.
+    _total_potential_term: float | None = None
+    try:
+        _init_yrs: float | None = None
+        _opt_yrs:  float | None = None
+
+        # Source 1: early metadata (available when jurisdiction was auto-detected at step 2.5)
+        if _early_meta_done and _early_meta:
+            _raw_init = _early_meta.get("lease_term_years") or _early_meta.get("initial_term_years")
+            _raw_opt  = _early_meta.get("options_total_years") or _early_meta.get("options_years")
+            if _raw_init is not None:
+                _init_yrs = float(_raw_init)
+            if _raw_opt is not None:
+                _opt_yrs = float(_raw_opt)
+
+        # Source 2: schedule index — regex scan for "term: N years" patterns
+        if _init_yrs is None and _schedule_index:
+            import re as _re
+            _sched_text = "\n".join(_schedule_index.values())[:6000]
+            _m = _re.search(
+                r"(?:initial\s+)?term[:\s]+([\d]+(?:\.[\d]+)?)\s*(?:year|yr)",
+                _sched_text, _re.I,
+            )
+            if _m:
+                _init_yrs = float(_m.group(1))
+            _m2 = _re.search(
+                r"option[s]?\s*[:\s]+([\d]+)\s*[x×X]\s*([\d]+(?:\.[\d]+)?)\s*(?:year|yr)",
+                _sched_text, _re.I,
+            )
+            if _m2:
+                _opt_yrs = float(_m2.group(1)) * float(_m2.group(2))
+
+        if _init_yrs is not None:
+            _total_potential_term = _init_yrs + (_opt_yrs if _opt_yrs is not None else 0.0)
+            logger.info(
+                f"[AQ-NEW-20] Total potential term: {_total_potential_term:.1f} yrs "
+                f"(init={_init_yrs}, options={_opt_yrs})"
+            )
+    except Exception as _e:
+        logger.debug(f"[AQ-NEW-20] Term extraction failed (non-fatal): {_e}")
 
     # 4. Optional: embed + store (production only)
     # skip_vector_store=True bypasses this for anonymous free checks -- we don't want
@@ -773,6 +889,14 @@ def run_audit(
         lt_ctx       = _land_tax_context if _is_land_tax_clause(chunk) else ""
         # AQ2: Inject schedule items referenced by this clause
         sched_ctx    = _get_schedule_context(clause_text, _schedule_index)
+        # AQ-NEW-19: Inject cross-referenced clause bodies
+        _cur_num = re.match(r"^(\d+(?:\.\d+)*)", clause_heading or "")
+        _clause_ctx = _get_clause_context(
+            clause_text, _clause_index,
+            current_clause_num=_cur_num.group(1) if _cur_num else "",
+        )
+        if _clause_ctx:
+            sched_ctx = "\n\n".join(filter(None, [sched_ctx, _clause_ctx]))
 
         analysis = analyse_clause(
             clause_text=clause_text,
@@ -784,8 +908,9 @@ def run_audit(
             schedule_context=sched_ctx,
             clause_number=clause_heading,   # AG2: enables statute hint lookup
             deal_summary=_deal_summary,     # AG1: confirmed deal terms ground truth
-            statute_prompt_block=statute_prompt_block,  # AQ-NEW-5: premises classification
-            is_retail_lease=is_retail_lease,            # AQ1+AQ-NEW-5: selects correct statute list
+            statute_prompt_block=statute_prompt_block,       # AQ-NEW-5: premises classification
+            is_retail_lease=is_retail_lease,                 # AQ1+AQ-NEW-5: selects correct statute list
+            total_potential_term_years=_total_potential_term, # AQ-NEW-20: long-lease calibration
         )
         _clause_ms = int((time.perf_counter() - _t_clause) * 1000)
         n_flags = len(analysis.get("risk_flags") or [])
@@ -940,9 +1065,11 @@ def run_audit(
     _progress(cb, 95, "Assembling audit report...")
 
     all_flags = [f for ca in clause_analyses for f in (ca.risk_flags or [])]
-    high_flags = [f for f in all_flags if f.get("severity") == "high"]
+    void_flags   = [f for f in all_flags if f.get("severity") == "void"]   # AQ-NEW-23
+    high_flags   = [f for f in all_flags if f.get("severity") == "high"]
     medium_flags = [f for f in all_flags if f.get("severity") == "medium"]
-    risk_score = min(100, len(high_flags) * 20 + len(medium_flags) * 8 + len(all_flags) * 2)
+    # VOID findings score 35 pts each (capped at 100); HIGH = 20; MEDIUM = 8; all = 2
+    risk_score = min(100, len(void_flags) * 35 + len(high_flags) * 20 + len(medium_flags) * 8 + len(all_flags) * 2)
 
     # G9: Aggregate extracted_rules from clause-level analyses.
     # cpi_index_series: use the first non-null value found across all clauses.

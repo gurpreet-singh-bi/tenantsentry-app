@@ -36,6 +36,9 @@ TEAL = colors.HexColor("#0d9488")
 TEAL_LIGHT = colors.HexColor("#ccfbf1")
 RED = colors.HexColor("#dc2626")
 RED_LIGHT = colors.HexColor("#fee2e2")
+# AQ-NEW-23: VOID tier — deep crimson, above HIGH red
+VOID_CRIMSON = colors.HexColor("#7f1d1d")
+VOID_CRIMSON_LIGHT = colors.HexColor("#fecaca")
 AMBER = colors.HexColor("#d97706")
 AMBER_LIGHT = colors.HexColor("#fef3c7")
 GREEN = colors.HexColor("#16a34a")
@@ -55,6 +58,8 @@ REPORTS_DIR.mkdir(exist_ok=True)
 
 def _severity_color(severity: str) -> colors.Color:
     s = (severity or "").lower()
+    if s == "void":
+        return VOID_CRIMSON
     if s == "high":
         return RED
     if s == "medium":
@@ -64,6 +69,8 @@ def _severity_color(severity: str) -> colors.Color:
 
 def _severity_bg(severity: str) -> colors.Color:
     s = (severity or "").lower()
+    if s == "void":
+        return VOID_CRIMSON_LIGHT
     if s == "high":
         return RED_LIGHT
     if s == "medium":
@@ -176,6 +183,7 @@ def generate_pdf_report(
     risk_score = result.get("risk_score", 0)
     total_clauses = result.get("total_clauses", 0)
     all_flags = result.get("all_risk_flags", [])
+    void_count = sum(1 for f in all_flags if f.get("severity") == "void")    # AQ-NEW-23
     high_count = sum(1 for f in all_flags if f.get("severity") == "high")
     medium_count = sum(1 for f in all_flags if f.get("severity") == "medium")
     low_count = sum(1 for f in all_flags if f.get("severity") == "low")
@@ -217,14 +225,16 @@ def generate_pdf_report(
                       ParagraphStyle("Level", alignment=TA_CENTER)),
             Table([
                 [Paragraph(f"<b>{total_clauses}</b>", ParagraphStyle("Num", fontSize=18, alignment=TA_CENTER, textColor=TEXT)),
-                 Paragraph(f"<b>{high_count}</b>", ParagraphStyle("Num", fontSize=18, alignment=TA_CENTER, textColor=RED)),
+                 Paragraph(f"<b>{void_count}</b>",   ParagraphStyle("Num", fontSize=18, alignment=TA_CENTER, textColor=VOID_CRIMSON)),
+                 Paragraph(f"<b>{high_count}</b>",   ParagraphStyle("Num", fontSize=18, alignment=TA_CENTER, textColor=RED)),
                  Paragraph(f"<b>{medium_count}</b>", ParagraphStyle("Num", fontSize=18, alignment=TA_CENTER, textColor=AMBER)),
-                 Paragraph(f"<b>{low_count}</b>", ParagraphStyle("Num", fontSize=18, alignment=TA_CENTER, textColor=GREEN))],
-                [Paragraph("Clauses", ParagraphStyle("Lbl", fontSize=7, alignment=TA_CENTER, textColor=SLATE)),
-                 Paragraph("High Risk", ParagraphStyle("Lbl", fontSize=7, alignment=TA_CENTER, textColor=SLATE)),
-                 Paragraph("Medium", ParagraphStyle("Lbl", fontSize=7, alignment=TA_CENTER, textColor=SLATE)),
-                 Paragraph("Low", ParagraphStyle("Lbl", fontSize=7, alignment=TA_CENTER, textColor=SLATE))],
-            ], colWidths=[25*mm]*4),
+                 Paragraph(f"<b>{low_count}</b>",    ParagraphStyle("Num", fontSize=18, alignment=TA_CENTER, textColor=GREEN))],
+                [Paragraph("Clauses",  ParagraphStyle("Lbl", fontSize=7, alignment=TA_CENTER, textColor=SLATE)),
+                 Paragraph("VOID",     ParagraphStyle("Lbl", fontSize=7, alignment=TA_CENTER, textColor=SLATE)),
+                 Paragraph("High Risk",ParagraphStyle("Lbl", fontSize=7, alignment=TA_CENTER, textColor=SLATE)),
+                 Paragraph("Medium",   ParagraphStyle("Lbl", fontSize=7, alignment=TA_CENTER, textColor=SLATE)),
+                 Paragraph("Low",      ParagraphStyle("Lbl", fontSize=7, alignment=TA_CENTER, textColor=SLATE))],
+            ], colWidths=[20*mm]*5),
         ]
     ]
 
@@ -249,6 +259,12 @@ def generate_pdf_report(
     )
     clean_clause_count = total_clauses - flagged_clause_count
     risk_text_parts = []
+    if void_count > 0:
+        risk_text_parts.append(
+            f'<font color="{VOID_CRIMSON.hexval()}"><b>{void_count} VOID {"finding" if void_count == 1 else "findings"}</b></font> '
+            f"— clause(s) or lease terms that are void by statute or may render the lease unenforceable. "
+            f"See the Critical — Lease Validity section immediately below."
+        )
     if high_count > 0:
         risk_text_parts.append(
             f"<b>{high_count} HIGH risk {'flag' if high_count == 1 else 'flags'}</b> "
@@ -283,6 +299,73 @@ def generate_pdf_report(
         "legal advice. For dispute negotiations, consult a qualified commercial lease solicitor.",
         caption
     ))
+
+    # ══════════════════════════════════════════════════════════════════════
+    # AQ-NEW-23: CRITICAL — LEASE VALIDITY (VOID findings)
+    # Shown above Priority Actions when any VOID flags are present.
+    # ══════════════════════════════════════════════════════════════════════
+    void_clauses = []
+    for ca in result.get("clause_analyses", []):
+        flags = ca.get("risk_flags") or []
+        void_flags = [f for f in flags if f.get("severity") == "void"]
+        if void_flags:
+            void_clauses.append((ca, void_flags))
+
+    if void_clauses:
+        story.append(Spacer(1, 8*mm))
+        story.append(Paragraph("⚠ Critical — Lease Validity", h2))
+        story.append(HRFlowable(width="100%", thickness=2, color=VOID_CRIMSON))
+        story.append(Spacer(1, 3*mm))
+        story.append(Paragraph(
+            "The following findings indicate that one or more clauses are VOID by statute, "
+            "or that the lease itself may be unenforceable without satisfying a mandatory "
+            "pre-condition. These issues take precedence over all other findings. "
+            "Do not execute this lease until each item below is resolved.",
+            ParagraphStyle("VoidIntro", parent=styles["Normal"], fontSize=8,
+                           textColor=VOID_CRIMSON, fontName="Helvetica-Bold", leading=12)
+        ))
+        story.append(Spacer(1, 3*mm))
+
+        for ca, v_flags in void_clauses:
+            heading = ca.get("clause_heading", "Unknown Clause")
+            page_number = ca.get("page_number")
+            action = ca.get("recommended_action", "")
+            citation = f"{heading}  ·  Page {page_number}" if page_number else heading
+
+            for vf in v_flags:
+                void_row = Table([[
+                    Paragraph(
+                        f'<font color="{VOID_CRIMSON.hexval()}"><b>VOID</b></font>  '
+                        f'<b>{citation}</b><br/>'
+                        f'<font size="8">{vf.get("description", "")}</font>',
+                        ParagraphStyle("VoidDesc", fontSize=9, textColor=TEXT,
+                                       fontName="Helvetica", leading=13)
+                    ),
+                    Paragraph(
+                        vf.get("legislation_ref") or "",
+                        ParagraphStyle("VoidRef", fontSize=7, textColor=SLATE,
+                                       fontName="Helvetica-Oblique", alignment=TA_RIGHT)
+                    ),
+                ]], colWidths=[130*mm, 40*mm])
+                void_row.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, -1), VOID_CRIMSON_LIGHT),
+                    ("BOX", (0, 0), (-1, -1), 1, VOID_CRIMSON),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3*mm),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3*mm),
+                    ("LEFTPADDING", (0, 0), (0, 0), 4*mm),
+                    ("RIGHTPADDING", (-1, 0), (-1, 0), 4*mm),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]))
+                story.append(void_row)
+                story.append(Spacer(1, 2*mm))
+                if action:
+                    story.append(Paragraph(
+                        f"<b>Required action:</b> {action}",
+                        ParagraphStyle("VoidAction", fontSize=8, textColor=TEXT,
+                                       fontName="Helvetica", leading=12,
+                                       leftIndent=4*mm)
+                    ))
+                    story.append(Spacer(1, 3*mm))
 
     # ══════════════════════════════════════════════════════════════════════
     # EXECUTIVE SUMMARY — TOP PRIORITY ACTIONS
@@ -375,9 +458,13 @@ def generate_pdf_report(
         if page_number:
             citation_label = f"{heading}  ·  Page {page_number}"
 
-        # Max severity for this clause
+        # Max severity for this clause (void > high > medium > low)
         severities = [f.get("severity", "low") for f in flags]
-        max_sev = "high" if "high" in severities else ("medium" if "medium" in severities else "low")
+        max_sev = (
+            "void" if "void" in severities else
+            "high" if "high" in severities else
+            "medium" if "medium" in severities else "low"
+        )
         sev_color = _severity_color(max_sev)
         sev_bg = _severity_bg(max_sev)
 
@@ -387,10 +474,13 @@ def generate_pdf_report(
         # Build severity badges string for header
         flag_badge_text = ""
         if flags:
-            counts = {"high": 0, "medium": 0, "low": 0}
+            counts: dict[str, int] = {"void": 0, "high": 0, "medium": 0, "low": 0}
             for f in flags:
-                counts[f.get("severity", "low")] = counts.get(f.get("severity", "low"), 0) + 1
+                sev = f.get("severity", "low")
+                counts[sev] = counts.get(sev, 0) + 1
             parts = []
+            if counts["void"]:
+                parts.append(f'<font color="{VOID_CRIMSON.hexval()}">{counts["void"]} VOID</font>')
             if counts["high"]:
                 parts.append(f'<font color="{RED.hexval()}">{counts["high"]} HIGH</font>')
             if counts["medium"]:

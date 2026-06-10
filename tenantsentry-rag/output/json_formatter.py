@@ -17,7 +17,8 @@ _SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 class RiskFlag(BaseModel):
     flag_id: str
     description: str
-    severity: str                           # "high" | "medium" | "low"
+    severity: str                           # "void" | "high" | "medium" | "low"
+    # "void" = clause/lease is void ab initio or void by statute (above HIGH)
     legislation_ref: Optional[str] = None
     financial_impact_estimate: Optional[str] = None  # Area 4: e.g. "~$120k make-good liability"
 
@@ -98,7 +99,13 @@ class AuditResult(BaseModel):
     is_retail_lease: Optional[bool] = None   # True if retail tenancy legislation applies
 
     @property
+    def void_risk_flags(self) -> list[dict]:
+        """AQ-NEW-23: Findings where a clause or the lease itself is void by statute."""
+        return [f for f in self.all_risk_flags if f.get("severity") == "void"]
+
+    @property
     def high_risk_flags(self) -> list[dict]:
+        """HIGH severity findings (excludes VOID — use void_risk_flags for those)."""
         return [f for f in self.all_risk_flags if f.get("severity") == "high"]
 
     @property
