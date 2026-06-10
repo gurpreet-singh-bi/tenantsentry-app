@@ -823,7 +823,7 @@ body {
 <!-- ═══════════════════════════════════════════
      AUDIT DETAIL DRAWER
 ═══════════════════════════════════════════ -->
-<template x-teleport="body" x-if="$store.auditDrawer.open">
+<div x-data x-show="$store.auditDrawer.open" x-cloak style="display:none">
   <!-- overlay -->
   <div class="audit-drawer-overlay" @click="$store.auditDrawer.close()"></div>
 
@@ -1090,7 +1090,7 @@ body {
     </div>
 
   </div><!-- /drawer -->
-</template>
+</div><!-- /audit-drawer-wrapper -->
 
 
 <!-- Add Client Modal -->
