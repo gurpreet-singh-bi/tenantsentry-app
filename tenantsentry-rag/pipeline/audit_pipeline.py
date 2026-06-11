@@ -147,6 +147,30 @@ def _progress(callback: ProgressCallback, pct: int, stage: str) -> None:
     logger.debug(f"[{pct}%] {stage}")
 
 
+# AQ-NEW-28: Derive a financial-year label (e.g. "FY2023") from a parsed
+# outgoings/GL document so multiple years can be assembled into
+# yearly_outgoings_history for cap verification. Australian FY runs
+# Jul-Jun, so a period ending in Jan-Jun belongs to that calendar year's FY;
+# a period ending in Jul-Dec belongs to the *next* calendar year's FY.
+_DATE_RE = re.compile(r"(\d{4})-(\d{2})-\d{2}")
+_YEAR_RE = re.compile(r"(20\d{2})")
+
+
+def _outgoings_year_label(parsed_out) -> Optional[str]:
+    for raw in (parsed_out.period_end, parsed_out.period_start):
+        if not raw:
+            continue
+        m = _DATE_RE.search(raw)
+        if m:
+            year, month = int(m.group(1)), int(m.group(2))
+            fy = year if month <= 6 else year + 1
+            return f"FY{fy}"
+        m = _YEAR_RE.search(raw)
+        if m:
+            return f"FY{m.group(1)}"
+    return None
+
+
 # -- AQ2: Schedule cross-reference index --------------------------------------
 
 # Matches "Schedule 1, Item 6" / "Item 14" / "Schedule 1 Item 6" / "Item 6 of Schedule 1"
@@ -530,8 +554,13 @@ def run_audit(
         progress_callback: Optional fn(pct: int, stage: str)
         additional_docs:   Optional list of dicts:
                            [{"path": str, "doc_type": str, "filename": str}, ...]
-                           Supported doc_types: "outgoings", "invoice", "amendment"
-                           Outgoings/invoices run through outgoings_engine after lease analysis.
+                           Supported doc_types: "outgoings", "invoice", "gl_detail", "amendment"
+                           Outgoings/invoices/GL detail run through outgoings_engine after lease
+                           analysis. "gl_detail" docs (AQ-NEW-25) are parsed via parse_gl_pdf(),
+                           which classifies each transaction as CapEx/OpEx before reconciliation.
+                           When 2+ "outgoings"/"gl_detail" docs covering different financial years
+                           are supplied, a deterministic outgoings cap verification (AQ-NEW-28) is
+                           run across the multi-year history.
                            Amendments are noted in warnings (not yet analysed).
         max_pages:         If set, truncate parsed.pages to the first N pages before
                            chunking. Used by the free-check flow (max_pages=5) to limit
@@ -1108,14 +1137,18 @@ def run_audit(
     # pipeline_warnings already initialised above (after metadata extraction).
 
     if additional_docs:
-        from ingestion.outgoings_parser import parse_outgoings_pdf
+        from ingestion.outgoings_parser import parse_outgoings_pdf, parse_gl_pdf
         from pipeline.outgoings_engine import run_outgoings_reconciliation, reconciliation_result_to_dict
 
         clause_analyses_dicts = [ca.model_dump() for ca in clause_analyses]
 
-        outgoings_docs = [d for d in additional_docs if d.get("doc_type") in ("outgoings", "invoice")]
+        # AQ-NEW-25: "gl_detail" docs are GL transaction detail (parsed via parse_gl_pdf,
+        # which runs each line through the CapEx/OpEx classifier). They're reconciled
+        # alongside "outgoings"/"invoice" docs and also contribute to the multi-year
+        # history used for AQ-NEW-28 cap verification.
+        outgoings_docs = [d for d in additional_docs if d.get("doc_type") in ("outgoings", "invoice", "gl_detail")]
         amendment_docs = [d for d in additional_docs if d.get("doc_type") == "amendment"]
-        other_docs     = [d for d in additional_docs if d.get("doc_type") not in ("outgoings", "invoice", "amendment")]
+        other_docs     = [d for d in additional_docs if d.get("doc_type") not in ("outgoings", "invoice", "gl_detail", "amendment")]
 
         if amendment_docs:
             for ad in amendment_docs:
@@ -1132,6 +1165,11 @@ def run_audit(
                     "but no analysis engine exists for this document type -- it was ignored."
                 )
 
+        # ── Pass 1: parse every outgoings/invoice/gl_detail doc up front ────────
+        # Parsing is done here (rather than inline below) so we can build a
+        # multi-year outgoings history (AQ-NEW-28) before running reconciliation.
+        parsed_docs: list[dict] = []  # [{doc, parsed_out, year_label}, ...]
+
         for i, doc in enumerate(outgoings_docs):
             doc_path     = doc["path"]
             doc_filename = doc["filename"]
@@ -1139,13 +1177,77 @@ def run_audit(
             base_pct     = 93 + int(i / max(len(outgoings_docs), 1) * 4)  # 93-97%
 
             _progress(cb, base_pct, f"Parsing {doc_type} document: {doc_filename}...")
+            logger.info(f"Parsing outgoings/GL document: {doc_filename} ({doc_type})")
+
+            try:
+                if doc_type == "gl_detail":
+                    parsed_out = parse_gl_pdf(doc_path, job_id=job_id)
+                else:
+                    parsed_out = parse_outgoings_pdf(doc_path)
+
+                year_label = _outgoings_year_label(parsed_out)
+                parsed_docs.append({
+                    "doc": doc,
+                    "parsed_out": parsed_out,
+                    "year_label": year_label,
+                })
+            except Exception as e:
+                logger.error(f"Parsing failed for {doc_filename}: {e}")
+                reconciliation_results.append({
+                    "doc_filename": doc_filename,
+                    "doc_type": doc_type,
+                    "engine_status": "failed",
+                    "warnings": [f"Processing failed: {e}. This document was not reconciled."],
+                    "findings": [],
+                    "total_claimed_cents": 0,
+                    "total_disputed_cents": 0,
+                })
+
+        # ── AQ-NEW-28: build multi-year outgoings history ───────────────────────
+        # Only meaningful when 2+ docs resolve to distinct year labels.
+        yearly_outgoings_history: dict[str, int] = {}
+        for pd in parsed_docs:
+            yl = pd["year_label"]
+            po = pd["parsed_out"]
+            amount = po.computed_total_cents or po.total_cents or 0
+            if yl and amount:
+                # If the same year appears twice (e.g. outgoings statement + GL detail
+                # for the same period), prefer the larger figure (GL detail is more granular).
+                yearly_outgoings_history[yl] = max(yearly_outgoings_history.get(yl, 0), amount)
+
+        run_cap_verification_for_years = (
+            yearly_outgoings_history if len(yearly_outgoings_history) >= 2 else None
+        )
+        if run_cap_verification_for_years:
+            logger.info(
+                f"AQ-NEW-28: {len(run_cap_verification_for_years)} years of outgoings history "
+                f"available for cap verification: {sorted(run_cap_verification_for_years.keys())}"
+            )
+
+        # The most recent year's document carries the cap-verification finding (if any),
+        # to avoid duplicating the same finding across every reconciled document.
+        most_recent_doc_filename = None
+        if run_cap_verification_for_years:
+            latest_year = sorted(run_cap_verification_for_years.keys())[-1]
+            for pd in parsed_docs:
+                if pd["year_label"] == latest_year:
+                    most_recent_doc_filename = pd["doc"]["filename"]
+                    break
+
+        # ── Pass 2: reconciliation ───────────────────────────────────────────────
+        for i, pd in enumerate(parsed_docs):
+            doc          = pd["doc"]
+            parsed_out   = pd["parsed_out"]
+            doc_filename = doc["filename"]
+            doc_type     = doc["doc_type"]
+            base_pct     = 97 + int(i / max(len(parsed_docs), 1) * 2)  # 97-99%
+
+            _progress(cb, base_pct, f"Reconciling {doc_type} document: {doc_filename}...")
             logger.info(f"Running outgoings engine on: {doc_filename} ({doc_type})")
 
             try:
-                parsed_out = parse_outgoings_pdf(doc_path)
-
                 def _recon_cb(stage: str):
-                    _progress(cb, base_pct + 1, stage)
+                    _progress(cb, base_pct, stage)
 
                 recon = run_outgoings_reconciliation(
                     parsed_outgoings=parsed_out,
@@ -1153,6 +1255,11 @@ def run_audit(
                     clause_analyses=clause_analyses_dicts,
                     jurisdiction=jur,
                     progress_callback=_recon_cb,
+                    yearly_outgoings_history=(
+                        run_cap_verification_for_years
+                        if doc_filename == most_recent_doc_filename else None
+                    ),
+                    job_id=job_id,
                 )
                 reconciliation_results.append(reconciliation_result_to_dict(recon))
 

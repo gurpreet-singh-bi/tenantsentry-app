@@ -401,6 +401,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
   .type-lease    { background: rgba(0,194,168,0.15); color: var(--teal); }
   .type-invoice  { background: rgba(245,158,11,0.15); color: var(--amber); }
   .type-outgoings{ background: rgba(99,102,241,0.18); color: #a5b4fc; }
+  .type-gl       { background: rgba(236,72,153,0.15); color: #f9a8d4; }
   .type-other    { background: rgba(255,255,255,0.08); color: var(--text-muted); }
   .file-row-select {
     font-size: 11px; background: var(--navy-light); border: 1px solid var(--border);
@@ -1478,6 +1479,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
     lease:     { label: 'Lease',     cls: 'type-lease',     icon: '📋' },
     invoice:   { label: 'Invoice',   cls: 'type-invoice',   icon: '🧾' },
     outgoings: { label: 'Outgoings', cls: 'type-outgoings', icon: '📊' },
+    gl_detail: { label: 'GL / Ledger Detail', cls: 'type-gl', icon: '📒' },
     amendment: { label: 'Amendment', cls: 'type-lease',     icon: '📝' },
     other:     { label: 'Other',     cls: 'type-other',     icon: '📄' },
   };
@@ -1490,6 +1492,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
 
   function detectDocType(filename) {
     const n = filename.toLowerCase();
+    if (/general.?ledger|\bgl\b|ledger.+detail|transaction.+(detail|listing|extract)|gl.?detail/.test(n)) return 'gl_detail';
     if (/outgoing|reconcil|recon|eofy|recovery|opex|annual.+statement/.test(n)) return 'outgoings';
     if (/invoice|inv[-_]|rent.+inv|monthly.+rent|billing|statement.+rent/.test(n)) return 'invoice';
     if (/amendment|variation|deed|addendum|variation|modify|side.?letter/.test(n)) return 'amendment';
@@ -1532,6 +1535,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
           <option value="lease"     ${f.docType==='lease'     ?'selected':''}>Lease</option>
           <option value="invoice"   ${f.docType==='invoice'   ?'selected':''}>Invoice</option>
           <option value="outgoings" ${f.docType==='outgoings' ?'selected':''}>Outgoings</option>
+          <option value="gl_detail" ${f.docType==='gl_detail' ?'selected':''}>GL / Ledger Detail</option>
           <option value="amendment" ${f.docType==='amendment' ?'selected':''}>Amendment</option>
           <option value="other"     ${f.docType==='other'     ?'selected':''}>Other</option>
         </select>
@@ -2655,7 +2659,7 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       aeSet('ae-cp-cur','⟳ Submitting documents to audit pipeline...');
       aeSet('ae-pages','📄 Processing...');
       // Show outgoings panel as pending if outgoings were uploaded
-      const hasOutgoings = uploadedFiles.some(f => f.docType === 'outgoings' || f.docType === 'invoice');
+      const hasOutgoings = uploadedFiles.some(f => f.docType === 'outgoings' || f.docType === 'invoice' || f.docType === 'gl_detail');
       const eb2 = aeGet('ae-eb2');
       if (!hasOutgoings && eb2) {
         eb2.textContent = 'NOT SUBMITTED';

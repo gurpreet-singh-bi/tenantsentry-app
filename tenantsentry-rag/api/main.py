@@ -606,7 +606,7 @@ async def admin_chat_queries(limit: int = 100, _: None = Depends(require_admin))
 # Audit API
 # ══════════════════════════════════════════════════════════════════════════════
 
-VALID_DOC_TYPES = {"lease", "outgoings", "invoice", "amendment", "other"}
+VALID_DOC_TYPES = {"lease", "outgoings", "invoice", "gl_detail", "amendment", "other"}
 VALID_IMG_EXTS  = {".pdf", ".png", ".jpg", ".jpeg"}
 
 
@@ -614,7 +614,7 @@ VALID_IMG_EXTS  = {".pdf", ".png", ".jpg", ".jpeg"}
 async def submit_audit(
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(..., description="Lease PDF plus any supporting documents"),
-    doc_types: list[str] = Form(..., description="Doc type per file: lease|outgoings|invoice|amendment|other"),
+    doc_types: list[str] = Form(..., description="Doc type per file: lease|outgoings|invoice|gl_detail|amendment|other"),
     jurisdiction: str = Form("", description="State code (NSW/VIC/QLD/WA/SA/TAS/ACT/NT). Optional — auto-detected from lease if omitted."),
     tenant_name: str = Form(""),
     chat_session_id: str = Form(""),
@@ -627,7 +627,16 @@ async def submit_audit(
     Submit one or more documents for async audit.
 
     files[0] must be the primary lease (doc_types[0]=="lease").
-    Additional files may be outgoings schedules, invoices, or amendments.
+    Additional files may be outgoings schedules, invoices, GL/ledger detail (gl_detail), or amendments.
+
+    AQ-NEW-25: "gl_detail" files are the landlord's General Ledger transaction detail
+    (not a reconciliation summary) — each line item is run through the CapEx/OpEx
+    classifier (services/gl_capex_classifier.py) to surface capital expenditure
+    disguised as operating outgoings.
+
+    AQ-NEW-28: Upload two or more "outgoings" documents covering different financial
+    years to enable deterministic outgoings cap verification (cumulative/non-cumulative
+    cap arithmetic, base-year reset detection).
     Returns job_id immediately; poll /api/audit/status/{job_id} for progress.
 
     jurisdiction, premises_use, entity_type, and gla_sqm are all optional.
