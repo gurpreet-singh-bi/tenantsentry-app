@@ -7,6 +7,12 @@ All public functions return plain dicts or None — no Job objects.
 Called exclusively from api/jobs.py; nothing in main.py touches this directly.
 """
 
+# Defer annotation evaluation so `str | None` (PEP 604) syntax below doesn't
+# crash at module-import time on Python 3.9 (this venv) — type.__or__ for
+# unions was only added in 3.10. With this import, annotations are stored as
+# strings and never evaluated at runtime, so behaviour is unaffected.
+from __future__ import annotations
+
 import os
 from datetime import datetime, timezone
 from typing import Optional

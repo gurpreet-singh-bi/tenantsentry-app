@@ -142,6 +142,12 @@ header{height:54px;padding:0 20px;display:flex;align-items:center;justify-conten
 .search-input{width:100%;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px 8px 30px;color:var(--text);font-size:12px;outline:none}
 .search-input:focus{border-color:var(--accent)}
 .pills{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;flex-shrink:0}
+.group-by-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-shrink:0}
+.group-by-row label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap}
+.group-by-row select{flex:1;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:var(--rs);padding:5px 8px;color:var(--text);font-size:11px;outline:none;font-family:var(--font)}
+.group-by-row select:focus{border-color:var(--accent)}
+.roster-group-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);padding:8px 2px 5px}
+.roster-group{display:flex;flex-direction:column;gap:8px;margin-bottom:4px}
 .pill{font-size:10px;font-weight:500;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:var(--ease);white-space:nowrap}
 .pill:hover{color:var(--text);background:rgba(255,255,255,0.03)}
 .pill.active{background:var(--accent-faint);color:var(--accent);border-color:rgba(0,245,212,0.2)}
@@ -531,22 +537,36 @@ header{height:54px;padding:0 20px;display:flex;align-items:center;justify-conten
         <span class="pill" :class="{active: filter==='review'}" @click="filter='review'">In Review</span>
         <span class="pill" :class="{active: filter==='overdue'}" @click="filter='overdue'">Overdue</span>
       </div>
+      <div class="group-by-row">
+        <label for="roster-group-by">Group by</label>
+        <select id="roster-group-by" x-model="groupBy">
+          <option value="none">None</option>
+          <option value="location">Location</option>
+          <option value="landlord">Landlord</option>
+          <option value="landlordAgent">Landlord Agent</option>
+        </select>
+      </div>
       <div class="scrollable gap-12" style="gap:8px">
-        <template x-for="client in filteredClients" :key="client.id">
-          <div class="client-card" :class="{sel: selectedClient && selectedClient.id === client.id}" @click="viewClient(client)">
-            <div class="row" style="justify-content:space-between">
-              <div class="cc-name" x-text="client.name"></div>
-              <span class="badge" :class="{
-                'badge-green': client.status==='active',
-                'badge-amber': client.status==='review',
-                'badge-red': client.status==='overdue'
-              }" x-text="statusLabel(client.status)"></span>
-            </div>
-            <div class="cc-loc" x-text="client.location + ' · ' + client.leases + ' lease' + (client.leases===1?'':'s')"></div>
-            <div class="cc-foot">
-              <span style="font-size:10px;color:var(--muted)">Recovered</span>
-              <span class="savings-val" x-text="'$' + client.savings.toLocaleString()"></span>
-            </div>
+        <template x-for="group in groupedClients" :key="group.label || 'all'">
+          <div class="roster-group">
+            <div class="roster-group-label" x-show="group.label" x-text="group.label + ' (' + group.items.length + ')'"></div>
+            <template x-for="client in group.items" :key="client.id">
+              <div class="client-card" :class="{sel: selectedClient && selectedClient.id === client.id}" @click="viewClient(client)">
+                <div class="row" style="justify-content:space-between">
+                  <div class="cc-name" x-text="client.name"></div>
+                  <span class="badge" :class="{
+                    'badge-green': client.status==='active',
+                    'badge-amber': client.status==='review',
+                    'badge-red': client.status==='overdue'
+                  }" x-text="statusLabel(client.status)"></span>
+                </div>
+                <div class="cc-loc" x-text="client.location + ' · ' + client.leases + ' lease' + (client.leases===1?'':'s')"></div>
+                <div class="cc-foot">
+                  <span style="font-size:10px;color:var(--muted)">Recovered</span>
+                  <span class="savings-val" x-text="'$' + client.savings.toLocaleString()"></span>
+                </div>
+              </div>
+            </template>
           </div>
         </template>
         <div x-show="filteredClients.length === 0" style="text-align:center;color:var(--muted);font-size:11px;padding:20px 0">
@@ -599,18 +619,6 @@ header{height:54px;padding:0 20px;display:flex;align-items:center;justify-conten
             </div>
           </div>
 
-          <!-- Stepper -->
-          <div class="card-title" style="margin-bottom:8px">🧭 Service Journey</div>
-          <div class="stepper">
-            <div class="step done"><div class="step-dot">✓</div> Health Check</div>
-            <span class="step-arrow">→</span>
-            <div class="step" :class="selectedClient.status==='overdue' ? 'cur' : 'done'"><div class="step-dot" x-text="selectedClient.status==='overdue' ? '2' : '✓'"></div> HoA Review</div>
-            <span class="step-arrow">→</span>
-            <div class="step" :class="selectedClient.status==='review' ? 'cur' : (selectedClient.status==='active' ? 'done' : '')"><div class="step-dot" x-text="selectedClient.status==='active' ? '✓' : '3'"></div> Full Audit</div>
-            <span class="step-arrow">→</span>
-            <div class="step" :class="selectedClient.status==='active' ? 'cur' : ''"><div class="step-dot">4</div> Monitoring</div>
-          </div>
-
           <!-- HUD -->
           <div class="hud">
             <div class="dial-wrap">
@@ -644,6 +652,43 @@ header{height:54px;padding:0 20px;display:flex;align-items:center;justify-conten
                 <div class="hud-bv" x-text="selectedClient.leases"></div>
               </div>
             </div>
+          </div>
+
+          <!-- Stepper -->
+          <div class="card-title" style="margin-bottom:8px">🧭 Service Journey</div>
+          <div class="stepper">
+            <div class="step done"><div class="step-dot">✓</div> Health Check</div>
+            <span class="step-arrow">→</span>
+            <div class="step" :class="selectedClient.status==='overdue' ? 'cur' : 'done'"><div class="step-dot" x-text="selectedClient.status==='overdue' ? '2' : '✓'"></div> HoA Review</div>
+            <span class="step-arrow">→</span>
+            <div class="step" :class="selectedClient.status==='review' ? 'cur' : (selectedClient.status==='active' ? 'done' : '')"><div class="step-dot" x-text="selectedClient.status==='active' ? '✓' : '3'"></div> Full Audit</div>
+            <span class="step-arrow">→</span>
+            <div class="step" :class="selectedClient.status==='active' ? 'cur' : ''"><div class="step-dot">4</div> Monitoring</div>
+          </div>
+
+          <!-- Recommended Next Steps -->
+          <div class="card-title">🎯 Recommended Next Steps</div>
+          <div class="gap-12" style="gap:8px">
+            <template x-for="rec in recommendedActionsFor(selectedClient)" :key="rec.action">
+              <div class="feed-item" style="align-items:center;justify-content:space-between;cursor:pointer" @click="runRecommendedAction(rec.action, selectedClient)">
+                <div class="row" style="gap:8px">
+                  <span style="font-size:16px" x-text="rec.icon"></span>
+                  <div>
+                    <div class="feed-msg" style="font-weight:700" x-text="rec.label"></div>
+                    <div class="feed-time" x-text="rec.desc"></div>
+                  </div>
+                </div>
+                <button class="btn btn-sm" :class="rec.primary ? 'btn-primary' : 'btn-outline'" @click.stop="runRecommendedAction(rec.action, selectedClient)" x-text="rec.primary ? 'Run' : 'Go'"></button>
+              </div>
+            </template>
+          </div>
+
+          <!-- Quick Upload Outgoings -->
+          <div class="card-title">📤 Upload Outgoings Statement</div>
+          <div class="dropzone" @click="uploadOutgoings(selectedClient)">
+            <div style="font-size:22px;margin-bottom:4px" x-text="selectedClient.outgoingsUploaded ? '✅' : '📥'"></div>
+            <div style="font-size:11px;font-weight:600" x-text="selectedClient.outgoingsUploaded ? 'Outgoings statement received' : 'Drop outgoings statement or click to upload'"></div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px" x-text="'For ' + selectedClient.name + ' — feeds CPI & outgoings reconciliation checks'"></div>
           </div>
 
           <!-- Recent Audits for this client -->
@@ -2069,6 +2114,7 @@ function partnerApp() {
     tab: 'cmd',
     filter: 'all',
     search: '',
+    groupBy: 'none',
     userMenu: false,
     mode: 'dev',
 
@@ -2103,11 +2149,11 @@ function partnerApp() {
 
     /* ── Demo/seed data (shown only in Dev mode) ── */
     seedClients: [
-      { id: 1, name: 'Smith Retail Pty Ltd',    location: 'Sydney CBD, NSW',    agent: 'Demo Partner', leases: 3, status: 'active',   savings: 12400 },
-      { id: 2, name: 'Green Bean Café Group',    location: 'Melbourne, VIC',     agent: 'Demo Partner', leases: 5, status: 'review',   savings: 8750  },
-      { id: 3, name: 'FastFit Gyms Australia',   location: 'Brisbane, QLD',      agent: 'Demo Partner', leases: 8, status: 'active',   savings: 31200 },
-      { id: 4, name: 'Corner Pharmacy Network',  location: 'Perth, WA',          agent: 'Demo Partner', leases: 2, status: 'overdue',  savings: 0     },
-      { id: 5, name: 'Harbour View Dental',      location: 'North Sydney, NSW',  agent: 'Demo Partner', leases: 1, status: 'active',   savings: 4100  },
+      { id: 1, name: 'Smith Retail Pty Ltd',    location: 'Sydney CBD, NSW',    agent: 'Demo Partner', leases: 3, status: 'active',   savings: 12400, landlord: 'Dexus Property Group', landlordAgent: 'CBRE — Sydney CBD' },
+      { id: 2, name: 'Green Bean Café Group',    location: 'Melbourne, VIC',     agent: 'Demo Partner', leases: 5, status: 'review',   savings: 8750,  landlord: 'Vicinity Centres',      landlordAgent: 'Colliers — Melbourne Retail' },
+      { id: 3, name: 'FastFit Gyms Australia',   location: 'Brisbane, QLD',      agent: 'Demo Partner', leases: 8, status: 'active',   savings: 31200, landlord: 'GPT Group',              landlordAgent: 'JLL — Brisbane' },
+      { id: 4, name: 'Corner Pharmacy Network',  location: 'Perth, WA',          agent: 'Demo Partner', leases: 2, status: 'overdue',  savings: 0,     landlord: 'Hawaiian Group',         landlordAgent: 'Knight Frank — Perth' },
+      { id: 5, name: 'Harbour View Dental',      location: 'North Sydney, NSW',  agent: 'Demo Partner', leases: 1, status: 'active',   savings: 4100,  landlord: 'Mirvac',                 landlordAgent: 'CBRE — North Sydney' },
     ],
 
     seedRecentAudits: [
@@ -2237,6 +2283,17 @@ function partnerApp() {
         return matchFilter && matchSearch;
       });
     },
+    get groupedClients() {
+      if (this.groupBy === 'none') {
+        return [{ label: null, items: this.filteredClients }];
+      }
+      const groups = {};
+      this.filteredClients.forEach(c => {
+        const key = c[this.groupBy] || 'Unassigned';
+        (groups[key] = groups[key] || []).push(c);
+      });
+      return Object.keys(groups).sort().map(key => ({ label: key, items: groups[key] }));
+    },
     get filteredProductCount() {
       return this.PRODUCTS.filter(p => this.prodFilter === 'all' || p.status === this.prodFilter).length;
     },
@@ -2258,6 +2315,52 @@ function partnerApp() {
     runAudit(client) {
       this.selectedClient = client;
       this.openAuditOverlay();
+    },
+
+    uploadOutgoings(client) {
+      if (!client) return;
+      client.outgoingsUploaded = true;
+      this.activityFeed.unshift({ color: 'blue', msg: 'Outgoings statement uploaded for <strong>' + client.name + '</strong> — queued for reconciliation', time: 'Just now' });
+    },
+
+    recommendedActionsFor(client) {
+      if (!client) return [];
+      const map = {
+        overdue: [
+          { action: 'audit',  icon: '🔍', label: 'Run Full Lease Audit',          desc: 'Day 1 · $399, includes 12mo monitoring', primary: true },
+          { action: 'hoa',    icon: '📋', label: 'Book HoA Pre-Signing Review',    desc: 'Day 0 · $199 — flag risks before renewal' },
+        ],
+        review: [
+          { action: 'letter', icon: '✉️', label: 'Generate Dispute Letter',        desc: 'Draft a negotiation letter for flagged clauses', primary: true },
+          { action: 'audit',  icon: '🔁', label: 'Re-run Audit After Response',    desc: 'Refresh findings once landlord replies' },
+        ],
+        active: [
+          { action: 'eofy',    icon: '📊', label: 'Run EOFY Outgoings Reconciliation', desc: 'Annual outgoings audit · $549', primary: true },
+          { action: 'monitor', icon: '🛡️', label: 'Review Monitoring & Billing Guard', desc: 'Confirm Day 2+ monitoring is active' },
+        ],
+        inactive: [
+          { action: 'healthcheck', icon: '🩺', label: 'Run Free Health Check',     desc: 'Re-engage with a no-cost lease scan', primary: true },
+          { action: 'reengage',    icon: '👋', label: 'Send Re-engagement Note',   desc: 'Log an outreach activity for this client' },
+        ],
+      };
+      return map[client.status] || map.active;
+    },
+
+    runRecommendedAction(action, client) {
+      if (!client) return;
+      if (action === 'audit' || action === 'hoa' || action === 'eofy' || action === 'healthcheck') {
+        this.runAudit(client);
+        return;
+      }
+      if (action === 'letter') {
+        this.openLetterModal();
+        return;
+      }
+      const labels = {
+        monitor:  'Monitoring & Billing Guard reviewed for',
+        reengage: 'Re-engagement note logged for',
+      };
+      this.activityFeed.unshift({ color: 'blue', msg: (labels[action] || 'Action recorded for') + ' <strong>' + client.name + '</strong>', time: 'Just now' });
     },
 
     openAuditOverlay() {
@@ -2301,6 +2404,8 @@ function partnerApp() {
         leases: 1,
         status: 'overdue',
         savings: 0,
+        landlord: 'Unassigned',
+        landlordAgent: 'Unassigned',
       };
       this.clients.push(newClient);
       this.activityFeed.unshift({ color: 'blue', msg: 'New client <strong>' + newClient.name + '</strong> onboarded', time: 'Just now' });

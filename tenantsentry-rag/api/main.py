@@ -232,16 +232,23 @@ def require_admin(
       - Authorization: Bearer <token>  (API calls)
       - X-Admin-Token: <token>         (browser fetch with custom header)
       - Cookie: admin_token=<token>    (portal page after login)
+
+    TEMP (2026-06-12): password gate disabled for the admin + auditor portals
+    per Garry's request, "for now". Both portals' login screens key off the
+    success of an admin-only endpoint, so leaving this as a no-op makes them
+    open straight to the dashboard without a token.
+    To re-enable, restore the token-check block below.
     """
-    token = None
-    if credentials:
-        token = credentials.credentials
-    if not token:
-        token = request.headers.get("X-Admin-Token")
-    if not token:
-        token = request.cookies.get("admin_token")
-    if token != ADMIN_TOKEN:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    return
+    # token = None
+    # if credentials:
+    #     token = credentials.credentials
+    # if not token:
+    #     token = request.headers.get("X-Admin-Token")
+    # if not token:
+    #     token = request.cookies.get("admin_token")
+    # if token != ADMIN_TOKEN:
+    #     raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 # ── Partner auth ──────────────────────────────────────────────────────────────
@@ -2353,10 +2360,21 @@ async def admin_queue(_: None = Depends(require_admin)):
     """
     from db.audit_run_store import fetch_failed
     source = "dev" if is_dev() else "live"
-    failed_rows = fetch_failed(source=source) if _USE_SUPABASE else [
-        j.to_dict() for j in _jobs_fallback.values()
-        if j.status.value == "failed" and j.source == source
-    ]
+    failed_rows = []
+    if _USE_SUPABASE:
+        try:
+            failed_rows = fetch_failed(source=source)
+        except Exception as e:
+            logger.error(f"/api/admin/queue: fetch_failed failed, using fallback: {e}")
+            failed_rows = [
+                j.to_dict() for j in _jobs_fallback.values()
+                if j.status.value == "failed" and j.source == source
+            ]
+    else:
+        failed_rows = [
+            j.to_dict() for j in _jobs_fallback.values()
+            if j.status.value == "failed" and j.source == source
+        ]
     return JSONResponse({
         "pending": [j.to_dict() for j in list_pending_review()],
         "reviewed": [j.to_dict() for j in list_reviewed()],
