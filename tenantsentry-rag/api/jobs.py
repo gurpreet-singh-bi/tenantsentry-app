@@ -113,6 +113,9 @@ class Job:
         applicable_statute: Optional[str] = None,
         statute_code: Optional[str] = None,
         is_retail_lease: Optional[bool] = None,
+        # F-PARTNER-LIVE: channel partner attribution
+        partner_id: Optional[str] = None,
+        client_org_id: Optional[str] = None,
     ):
         self.job_id = job_id
         self.filename = filename
@@ -140,6 +143,9 @@ class Job:
         self.applicable_statute = applicable_statute
         self.statute_code = statute_code
         self.is_retail_lease = is_retail_lease
+        # F-PARTNER-LIVE
+        self.partner_id = partner_id
+        self.client_org_id = client_org_id
 
     @classmethod
     def from_row(cls, row: dict, result: Optional[dict] = None) -> "Job":
@@ -171,6 +177,9 @@ class Job:
             applicable_statute=row.get("applicable_statute"),
             statute_code=row.get("statute_code"),
             is_retail_lease=row.get("is_retail_lease"),
+            # F-PARTNER-LIVE
+            partner_id=row.get("partner_id"),
+            client_org_id=row.get("client_org_id"),
         )
 
     def to_dict(self) -> dict:
@@ -200,6 +209,9 @@ class Job:
             "applicable_statute": self.applicable_statute,
             "statute_code": self.statute_code,
             "is_retail_lease": self.is_retail_lease,
+            # F-PARTNER-LIVE: channel partner attribution
+            "partner_id": self.partner_id,
+            "client_org_id": self.client_org_id,
             # result/findings is large — only included in dedicated result endpoint
         }
 
@@ -233,6 +245,9 @@ def create_job(
     applicable_statute: Optional[str] = None,
     statute_code: Optional[str] = None,
     is_retail_lease: Optional[bool] = None,
+    # F-PARTNER-LIVE: channel partner attribution
+    partner_id: Optional[str] = None,
+    client_org_id: Optional[str] = None,
 ) -> Job:
     job_id = str(uuid.uuid4())
     source = _current_source()
@@ -248,6 +263,8 @@ def create_job(
         applicable_statute=applicable_statute,
         statute_code=statute_code,
         is_retail_lease=is_retail_lease,
+        partner_id=partner_id,
+        client_org_id=client_org_id,
     )
     # Always write to fallback first so we never lose the job on a Supabase error
     _jobs_fallback[job_id] = job
@@ -258,6 +275,7 @@ def create_job(
                 premises_use=premises_use, entity_type=entity_type, gla_sqm=gla_sqm,
                 applicable_statute=applicable_statute, statute_code=statute_code,
                 is_retail_lease=is_retail_lease,
+                partner_id=partner_id, client_org_id=client_org_id,
             )
         except Exception as e:
             logger.error(f"[{job_id}] Supabase insert failed, using in-memory: {e}")
@@ -540,6 +558,30 @@ def list_reviewed() -> list[Job]:
         key=lambda j: j.reviewed_at or "",
         reverse=True,
     )
+
+
+def list_for_partner(partner_id: str, limit: int = 20) -> list[Job]:
+    """
+    F-PARTNER-LIVE: Return the most recent jobs submitted by this channel partner,
+    newest first, for the current mode (dev/live). Backs /api/partners/audits so
+    the Partner Portal's "Recent Audits" panel reflects real, live job state
+    (including in-progress jobs) rather than static seed data.
+    """
+    source = _current_source()
+    if _supabase_ok():
+        try:
+            return [
+                Job.from_row(r)
+                for r in _store.fetch_recent_for_partner(partner_id, source=source, limit=limit)
+            ]
+        except Exception as e:
+            logger.error(f"Supabase list_for_partner failed, using fallback: {e}")
+    return sorted(
+        [j for j in _jobs_fallback.values()
+         if j.partner_id == partner_id and j.source == source],
+        key=lambda j: j.created_at or "",
+        reverse=True,
+    )[:limit]
 
 
 # ── Uploaded-doc metadata (multi-doc support) ────────────────────────────────

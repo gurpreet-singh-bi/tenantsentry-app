@@ -76,6 +76,9 @@ def insert_job(
     applicable_statute: Optional[str] = None,
     statute_code: Optional[str] = None,
     is_retail_lease: Optional[bool] = None,
+    # F-PARTNER-LIVE: channel partner attribution
+    partner_id: Optional[str] = None,
+    client_org_id: Optional[str] = None,
 ) -> dict:
     """INSERT a new queued job row. Returns the inserted row."""
     row = {
@@ -101,8 +104,26 @@ def insert_job(
         row["statute_code"] = statute_code
     if is_retail_lease is not None:
         row["is_retail_lease"] = is_retail_lease
-    result = _get_client().table("audit_run").insert(row).execute()
-    logger.debug(f"[{job_id}] Inserted audit_run row (source={source}, statute={statute_code})")
+    # F-PARTNER-LIVE: only set when provided — columns may not exist on older schemas
+    # (migration 010 adds them; insert still succeeds for tenant-direct audits without them)
+    if partner_id is not None:
+        row["partner_id"] = partner_id
+    if client_org_id is not None:
+        row["client_org_id"] = client_org_id
+    try:
+        result = _get_client().table("audit_run").insert(row).execute()
+    except Exception as e:
+        # Defensive fallback: if migration 010 hasn't run yet on this environment,
+        # the partner_id/client_org_id columns won't exist — retry without them
+        # so job creation never hard-fails on a missing optional column.
+        if ("partner_id" in row or "client_org_id" in row) and "column" in str(e).lower():
+            logger.warning(f"[{job_id}] audit_run insert failed with partner columns ({e}); retrying without them")
+            row.pop("partner_id", None)
+            row.pop("client_org_id", None)
+            result = _get_client().table("audit_run").insert(row).execute()
+        else:
+            raise
+    logger.debug(f"[{job_id}] Inserted audit_run row (source={source}, statute={statute_code}, partner={partner_id})")
     return result.data[0] if result.data else row
 
 
@@ -250,6 +271,27 @@ def fetch_all_recent(limit: int = 20, source: str = "live") -> list[dict]:
         _get_client()
         .table("audit_run")
         .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, error, created_at, completed_at, stage_costs, stage_timings, source")
+        .eq("source", source)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []
+
+
+def fetch_recent_for_partner(partner_id: str, source: str = "live", limit: int = 20) -> list[dict]:
+    """F-PARTNER-LIVE: SELECT the most recent jobs submitted by this channel
+    partner (audit_run.partner_id), newest first, for the given source
+    (dev/live). Backs /api/partners/audits — includes in-progress jobs so the
+    Partner Portal can show a live audit as it runs.
+    """
+    result = (
+        _get_client()
+        .table("audit_run")
+        .select("job_id, filename, jurisdiction, tenant_name, status, progress, stage, "
+                "error, created_at, completed_at, reviewed_by_human, released, "
+                "source, partner_id, client_org_id")
+        .eq("partner_id", partner_id)
         .eq("source", source)
         .order("created_at", desc=True)
         .limit(limit)

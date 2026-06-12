@@ -29,6 +29,7 @@ import hashlib
 import os
 import sys
 import tempfile
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -282,6 +283,51 @@ def require_partner(
         raise HTTPException(status_code=401, detail="Partner authentication required")
 
 
+# F-PARTNER-LIVE: seed channel_partner row from migration 005 ("Demo Partner Advisory").
+_DEMO_PARTNER_ID = "00000000-0000-0000-0000-000000000010"
+
+
+def get_current_partner_id(request: Request) -> Optional[str]:
+    """
+    F-PARTNER-LIVE: Resolve the channel_partner.partner_id for the current
+    partner session, without raising — returns None if no valid partner
+    session is present (used for "soft" attribution on /api/audit/submit,
+    which is also reachable by non-partner tenant flows).
+
+    TODO (F-PARTNER-AUTH): partner auth is currently a single shared
+    PARTNER_TOKEN with no per-user identity resolution (see require_partner
+    above). Until that's replaced with real per-user Supabase auth, every
+    valid partner session resolves to the seed "Demo Partner Advisory"
+    (migration 005, partner_id={_DEMO_PARTNER_ID!r}). This is the single
+    place to update once F-PARTNER-AUTH lands — every endpoint that needs
+    "the current partner" goes through this function.
+    """
+    token = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:]
+    if not token:
+        token = request.headers.get("X-Partner-Token")
+    if not token:
+        token = request.cookies.get("partner_token")
+    if not token or token != PARTNER_TOKEN:
+        return None
+    return _DEMO_PARTNER_ID
+
+
+def _as_uuid_or_none(value: str) -> Optional[str]:
+    """Return value if it looks like a UUID, else None. Used to validate
+    client_id sent from the partner overlay before persisting as
+    audit_run.client_org_id (DEV seed client ids are small ints, not UUIDs)."""
+    import uuid as _uuid
+    if not value:
+        return None
+    try:
+        return str(_uuid.UUID(value))
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Frontend routes
 # ══════════════════════════════════════════════════════════════════════════════
@@ -385,13 +431,20 @@ async def partner_logout():
     return response
 
 
+# F-PARTNER-LIVE: revenue share percentage paid to channel partners.
+# TODO: confirm against the channel-partner commercial terms — using the
+# same 3% the frontend's revenueShare getter already falls back to.
+PARTNER_REVENUE_SHARE_PCT = 0.03
+
+
 @app.get("/api/partners/clients")
-async def partner_clients(_: None = Depends(require_partner)):
+async def partner_clients(request: Request, _: None = Depends(require_partner)):
     """
     Return the list of tenant clients managed by this partner.
 
     DEV mode:  returns seed data from migration 005.
-    LIVE mode: queries partner_client + organisation tables for this partner_id.
+    LIVE mode: queries partner_client + organisation (+ lease, audit_run)
+               tables for this partner's partner_id.
     """
     if is_dev():
         return JSONResponse({"clients": [
@@ -401,12 +454,68 @@ async def partner_clients(_: None = Depends(require_partner)):
             {"id": "4", "name": "Corner Pharmacy Network","location": "Perth, WA",           "leases": 2, "status": "overdue",  "savings": 0    },
             {"id": "5", "name": "Harbour View Dental",    "location": "North Sydney, NSW",  "leases": 1, "status": "active",   "savings": 4100 },
         ]})
-    # TODO (F-PARTNER-CLIENTS): query Supabase partner_client table
-    raise HTTPException(status_code=501, detail="Live partner clients API not yet implemented")
+
+    partner_id = get_current_partner_id(request)
+    if not partner_id:
+        return JSONResponse({"clients": []})
+
+    try:
+        from db.audit_run_store import _get_client
+        sb = _get_client()
+        pc_res = (
+            sb.table("partner_client")
+            .select("org_id, status, organisation(name)")
+            .eq("partner_id", partner_id)
+            .execute()
+        )
+        clients = []
+        _status_map = {"active": "active", "inactive": "review", "churned": "overdue"}
+        for row in (pc_res.data or []):
+            org_id = row.get("org_id")
+            org = row.get("organisation") or {}
+            name = org.get("name") if isinstance(org, dict) else None
+
+            # Lease count + a representative location (first lease's address/state)
+            leases_res = (
+                sb.table("lease")
+                .select("property_address, property_state", count="exact")
+                .eq("org_id", org_id)
+                .execute()
+            )
+            lease_rows = leases_res.data or []
+            location = ""
+            if lease_rows:
+                first = lease_rows[0]
+                location = ", ".join(
+                    p for p in [first.get("property_address"), first.get("property_state")] if p
+                )
+
+            # Savings = sum of overcharge_amount across this client's audit_run rows
+            savings_res = (
+                sb.table("audit_run")
+                .select("overcharge_amount")
+                .eq("client_org_id", org_id)
+                .execute()
+            )
+            savings = sum(float(r.get("overcharge_amount") or 0) for r in (savings_res.data or []))
+
+            clients.append({
+                "id": org_id,
+                "name": name or "Unknown client",
+                "location": location,
+                "leases": leases_res.count if leases_res.count is not None else len(lease_rows),
+                "status": _status_map.get(row.get("status"), "active"),
+                "savings": round(savings, 2),
+            })
+        return JSONResponse({"clients": clients})
+    except Exception as e:
+        logger.error(f"Live /api/partners/clients query failed: {e}")
+        # Graceful fallback — empty state rather than a 500, per dual-mode contract
+        return JSONResponse({"clients": []})
 
 
 @app.get("/api/partners/stats")
-async def partner_stats(_: None = Depends(require_partner)):
+async def partner_stats(request: Request, _: None = Depends(require_partner)):
     """Aggregate stats for the partner dashboard header."""
     if is_dev():
         return JSONResponse({
@@ -415,7 +524,97 @@ async def partner_stats(_: None = Depends(require_partner)):
             "total_savings":   56450,
             "revenue_share":   1694,
         })
-    raise HTTPException(status_code=501, detail="Live partner stats API not yet implemented")
+
+    partner_id = get_current_partner_id(request)
+    if not partner_id:
+        return JSONResponse({"total_clients": 0, "active_audits": 0, "total_savings": 0, "revenue_share": 0})
+
+    try:
+        from db.audit_run_store import _get_client
+        sb = _get_client()
+
+        clients_res = (
+            sb.table("partner_client").select("org_id", count="exact").eq("partner_id", partner_id).execute()
+        )
+        total_clients = clients_res.count if clients_res.count is not None else len(clients_res.data or [])
+
+        active_res = (
+            sb.table("audit_run")
+            .select("job_id", count="exact")
+            .eq("partner_id", partner_id)
+            .in_("status", ["queued", "processing"])
+            .execute()
+        )
+        active_audits = active_res.count if active_res.count is not None else len(active_res.data or [])
+
+        complete_res = (
+            sb.table("audit_run")
+            .select("overcharge_amount")
+            .eq("partner_id", partner_id)
+            .eq("status", "complete")
+            .execute()
+        )
+        total_savings = sum(float(r.get("overcharge_amount") or 0) for r in (complete_res.data or []))
+
+        return JSONResponse({
+            "total_clients": total_clients,
+            "active_audits": active_audits,
+            "total_savings": round(total_savings, 2),
+            "revenue_share": round(total_savings * PARTNER_REVENUE_SHARE_PCT, 2),
+        })
+    except Exception as e:
+        logger.error(f"Live /api/partners/stats query failed: {e}")
+        return JSONResponse({"total_clients": 0, "active_audits": 0, "total_savings": 0, "revenue_share": 0})
+
+
+@app.get("/api/partners/audits")
+async def partner_audits(request: Request, limit: int = 20, _: None = Depends(require_partner)):
+    """
+    F-PARTNER-LIVE: Return this partner's recent audit jobs (including
+    in-progress ones), newest first — backs the Partner Portal's
+    "Recent Audits" panel (liveRecentAudits) so a just-submitted audit
+    shows up live, with its real job_id for the report drawer/downloads.
+
+    Works in both DEV and LIVE — DEV jobs created via the partner overlay
+    are tagged with the same demo partner_id, so this reflects real
+    in-memory job state during a DEV demo too.
+    """
+    partner_id = get_current_partner_id(request)
+    if not partner_id:
+        return JSONResponse({"audits": []})
+
+    from api.jobs import list_for_partner
+    jobs = list_for_partner(partner_id, limit=limit)
+
+    _status_map = {
+        "queued": "active",
+        "processing": "active",
+        "complete": "review",
+        "failed": "inactive",
+    }
+
+    audits = []
+    for job in jobs:
+        status = _status_map.get(job.status.value, "active")
+        if job.status.value == "complete" and job.reviewed_by_human:
+            status = "active" if job.released else "review"
+        date_str = ""
+        if job.created_at:
+            try:
+                date_str = datetime.fromisoformat(job.created_at).strftime("%-d %b %Y")
+            except ValueError:
+                date_str = job.created_at[:10]
+        audits.append({
+            "id": job.job_id,
+            "job_id": job.job_id,
+            "client": job.tenant_name or "Unknown client",
+            "property": job.filename,
+            "status": status,
+            "progress": job.progress,
+            "stage": job.stage,
+            "date": date_str,
+        })
+    return JSONResponse({"audits": audits})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -612,6 +811,7 @@ VALID_IMG_EXTS  = {".pdf", ".png", ".jpg", ".jpeg"}
 
 @app.post("/api/audit/submit")
 async def submit_audit(
+    request: Request,
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(..., description="Lease PDF plus any supporting documents"),
     doc_types: list[str] = Form(..., description="Doc type per file: lease|outgoings|invoice|gl_detail|amendment|other"),
@@ -622,6 +822,8 @@ async def submit_audit(
     premises_use: str = Form("", description="retail|office|industrial|mixed|other — auto-detected if blank"),
     entity_type: str = Form("", description="individual|company|trust|government — auto-detected if blank"),
     gla_sqm: Optional[float] = Form(None, description="Gross lettable area in sqm — auto-detected if blank"),
+    # F-PARTNER-LIVE: optional client attribution when submitted via the Partner Portal
+    client_id: str = Form("", description="Client org_id, if submitted via the Partner Portal 'Run Audit' flow"),
 ):
     """
     Submit one or more documents for async audit.
@@ -738,6 +940,12 @@ async def submit_audit(
         f"jurisdiction={jur} | hash={document_hash[:12]}…"
     )
 
+    # F-PARTNER-LIVE: attribute this job to the submitting channel partner (if any)
+    # and the client org selected in the Partner Portal "Run Audit" overlay (if any).
+    # Both are soft/optional — tenant-direct submissions have neither.
+    _partner_id = get_current_partner_id(request)
+    _client_org_id = _as_uuid_or_none(client_id.strip())
+
     job = create_job(
         filename=lease_data["filename"],
         jurisdiction=jur or "",       # empty if auto-detection deferred to pipeline
@@ -750,7 +958,11 @@ async def submit_audit(
         applicable_statute=_classification.applicable_statute if _classification else None,
         statute_code=_classification.statute_code if _classification else None,
         is_retail_lease=_classification.is_retail if _classification else None,
+        partner_id=_partner_id,
+        client_org_id=_client_org_id,
     )
+    if _partner_id:
+        logger.info(f"Job {job.job_id} attributed to partner={_partner_id} client_org={_client_org_id}")
 
     # Register all uploaded doc metadata on the job immediately (visible in auditor portal)
     from api.jobs import store_uploaded_doc_meta

@@ -438,7 +438,7 @@ header{height:54px;padding:0 20px;display:flex;align-items:center;justify-conten
       <span class="mode-toggle-label" x-text="mode === 'dev' ? 'Dev' : 'Live'"></span>
     </div>
 
-    <button class="btn btn-primary btn-sm" @click="openAuditOverlay()">
+    <button class="btn btn-primary btn-sm" @click="selectedClient = null; openAuditOverlay()">
       <span>⬆</span> Upload Lease &amp; Audit
     </button>
 
@@ -680,7 +680,7 @@ header{height:54px;padding:0 20px;display:flex;align-items:center;justify-conten
       <!-- Upload -->
       <div class="glass">
         <div class="card-title">⬆ Quick Upload</div>
-        <div class="dropzone" @click="openAuditOverlay()">
+        <div class="dropzone" @click="selectedClient = null; openAuditOverlay()">
           <div style="font-size:24px;margin-bottom:4px">📄</div>
           <div style="font-size:11px;font-weight:600">Drop a lease PDF or click to upload</div>
           <div style="font-size:9px;color:var(--muted);margin-top:2px">Starts a new audit in the workspace</div>
@@ -1485,7 +1485,7 @@ header{height:54px;padding:0 20px;display:flex;align-items:center;justify-conten
       <button @click="closeAuditOverlay()" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:var(--font)">✕ Close</button>
     </div>
     <!-- iframe -->
-    <iframe :src="auditOverlayOpen ? '/audit' : ''" style="flex:1;border:none;width:100%;background:#050814" allowfullscreen></iframe>
+    <iframe :src="auditOverlayOpen ? ('/audit' + (selectedClient && selectedClient.id ? '?client_id=' + encodeURIComponent(selectedClient.id) : '')) : ''" style="flex:1;border:none;width:100%;background:#050814" allowfullscreen></iframe>
   </div>
 </div>
 
@@ -2189,13 +2189,19 @@ function partnerApp() {
       return this.mode === 'live' ? this.liveClients : this.seedClients;
     },
     get recentAudits() {
-      return this.mode === 'live' ? this.liveRecentAudits : this.seedRecentAudits;
+      // Once a real audit has been submitted (DEV or LIVE), show live job
+      // data — including in-progress jobs — instead of the static seed list.
+      if (this.liveRecentAudits.length) return this.liveRecentAudits;
+      return this.mode === 'live' ? [] : this.seedRecentAudits;
     },
     get pendingReviewList() {
       return this.mode === 'live' ? this.livePendingReviewList : this.seedPendingReviewList;
     },
     get activityFeed() {
-      return this.mode === 'live' ? this.liveActivityFeed : this.seedActivityFeed;
+      // Live audit events (from the postMessage bridge) are prepended ahead of
+      // the seed feed in Dev mode so a just-run demo audit is visible immediately.
+      if (this.mode === 'live') return this.liveActivityFeed;
+      return [...this.liveActivityFeed, ...this.seedActivityFeed];
     },
     get stats() {
       return this.mode === 'live' ? this.liveStats : null;
@@ -2310,6 +2316,16 @@ function partnerApp() {
       }
     },
 
+    async loadRecentAudits() {
+      try {
+        const res = await fetch('/api/partners/audits');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.audits)) this.liveRecentAudits = data.audits;
+        }
+      } catch (_) { /* liveRecentAudits stays as-is — seed data still shows in Dev mode */ }
+    },
+
     async init() {
       try {
         const res  = await fetch('/api/mode');
@@ -2321,7 +2337,7 @@ function partnerApp() {
         const res  = await fetch('/api/partners/clients');
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data)) this.liveClients = data;
+          if (Array.isArray(data?.clients)) this.liveClients = data.clients;
         }
       } catch (_) { /* liveClients stays empty — Live mode shows empty state */ }
 
@@ -2331,6 +2347,51 @@ function partnerApp() {
           this.liveStats = await res.json();
         }
       } catch (_) { /* liveStats stays null — live getters fall back to 0 */ }
+
+      await this.loadRecentAudits();
+
+      // ── Partner Portal handoff: receive job lifecycle events from the
+      // /audit iframe (audit overlay) via postMessage. See audit.html
+      // _notifyParent(). Lets the partner see an audit go live and the
+      // report land, without leaving the dashboard.
+      window.addEventListener('message', (e) => {
+        if (e.origin !== window.location.origin) return;
+        const msg = e.data;
+        if (!msg || msg.source !== 'tenantsentry-audit') return;
+
+        const clientName = this.selectedClient?.name || 'New submission';
+        const today = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        if (msg.type === 'tenantsentry:audit-submitted') {
+          this.liveRecentAudits = [
+            { id: msg.job_id, job_id: msg.job_id, client: clientName, property: msg.filename || '', status: 'active', progress: 0, stage: 'Queued', date: today },
+            ...this.liveRecentAudits.filter(a => a.job_id !== msg.job_id),
+          ];
+          this.liveActivityFeed.unshift({ color: 'blue', msg: `Audit started for <strong>${clientName}</strong>`, time: 'Just now' });
+        } else if (msg.type === 'tenantsentry:audit-complete') {
+          this.liveActivityFeed.unshift({ color: 'green', msg: `Audit completed for <strong>${clientName}</strong> — report ready for review`, time: 'Just now' });
+          // Refresh from the server so status/savings reflect the persisted result.
+          this.loadRecentAudits();
+          this.refreshStats();
+        } else if (msg.type === 'tenantsentry:audit-failed') {
+          this.liveActivityFeed.unshift({ color: 'amber', msg: `Audit failed for <strong>${clientName}</strong>: ${msg.error || 'unknown error'}`, time: 'Just now' });
+          this.loadRecentAudits();
+        }
+      });
+    },
+
+    async refreshStats() {
+      try {
+        const res = await fetch('/api/partners/stats');
+        if (res.ok) this.liveStats = await res.json();
+      } catch (_) {}
+      try {
+        const res = await fetch('/api/partners/clients');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data?.clients)) this.liveClients = data.clients;
+        }
+      } catch (_) {}
     },
   };
 }

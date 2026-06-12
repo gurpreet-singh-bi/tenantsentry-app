@@ -2327,6 +2327,18 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
 
   // ── WARNING TOAST SYSTEM ─────────────────────────────────────────────────────
   // Subtle, non-blocking warnings shown in a fixed strip above the audit engine.
+  // ── PARTNER PORTAL HANDOFF ────────────────────────────────────────────────────
+  // When this page is loaded inside the partner overlay iframe
+  // (partners_dashboard.html), notify the parent window of job lifecycle
+  // events via postMessage so the partner can see the in-progress audit and
+  // receive the report when it's done. No-op (and safe) when loaded standalone.
+  function _notifyParent(type, payload) {
+    if (window.parent === window) return; // not embedded in an iframe
+    try {
+      window.parent.postMessage({ source: 'tenantsentry-audit', type, ...payload }, window.location.origin);
+    } catch (_) { /* cross-origin or unavailable — non-fatal */ }
+  }
+
   // Never blocks the user; always dismissable. Used for: doc type issues,
   // engine gaps, data quality problems, partial results.
   const _activeWarnings = new Set();
@@ -2378,6 +2390,12 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
       });
       // No manual jurisdiction/premises fields — all auto-detected from the lease by the pipeline
 
+      // Partner Portal handoff: when this page is loaded inside the partner
+      // overlay iframe with ?client_id=<org_id>, attribute the audit to that
+      // client org (see partners_dashboard.html runAudit()).
+      const _clientId = new URLSearchParams(window.location.search).get('client_id');
+      if (_clientId) formData.append('client_id', _clientId);
+
       const res = await fetch('/api/audit/submit', { method: 'POST', body: formData });
       if (!res.ok) {
         const errText = await res.text();
@@ -2396,6 +2414,15 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
         const docList = extraDocs.map(f => `${f.file.name} (${f.docType})`).join(', ');
         showWarning('extra-docs', `Additional documents submitted for analysis: ${docList}. Results will appear in the reconciliation panel when ready.`, 'info');
       }
+
+      // Partner Portal handoff: notify the parent window (if embedded in an
+      // iframe, e.g. partners_dashboard.html's audit overlay) that a job has
+      // been submitted, so it can show the in-progress audit immediately.
+      _notifyParent('tenantsentry:audit-submitted', {
+        job_id: data.job_id,
+        filename: leaseFiles[0]?.file?.name || '',
+        client_id: _clientId || null,
+      });
 
       pollAuditJobStatus();
     } catch (e) {
@@ -2461,12 +2488,16 @@ html[data-theme="light"] .status-processing{ background: rgba(0,194,168,0.08) !i
           // Fetch final results and render real findings, then animate engine columns
           await _renderLiveResults(reviewJobId);
           if (!aeEngStarted) { aeEngStarted = true; aeRunEngine(0); }
+          // Partner Portal handoff: report is ready — parent can refresh its
+          // recent-audits list and show the result in the drawer.
+          _notifyParent('tenantsentry:audit-complete', { job_id: reviewJobId });
         }
         if (data.status === 'failed') {
           clearInterval(aeJobPollTimer);
           const errMsg = data.error || 'Unknown error';
           if (msgEl) msgEl.textContent = '✕ Audit failed: ' + errMsg;
           showWarning('audit-failed', 'Audit pipeline failed: ' + errMsg, 'error');
+          _notifyParent('tenantsentry:audit-failed', { job_id: reviewJobId, error: errMsg });
         }
       } catch (_) {}
     }, 3000);
