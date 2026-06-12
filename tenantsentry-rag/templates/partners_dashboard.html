@@ -1,828 +1,1497 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>
-(function(){
-  var t = localStorage.getItem('ts-theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', t);
-})();
-</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>TenantSentry.ai — Partner Portal</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<title>TenantSentry.ai — Channel Partner Portal</title>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* ═══════════════════════════════════════
-   THEME CUSTOM PROPERTIES
-═══════════════════════════════════════ */
 :root {
-  --ts-bg0:       #080f1c;
-  --ts-bg1:       #0f1e36;
-  --ts-bg1i:      #111c30;
-  --ts-bg2:       #162844;
-  --ts-bginput:   #0d1a2e;
-  --ts-border-s:  #1e2a3a;
-  --ts-text0:     #e0e6f0;
-  --ts-text1:     #cbd5e8;
-  --ts-text2:     #4a6a8a;
-  --ts-text3:     #8fa3bf;
-  --ts-text4:     #2a4a68;
-  --ts-border-rgba:   rgba(255,255,255,0.07);
-  --ts-border-subtle: rgba(255,255,255,0.04);
-  --ts-border-def:    rgba(255,255,255,0.10);
+  --bg: #050814;
+  --bg-panel: rgba(10,16,35,0.65);
+  --bg-panel-solid: #0b1123;
+  --border: rgba(255,255,255,0.05);
+  --border-active: rgba(255,255,255,0.12);
+  --teal: #00f5d4; --teal-dark: #00c2a8; --teal-glow: rgba(0,245,212,0.2); --teal-faint: rgba(0,245,212,0.04);
+  --purple: #d946ef; --purple-dark: #b53cd6; --purple-glow: rgba(217,70,239,0.2); --purple-faint: rgba(217,70,239,0.04);
+  --blue: #3b82f6; --blue-glow: rgba(59,130,246,0.2); --blue-faint: rgba(59,130,246,0.04);
+  --green: #10b981; --green-glow: rgba(16,185,129,0.2); --green-faint: rgba(16,185,129,0.04);
+  --amber: #f59e0b; --amber-glow: rgba(245,158,11,0.2); --amber-faint: rgba(245,158,11,0.04);
+  --red: #f43f5e; --red-glow: rgba(244,63,94,0.2); --red-faint: rgba(244,63,94,0.04);
+  --text: #f3f4f6; --muted: #94a3b8; --dark: #475569;
+  --font: 'Outfit',-apple-system,sans-serif; --mono: 'JetBrains Mono',monospace;
+  --r: 14px; --rs: 8px; --ease: all 0.22s cubic-bezier(0.4,0,0.2,1);
+  --accent: var(--teal); --accent-dark: var(--teal-dark); --accent-glow: var(--teal-glow); --accent-faint: var(--teal-faint);
+  --surface: var(--bg-panel-solid);
+
+  /* Audit drawer compatibility vars (mapped onto v2 dark palette) */
+  --ts-bg0: var(--bg);
+  --ts-bg1: var(--bg-panel-solid);
+  --ts-bg1i: #111c30;
+  --ts-bg2: rgba(255,255,255,0.025);
+  --ts-bginput: rgba(0,0,0,0.25);
+  --ts-border-s: var(--border);
+  --ts-text0: var(--text);
+  --ts-text1: var(--text);
+  --ts-text2: var(--muted);
+  --ts-text3: var(--muted);
+  --ts-text4: var(--dark);
+  --ts-border-rgba: var(--border);
+  --ts-border-subtle: var(--border);
+  --ts-border-def: var(--border-active);
   --ts-border-strong: rgba(255,255,255,0.18);
-  --ts-raised:        rgba(255,255,255,0.035);
-  --ts-scrollbar:     #1e2a3a;
-  --ts-scrollbar-bg:  #080f1c;
-  /* Indigo accent for partner portal */
-  --partner-500: #6366f1;
-  --partner-400: #818cf8;
-  --partner-300: #a5b4fc;
-  --partner-600: #4f46e5;
-  --partner-faint: rgba(99,102,241,0.07);
-  --partner-border: rgba(99,102,241,0.30);
+  --ts-raised: rgba(255,255,255,0.035);
+  --ts-scrollbar: rgba(255,255,255,0.08);
+  --ts-scrollbar-bg: var(--bg);
+  --partner-500: var(--teal);
+  --partner-400: var(--teal-dark);
+  --partner-300: var(--teal);
+  --partner-600: var(--teal-dark);
+  --partner-faint: var(--teal-faint);
+  --partner-border: rgba(0,245,212,0.3);
 }
-html[data-theme="light"] {
-  --ts-bg0:       #f0f4f8;
-  --ts-bg1:       #ffffff;
-  --ts-bg1i:      #f4f7fa;
-  --ts-bg2:       #eef2f7;
-  --ts-bginput:   #f4f7fa;
-  --ts-border-s:  #d1dae6;
-  --ts-text0:     #0f172a;
-  --ts-text1:     #1e293b;
-  --ts-text2:     #5a7394;
-  --ts-text3:     #64748b;
-  --ts-text4:     #94a3b8;
-  --ts-border-rgba:   rgba(0,0,0,0.08);
-  --ts-border-subtle: rgba(0,0,0,0.04);
-  --ts-border-def:    rgba(0,0,0,0.09);
-  --ts-border-strong: rgba(0,0,0,0.14);
-  --ts-raised:        rgba(0,0,0,0.02);
-}
-html[data-theme="light"] body { background: var(--ts-bg0) !important; color: var(--ts-text0) !important; }
-html[data-theme="light"] nav,
-html[data-theme="light"] .topbar { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .stat-card { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
-html[data-theme="light"] .client-row { border-color: rgba(0,0,0,0.05) !important; }
-html[data-theme="light"] .client-row:hover { background: rgba(0,0,0,0.02) !important; }
-html[data-theme="light"] .nav-link { color: #5a7394 !important; }
-html[data-theme="light"] .nav-link:hover { color: #4f46e5 !important; background: rgba(99,102,241,0.08) !important; }
-html[data-theme="light"] .nav-link.active { color: #4f46e5 !important; background: rgba(99,102,241,0.10) !important; }
-html[data-theme="light"] .sidebar { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;
+  background-image:radial-gradient(circle at 5% 15%,rgba(0,245,212,0.04) 0%,transparent 35%),radial-gradient(circle at 95% 85%,rgba(217,70,239,0.03) 0%,transparent 40%)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+[x-cloak]{display:none!important}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-  background: var(--ts-bg0); color: var(--ts-text0);
-  font-size: 14px; line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
+/* ── HEADER ── */
+header{height:54px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--border);background:rgba(5,8,20,0.9);z-index:20;flex-shrink:0;position:relative}
+.brand{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--teal),var(--blue));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#050814;box-shadow:0 0 14px rgba(0,245,212,0.3)}
+.brand-name{font-size:18px;font-weight:700;letter-spacing:-0.4px}.brand-name span{color:var(--accent)}
+.tier-pill{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;background:rgba(0,245,212,0.08);color:var(--teal);border:1px solid rgba(0,245,212,0.18)}
+.dev-pill{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;background:var(--amber-faint);color:var(--amber);border:1px solid rgba(245,158,11,0.2)}
 
-/* ═══════════════════════════════════════
-   LAYOUT
-═══════════════════════════════════════ */
-.app-layout { display: flex; height: 100vh; overflow: hidden; }
+/* ── DEV/LIVE MODE TOGGLE ── */
+.mode-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;padding:5px 10px;border-radius:var(--rs);border:1px solid rgba(245,158,11,0.2);background:var(--amber-faint);transition:var(--ease);flex-shrink:0}
+.mode-toggle:hover{filter:brightness(1.15)}
+.mode-toggle.is-live{border-color:rgba(16,185,129,0.2);background:var(--green-faint)}
+.mode-toggle-track{position:relative;width:28px;height:15px;border-radius:9px;background:rgba(245,158,11,0.25);transition:var(--ease);flex-shrink:0}
+.mode-toggle.is-live .mode-toggle-track{background:rgba(16,185,129,0.3)}
+.mode-toggle-thumb{position:absolute;top:1.5px;left:1.5px;width:12px;height:12px;border-radius:50%;background:var(--amber);transition:var(--ease);box-shadow:0 0 6px rgba(245,158,11,0.5)}
+.mode-toggle.is-live .mode-toggle-thumb{background:var(--green);transform:translateX(13px);box-shadow:0 0 6px rgba(16,185,129,0.5)}
+.mode-toggle-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--amber);white-space:nowrap}
+.mode-toggle.is-live .mode-toggle-label{color:var(--green)}
 
-/* ── SIDEBAR ── */
-.sidebar {
-  width: 240px; flex-shrink: 0;
-  background: var(--ts-bg1);
-  border-right: 1px solid var(--ts-border-rgba);
-  display: flex; flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-.sidebar-logo {
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid var(--ts-border-subtle);
-  display: flex; align-items: center; gap: 10px;
-}
-.sidebar-logo-mark {
-  width: 32px; height: 32px; border-radius: 8px;
-  background: linear-gradient(135deg, var(--partner-500), #3b82f6);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.3);
-}
-.sidebar-logo-name { font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
-.sidebar-logo-name span { color: var(--partner-400); }
-.sidebar-logo-sub { font-size: 10px; color: var(--ts-text2); font-weight: 500; }
+/* ── TAB NAV (secondary row) ── */
+.tab-nav{display:flex;align-items:center;gap:4px;padding:0 16px;height:44px;border-bottom:1px solid var(--border);background:rgba(8,12,28,0.55);overflow-x:auto;flex-shrink:0}
+.nav-btn{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid transparent;color:var(--muted);padding:7px 13px;border-radius:var(--rs);font-size:12px;font-weight:600;cursor:pointer;transition:var(--ease);font-family:var(--font);white-space:nowrap}
+.nav-btn .nav-icon{font-size:13px;line-height:1}
+.nav-btn:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+.nav-btn.active{color:var(--accent);background:var(--accent-faint);border-color:rgba(0,245,212,0.15)}
+.header-right{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.partner-chip{display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;position:relative;padding:4px 6px;border-radius:var(--rs);transition:var(--ease)}
+.partner-chip:hover{background:rgba(255,255,255,0.03)}
+.partner-info{text-align:right}.partner-name{font-weight:700;font-size:12px}.partner-sub{font-size:10px;color:var(--muted)}
+.avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--purple));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:1.5px solid rgba(255,255,255,0.1);flex-shrink:0}
 
-.sidebar-portal-badge {
-  margin: 12px 16px 0;
-  display: inline-flex; align-items: center; gap: 5px;
-  background: var(--partner-faint);
-  border: 1px solid var(--partner-border);
-  border-radius: 999px; padding: 3px 10px;
-  font-size: 10px; font-weight: 700;
-  color: var(--partner-400); letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
+/* ── STAT BAR ── */
+.stat-bar{height:52px;background:rgba(11,17,35,0.5);border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);flex-shrink:0}
+.stat-item{display:flex;align-items:center;gap:10px;padding:0 16px;border-right:1px solid var(--border)}
+.stat-item:last-child{border-right:none}
+.stat-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.si-teal{background:var(--teal-faint);color:var(--teal)}.si-purple{background:var(--purple-faint);color:var(--purple)}
+.si-blue{background:var(--blue-faint);color:var(--blue)}.si-green{background:var(--green-faint);color:var(--green)}.si-amber{background:var(--amber-faint);color:var(--amber)}
+.stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px}
+.stat-val{font-size:14px;font-weight:700;font-family:var(--mono)}
 
-.sidebar-section { padding: 16px 12px 8px; }
-.sidebar-section-label {
-  font-size: 10px; font-weight: 700;
-  color: var(--ts-text2); letter-spacing: 1px;
-  text-transform: uppercase; padding: 0 8px; margin-bottom: 6px;
-}
-.nav-link {
-  display: flex; align-items: center; gap: 9px;
-  padding: 8px 10px; border-radius: 8px;
-  color: var(--ts-text3); font-size: 13px; font-weight: 500;
-  cursor: pointer; transition: all 0.15s;
-  text-decoration: none; margin-bottom: 2px;
-  background: none; border: none; width: 100%; text-align: left;
-}
-.nav-link:hover { background: var(--partner-faint); color: var(--partner-400); }
-.nav-link.active { background: rgba(99,102,241,0.12); color: var(--partner-400); }
-.nav-link svg { flex-shrink: 0; opacity: 0.7; }
-.nav-link.active svg, .nav-link:hover svg { opacity: 1; }
-.nav-badge {
-  margin-left: auto; background: var(--partner-500);
-  color: #fff; border-radius: 999px;
-  padding: 1px 7px; font-size: 10px; font-weight: 700;
-}
+/* ── TAB CONTENT ── */
+.tab{display:none;flex:1;min-height:0;overflow:hidden}
+.tab.active{display:flex;flex-direction:column}
 
-.sidebar-user {
-  margin-top: auto;
-  padding: 12px 16px;
-  border-top: 1px solid var(--ts-border-subtle);
-  display: flex; align-items: center; gap: 10px;
-}
-.user-avatar {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--partner-600), #3b82f6);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
-}
-.user-info { flex: 1; min-width: 0; }
-.user-name { font-size: 13px; font-weight: 600; truncate; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.user-role { font-size: 10px; color: var(--ts-text2); }
-.user-menu-btn {
-  background: none; border: none; cursor: pointer;
-  color: var(--ts-text2); padding: 4px; border-radius: 4px;
-  transition: color 0.15s; display: flex;
-}
-.user-menu-btn:hover { color: var(--ts-text0); }
+/* ── SHARED CARD STYLES ── */
+.glass{background:var(--bg-panel);backdrop-filter:blur(18px);border:1px solid var(--border);border-radius:var(--r);padding:16px;transition:var(--ease)}
+.glass:hover{border-color:var(--border-active)}
+.card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;display:flex;align-items:center;gap:7px;margin-bottom:12px}
+.badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.4px}
+.badge-teal{background:var(--teal-faint);color:var(--teal);border:1px solid rgba(0,245,212,0.15)}
+.badge-purple{background:var(--purple-faint);color:var(--purple);border:1px solid rgba(217,70,239,0.15)}
+.badge-blue{background:var(--blue-faint);color:var(--blue);border:1px solid rgba(59,130,246,0.15)}
+.badge-green{background:var(--green-faint);color:var(--green);border:1px solid rgba(16,185,129,0.15)}
+.badge-amber{background:var(--amber-faint);color:var(--amber);border:1px solid rgba(245,158,11,0.15)}
+.badge-red{background:var(--red-faint);color:var(--red);border:1px solid rgba(244,63,94,0.15)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--rs);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:var(--ease);font-family:var(--font)}
+.btn-primary{background:var(--accent);color:#050814}.btn-primary:hover{background:var(--accent-dark);box-shadow:0 0 10px var(--accent-glow)}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:rgba(255,255,255,0.03);border-color:var(--border-active)}
+.btn-ghost{background:transparent;color:var(--muted);border:none;padding:5px 9px}.btn-ghost:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.form-input,.form-select{width:100%;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:var(--rs);padding:9px 11px;color:var(--text);font-size:12px;outline:none;font-family:var(--font)}
+.form-input:focus,.form-select:focus{border-color:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
+.form-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px}
+.scrollable{overflow-y:auto;flex:1;min-height:0}
+.gap-12{display:flex;flex-direction:column;gap:12px}
+.gap-16{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;align-items:center;gap:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.divider{border:none;border-top:1px solid var(--border);margin:10px 0}
 
-/* ── MAIN AREA ── */
-.main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+/* ─────────────────────────────────────────
+   TAB 1: COMMAND CENTRE  (3-pane)
+───────────────────────────────────────── */
+.cmd-grid{display:grid;grid-template-columns:300px 1fr 340px;gap:14px;padding:14px;flex:1;min-height:0;overflow:hidden}
+.pane{display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden}
+.search-box{position:relative;margin-bottom:8px;flex-shrink:0}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted);pointer-events:none}
+.search-input{width:100%;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px 8px 30px;color:var(--text);font-size:12px;outline:none}
+.search-input:focus{border-color:var(--accent)}
+.pills{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;flex-shrink:0}
+.pill{font-size:10px;font-weight:500;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:var(--ease);white-space:nowrap}
+.pill:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+.pill.active{background:var(--accent-faint);color:var(--accent);border-color:rgba(0,245,212,0.2)}
+.client-card{background:rgba(255,255,255,0.012);border:1px solid var(--border);border-radius:var(--rs);padding:10px;cursor:pointer;transition:var(--ease)}
+.client-card:hover{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.1);transform:translateY(-1px)}
+.client-card.sel{background:var(--accent-faint);border-color:var(--accent);box-shadow:0 0 10px rgba(0,245,212,0.05)}
+.cc-name{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.cc-loc{font-size:10px;color:var(--muted);margin-top:1px}
+.cc-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.03);padding-top:7px;margin-top:7px}
+.savings-val{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--teal)}
 
-.topbar {
-  background: var(--ts-bg1);
-  border-bottom: 1px solid var(--ts-border-rgba);
-  padding: 0 24px;
-  height: 56px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 16px;
-}
-.topbar-title { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
-.topbar-right { display: flex; align-items: center; gap: 12px; }
+/* Stepper */
+.stepper{display:flex;align-items:center;gap:4px}
+.step{display:flex;align-items:center;gap:3px;font-size:9px;font-weight:600;color:var(--dark);text-transform:uppercase}
+.step-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--dark);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;transition:var(--ease)}
+.step.done .step-dot{background:var(--green);border-color:var(--green);color:#fff}
+.step.cur .step-dot{border-color:var(--accent);color:var(--accent);background:var(--accent-faint)}
+.step.cur{color:var(--text)}
+.step-arrow{font-size:8px;color:var(--dark)}
 
-.page-content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+/* HUD */
+.hud{display:grid;grid-template-columns:110px 1fr;gap:10px;background:rgba(10,16,35,0.4);border:1px solid var(--border);border-radius:var(--r);padding:11px;flex-shrink:0}
+.dial-wrap{display:flex;align-items:center;justify-content:center;position:relative}
+.dial-svg{width:80px;height:80px;transform:rotate(-90deg)}
+.dial-bg{fill:none;stroke:rgba(255,255,255,0.02);stroke-width:7}
+.dial-fill{fill:none;stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset 0.6s ease}
+.dial-lbl{position:absolute;text-align:center}
+.dial-amt{font-size:11px;font-weight:800;font-family:var(--mono);color:var(--accent)}
+.dial-sub{font-size:7px;color:var(--muted);text-transform:uppercase;margin-top:1px}
+.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.hud-box{border-left:2px solid var(--dark);padding-left:7px}
+.hud-box.rec{border-color:var(--green)}.hud-box.dis{border-color:var(--amber)}.hud-box.flg{border-color:var(--red)}.hud-box.sta{border-color:var(--purple)}
+.hud-bl{font-size:8px;color:var(--muted);text-transform:uppercase}
+.hud-bv{font-size:12px;font-weight:700;font-family:var(--mono);margin-top:1px}
 
-/* ═══════════════════════════════════════
-   COMPONENTS
-═══════════════════════════════════════ */
-.stat-card {
-  background: var(--ts-bg1);
-  border: 1px solid var(--ts-border-rgba);
-  border-radius: 12px; padding: 20px;
-}
-.stat-label { font-size: 12px; color: var(--ts-text2); font-weight: 500; margin-bottom: 8px; }
-.stat-value { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
-.stat-change {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 600; margin-top: 6px;
-  padding: 2px 8px; border-radius: 999px;
-}
-.stat-change.up   { color: #22c55e; background: rgba(34,197,94,0.10); }
-.stat-change.down { color: #ef4444; background: rgba(239,68,68,0.10); }
-.stat-change.neutral { color: var(--ts-text3); background: var(--ts-border-subtle); }
+/* Recent audits / findings table */
+.ftable{width:100%;border-collapse:collapse}
+.ftable th{background:rgba(255,255,255,0.025);padding:8px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--muted);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2}
+.ftable td{padding:9px 10px;font-size:11px;border-bottom:1px solid var(--border);vertical-align:middle}
+.ftable tbody tr:hover td{background:rgba(255,255,255,0.025)}
+.ftable tbody tr:last-child td{border-bottom:none}
 
-.card {
-  background: var(--ts-bg1);
-  border: 1px solid var(--ts-border-rgba);
-  border-radius: 12px; overflow: hidden;
-}
-.card-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--ts-border-subtle);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.card-title { font-size: 14px; font-weight: 700; }
-.card-body { padding: 0; }
+/* Dropzone */
+.dropzone{border:1.5px dashed rgba(0,245,212,0.2);background:var(--teal-faint);border-radius:var(--r);padding:18px;text-align:center;cursor:pointer;transition:var(--ease);position:relative;flex-shrink:0}
+.dropzone:hover{border-color:var(--teal);background:rgba(0,245,212,0.07)}
+.dz-input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.dz-prog{display:none;flex-direction:column;gap:5px;text-align:left;margin-top:6px}
+.prog-row{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+.prog-wrap{height:3px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--blue));width:0%;transition:width 0.1s}
 
-/* Client table */
-.client-row {
-  display: grid;
-  grid-template-columns: 2fr 1.2fr 1fr 1fr 1.5fr auto;
-  align-items: center;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--ts-border-subtle);
-  gap: 12px;
-  transition: background 0.12s;
-}
-.client-row:last-child { border-bottom: none; }
-.client-row:hover { background: var(--ts-raised); }
-.client-row-header {
-  font-size: 11px; font-weight: 600; color: var(--ts-text2);
-  text-transform: uppercase; letter-spacing: 0.7px;
-}
-.client-row-header:hover { background: none !important; cursor: default; }
+/* Feed */
+.feed-item{display:flex;gap:8px;padding:7px 9px;background:rgba(255,255,255,0.005);border:1px solid var(--border);border-radius:var(--rs);font-size:10px;align-items:flex-start;transition:var(--ease)}
+.feed-item:hover{background:rgba(255,255,255,0.02)}
+.feed-dot{width:5px;height:5px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.fd-blue{background:var(--blue);box-shadow:0 0 5px var(--blue)}.fd-green{background:var(--green);box-shadow:0 0 5px var(--green)}.fd-amber{background:var(--amber);box-shadow:0 0 5px var(--amber)}
+.feed-msg strong{color:var(--teal)}.feed-time{font-size:8px;color:var(--muted);margin-top:1px}
 
-.client-name { font-size: 13px; font-weight: 600; }
-.client-sub  { font-size: 11px; color: var(--ts-text2); margin-top: 2px; }
-.client-agent { font-size: 12px; color: var(--ts-text3); }
+/* Shield checks */
+.check-item{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;border:1px solid var(--border);background:rgba(255,255,255,0.004);border-radius:5px;font-size:10px}
+.check-dot{width:5px;height:5px;border-radius:50%}
+.check-passed .check-dot{background:var(--green);box-shadow:0 0 5px var(--green)}.check-failed .check-dot{background:var(--red);box-shadow:0 0 5px var(--red)}.check-pending .check-dot{background:var(--amber);box-shadow:0 0 5px var(--amber)}
+.check-date{font-family:var(--mono);font-size:9px;color:var(--muted)}
 
-/* Status badges */
-.badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 9px; border-radius: 999px;
-  font-size: 11px; font-weight: 600; white-space: nowrap;
-}
-.badge-active    { background: rgba(34,197,94,0.10);   color: #22c55e;  border: 1px solid rgba(34,197,94,0.25); }
-.badge-review    { background: rgba(245,158,11,0.10);  color: #f59e0b;  border: 1px solid rgba(245,158,11,0.25); }
-.badge-inactive  { background: rgba(148,163,184,0.10); color: #94a3b8;  border: 1px solid rgba(148,163,184,0.2); }
-.badge-overdue   { background: rgba(239,68,68,0.10);   color: #ef4444;  border: 1px solid rgba(239,68,68,0.25); }
+/* Alert card */
+.alert-card{background:var(--red-faint);border:1px solid rgba(244,63,94,0.2);border-radius:var(--rs);padding:9px 11px;display:flex;align-items:flex-start;gap:8px;flex-shrink:0}
+.alert-card.warn{background:var(--amber-faint);border-color:rgba(245,158,11,0.2)}
+.alert-card.secure{background:var(--green-faint);border-color:rgba(16,185,129,0.2)}
+.alert-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.alert-card.warn .alert-icon-col{color:var(--amber)}.alert-card.secure .alert-icon-col{color:var(--green)}
+.alert-title{font-size:11px;font-weight:700}.alert-desc{font-size:9px;color:var(--muted);margin-top:2px;line-height:1.4}
 
-/* Savings amount */
-.savings-amount { font-size: 13px; font-weight: 700; color: #22c55e; }
+/* ─────────────────────────────────────────
+   TAB 2: SERVICE CATALOGUE
+───────────────────────────────────────── */
+#tab-services{padding:16px;overflow-y:auto}
+.svc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.svc-title{font-size:18px;font-weight:800}.svc-subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+.ownership-strip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+.own-col{border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:10px}
+.own-col.ts{background:linear-gradient(135deg,rgba(0,245,212,0.06),rgba(0,245,212,0.02));border:1px solid rgba(0,245,212,0.18);border-top:3px solid var(--teal)}
+.own-col.pr{background:linear-gradient(135deg,rgba(217,70,239,0.06),rgba(217,70,239,0.02));border:1px solid rgba(217,70,239,0.18);border-top:3px solid var(--purple)}
+.own-col.tn{background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(59,130,246,0.02));border:1px solid rgba(59,130,246,0.18);border-top:3px solid var(--blue)}
+.own-icon{font-size:26px}.own-name{font-size:13px;font-weight:700}.own-role{font-size:10px;color:var(--muted);margin-top:1px}
+.svc-table{display:flex;flex-direction:column;gap:8px}
+.svc-row{display:grid;grid-template-columns:28px 1fr 160px 160px 160px 120px;gap:0;background:rgba(255,255,255,0.01);border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;transition:var(--ease)}
+.svc-row:hover{border-color:var(--border-active);background:rgba(255,255,255,0.025)}
+.svc-row.header-row{background:rgba(255,255,255,0.025);border-color:var(--border)}
+.svc-cell{padding:10px 12px;display:flex;align-items:center;font-size:11px;border-right:1px solid rgba(255,255,255,0.03)}
+.svc-cell:last-child{border-right:none}
+.svc-cell.header-row{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)}
+.svc-day{font-size:8px;font-weight:700;padding:2px 5px;border-radius:3px;text-transform:uppercase;writing-mode:vertical-lr;text-orientation:mixed;transform:rotate(180deg);display:flex;align-items:center;justify-content:center;height:100%;min-height:44px}
+.day-0{background:rgba(217,70,239,0.08);color:var(--purple)}.day-1{background:rgba(0,245,212,0.08);color:var(--teal)}.day-2{background:rgba(59,130,246,0.08);color:var(--blue)}.day-m{background:rgba(245,158,11,0.08);color:var(--amber)}.day-eofy{background:rgba(16,185,129,0.08);color:var(--green)}.day-inf{background:rgba(244,63,94,0.08);color:var(--red)}
+.svc-name{font-weight:600;font-size:12px}.svc-desc{font-size:10px;color:var(--muted);margin-top:1px}
+.svc-owner-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-right:5px}
+.dot-ts{background:var(--teal)}.dot-pr{background:var(--purple)}.dot-tn{background:var(--blue)}
+.svc-price{font-family:var(--mono);font-weight:700;font-size:12px}
+.svc-toggle{width:34px;height:18px;border-radius:9px;background:rgba(255,255,255,0.08);border:none;cursor:pointer;position:relative;transition:var(--ease)}
+.svc-toggle.on{background:var(--green)}
+.svc-toggle::after{content:'';width:12px;height:12px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:var(--ease)}
+.svc-toggle.on::after{transform:translateX(16px)}
 
-/* Action buttons */
-.btn-sm {
-  padding: 5px 12px; border-radius: 6px;
-  font-size: 12px; font-weight: 600; cursor: pointer;
-  transition: all 0.15s; font-family: inherit;
-  display: inline-flex; align-items: center; gap: 5px;
-  text-decoration: none;
-}
-.btn-primary { background: var(--partner-500); color: #fff; border: none; }
-.btn-primary:hover { background: var(--partner-400); }
-.btn-ghost   { background: transparent; color: var(--partner-400); border: 1px solid var(--partner-border); }
-.btn-ghost:hover { background: var(--partner-faint); }
-.btn-outline { background: transparent; color: var(--ts-text1); border: 1px solid var(--ts-border-def); }
-.btn-outline:hover { border-color: var(--ts-border-strong); }
+/* ─────────────────────────────────────────
+   TAB 3: WHITE-LABEL STUDIO
+───────────────────────────────────────── */
+#tab-wl{display:none;flex:1;min-height:0;overflow:hidden}
+#tab-wl.active{display:grid;grid-template-columns:360px 1fr;gap:14px;padding:14px}
+.wl-controls{display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0}
+.preview-frame{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--bg-panel-solid);display:flex;flex-direction:column}
+.preview-bar{background:rgba(0,0,0,0.4);padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.preview-dots span{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px}
+.dot-red-s{background:#f43f5e}.dot-amber-s{background:#f59e0b}.dot-green-s{background:#10b981}
+.preview-url{flex:1;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.preview-body{flex:1;overflow:auto;padding:20px;position:relative}
+.preview-app{background:var(--bg);min-height:100%;border-radius:8px;display:flex;flex-direction:column;font-family:var(--font)}
+.preview-header{height:44px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(5,8,20,0.85)}
+.preview-logo{display:flex;align-items:center;gap:8px}
+.preview-logo-mark{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#050814}
+.preview-logo-text{font-size:13px;font-weight:700}
+.preview-content{padding:14px;display:flex;flex-direction:column;gap:10px}
+.preview-welcome{font-size:14px;font-weight:700;margin-bottom:4px}
+.preview-mini-card{border:1px solid var(--border);border-radius:8px;padding:10px;background:rgba(255,255,255,0.015)}
+.preview-card-title{font-size:10px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.preview-risk-bar{height:6px;border-radius:3px;margin:4px 0}
+.preview-flag{font-size:9px;background:var(--red-faint);border:1px solid rgba(244,63,94,0.2);border-radius:3px;padding:3px 7px;margin-bottom:3px;display:flex;gap:5px;align-items:center}
+.preview-flag-dot{width:4px;height:4px;border-radius:50%;background:var(--red);flex-shrink:0}
+.preview-cta{border-radius:6px;padding:8px 12px;font-size:11px;font-weight:700;text-align:center;color:#050814;cursor:pointer;margin-top:6px}
+.swatch-row{display:flex;gap:8px;flex-wrap:wrap}
+.swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:var(--ease)}
+.swatch:hover,.swatch.active{border-color:#fff;transform:scale(1.1)}
 
-/* Pill filter */
-.pill-filters { display: flex; gap: 6px; flex-wrap: wrap; }
-.pill {
-  padding: 4px 12px; border-radius: 999px;
-  font-size: 12px; font-weight: 500; cursor: pointer;
-  border: 1px solid var(--ts-border-def);
-  color: var(--ts-text3); background: transparent;
-  transition: all 0.15s; font-family: inherit;
-}
-.pill:hover { border-color: var(--partner-border); color: var(--partner-400); }
-.pill.active { background: var(--partner-faint); border-color: var(--partner-border); color: var(--partner-400); }
+/* ─────────────────────────────────────────
+   TAB 4: PARTNER REVENUE
+───────────────────────────────────────── */
+#tab-revenue{padding:16px;overflow-y:auto}
+.rev-grid-top{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.rev-kpi{border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:4px;border:1px solid var(--border);background:rgba(255,255,255,0.01);transition:var(--ease)}
+.rev-kpi:hover{background:rgba(255,255,255,0.025)}
+.kpi-icon{font-size:20px;margin-bottom:4px}
+.kpi-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
+.kpi-val{font-size:22px;font-weight:800;font-family:var(--mono)}
+.kpi-delta{font-size:10px;margin-top:1px}
+.delta-up{color:var(--green)}.delta-dn{color:var(--red)}
+.rev-grid-mid{display:grid;grid-template-columns:1fr 340px;gap:12px;margin-bottom:14px}
+.tier-row{display:grid;grid-template-columns:28px 1fr 80px 80px 80px;gap:0;background:rgba(255,255,255,0.01);border:1px solid var(--border);border-radius:var(--rs);overflow:hidden}
+.tier-cell{padding:9px 11px;font-size:11px;border-right:1px solid rgba(255,255,255,0.03);display:flex;align-items:center}
+.tier-cell:last-child{border-right:none}
+.ta-starter{background:var(--blue)}.ta-advisor{background:var(--teal)}.ta-elite{background:var(--purple)}
+.current-tier{border-color:var(--teal)!important;background:var(--teal-faint)!important}
+.payout-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px}
+.payout-row:last-child{border-bottom:none}
+.payout-status{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase}
+.ps-paid{background:var(--green-faint);color:var(--green);border:1px solid rgba(16,185,129,0.15)}
+.ps-pending{background:var(--amber-faint);color:var(--amber);border:1px solid rgba(245,158,11,0.15)}
+.per-audit-table{width:100%;border-collapse:collapse}
+.per-audit-table th{background:rgba(255,255,255,0.025);padding:8px 10px;font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+.per-audit-table td{padding:9px 10px;font-size:11px;border-bottom:1px solid var(--border)}
+.per-audit-table tr:last-child td{border-bottom:none}
+.per-audit-table tbody tr:hover td{background:rgba(255,255,255,0.02)}
 
-/* Empty state */
-.empty-state {
-  text-align: center; padding: 48px 24px;
-  color: var(--ts-text3);
-}
-.empty-state-icon { font-size: 36px; margin-bottom: 12px; }
-.empty-state h3 { font-size: 15px; font-weight: 600; color: var(--ts-text1); margin-bottom: 8px; }
-.empty-state p  { font-size: 13px; max-width: 320px; margin: 0 auto 20px; }
+/* ─────────────────────────────────────────
+   TAB 5: API DEVELOPER
+───────────────────────────────────────── */
+#tab-api{padding:16px;overflow-y:auto}
+.api-grid{display:grid;grid-template-columns:1fr 380px;gap:14px}
+.api-key-row{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:var(--rs);padding:8px 12px}
+.api-key-val{font-family:var(--mono);font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.endpoint-row{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(255,255,255,0.008)}
+.ep-method{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px}
+.ep-post{background:rgba(0,245,212,0.1);color:var(--teal)}.ep-get{background:rgba(59,130,246,0.1);color:var(--blue)}
+.ep-path{font-family:var(--mono);font-size:11px;color:var(--text)}
+.ep-desc{font-size:10px;color:var(--muted);margin-top:2px}
+.code-block{background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:var(--rs);padding:12px;font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.6;overflow-x:auto;white-space:pre}
+.code-block .kw{color:var(--purple)}.code-block .str{color:var(--teal)}.code-block .num{color:var(--amber)}.code-block .cm{color:var(--dark)}
+.webhook-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(255,255,255,0.008);font-size:11px}
+.wh-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.wh-active{background:var(--green);box-shadow:0 0 5px var(--green)}.wh-inactive{background:var(--dark)}
 
-/* Input search */
-.search-input {
-  background: var(--ts-bg2);
-  border: 1px solid var(--ts-border-def);
-  border-radius: 8px;
-  padding: 7px 12px 7px 34px;
-  color: var(--ts-text0); font-size: 13px;
-  outline: none; font-family: inherit;
-  transition: border-color 0.15s;
-  width: 220px;
-}
-.search-input:focus { border-color: var(--partner-500); }
-.search-input::placeholder { color: var(--ts-text2); }
-.search-wrap { position: relative; }
-.search-icon {
-  position: absolute; left: 10px; top: 50%;
-  transform: translateY(-50%);
-  color: var(--ts-text2); pointer-events: none;
-}
+/* ─────────────────────────────────────────
+   TAB 6: B2B2C GOVERNANCE
+───────────────────────────────────────── */
+#tab-gov{padding:16px;overflow-y:auto}
+.swim-lane{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.lane{border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
+.lane-header{padding:12px 14px;display:flex;align-items:center;gap:10px}
+.lane-ts .lane-header{background:linear-gradient(90deg,rgba(0,245,212,0.12),rgba(0,245,212,0.04));border-bottom:2px solid var(--teal)}
+.lane-pr .lane-header{background:linear-gradient(90deg,rgba(217,70,239,0.12),rgba(217,70,239,0.04));border-bottom:2px solid var(--purple)}
+.lane-tn .lane-header{background:linear-gradient(90deg,rgba(59,130,246,0.12),rgba(59,130,246,0.04));border-bottom:2px solid var(--blue)}
+.lane-body{flex:1;padding:12px;background:rgba(255,255,255,0.008);border:1px solid var(--border);border-top:none;border-bottom-left-radius:var(--r);border-bottom-right-radius:var(--r);display:flex;flex-direction:column;gap:8px}
+.lane-item{display:flex;align-items:flex-start;gap:8px;font-size:11px;padding:7px;border-radius:6px;background:rgba(255,255,255,0.012);border:1px solid var(--border)}
+.lane-item-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.ld-ts{background:var(--teal)}.ld-pr{background:var(--purple)}.ld-tn{background:var(--blue)}
+.lane-item-body strong{font-size:11px}.lane-item-body span{font-size:10px;color:var(--muted);display:block;margin-top:1px}
+.flow-arrows{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;font-size:12px;color:var(--muted)}
+.flow-arrow{display:flex;align-items:center;gap:6px;font-size:11px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:rgba(255,255,255,0.015)}
+.flow-arrow .fa-icon{font-size:14px}
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--ts-bg0); }
-::-webkit-scrollbar-thumb { background: var(--ts-scrollbar); border-radius: 3px; }
+/* ─────────────────────────────────────────
+   TAB 7: PRODUCTS
+───────────────────────────────────────── */
+.prod-section{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.prod-section-hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.015)}
+.prod-section-title{font-size:12px;font-weight:700;color:var(--text)}
+.prod-price-tag{margin-left:auto;font-size:11px;font-weight:700;color:var(--teal);font-family:var(--mono)}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0}
+.prod-card{padding:13px 16px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:4px;transition:var(--ease)}
+.prod-card:hover{background:rgba(0,245,212,0.025)}
+.prod-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+.prod-card-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.3}
+.prod-card-desc{font-size:10px;color:var(--muted);line-height:1.4}
+.prod-card-footer{display:flex;align-items:center;gap:6px;margin-top:4px}
+.pstat{font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 6px;border-radius:3px;letter-spacing:.04em}
+.pstat-live{background:rgba(16,185,129,0.12);color:var(--green)}
+.pstat-phase1{background:rgba(59,130,246,0.12);color:var(--blue)}
+.pstat-phase2{background:rgba(217,70,239,0.12);color:var(--purple)}
+.pstat-phase3{background:rgba(255,255,255,0.06);color:var(--muted)}
+.prod-id{font-size:8px;font-family:var(--mono);color:var(--muted);opacity:.6}
+.prod-card[data-status="live"] .prod-card-name::before{content:"";display:inline-block;width:5px;height:5px;background:var(--green);border-radius:50%;margin-right:5px;vertical-align:middle}
 
-/* ═══════════════════════════════════════
-   AUDIT DRAWER
-═══════════════════════════════════════ */
-.audit-drawer-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.55);
-  z-index: 200;
-  transition: opacity 0.2s;
-}
-.audit-drawer {
-  position: fixed; top: 0; right: 0; bottom: 0;
-  width: 680px; max-width: 92vw;
-  background: var(--ts-bg1);
-  border-left: 1px solid var(--ts-border-rgba);
-  box-shadow: -8px 0 40px rgba(0,0,0,0.4);
-  display: flex; flex-direction: column;
-  z-index: 201;
-  overflow: hidden;
-}
-.drawer-header {
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--ts-border-subtle);
-  flex-shrink: 0;
-}
-.drawer-title { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
-.drawer-subtitle { font-size: 12px; color: var(--ts-text2); margin-top: 3px; }
-.drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
-.drawer-footer {
-  padding: 14px 24px;
-  border-top: 1px solid var(--ts-border-subtle);
-  display: flex; align-items: center; gap: 8px;
-  flex-shrink: 0;
-  background: var(--ts-bg1);
-}
+/* ─────────────────────────────────────────
+   MODALS
+───────────────────────────────────────── */
+.modal-bg{position:fixed;inset:0;background:rgba(5,8,20,0.8);backdrop-filter:blur(8px);z-index:100;display:none;align-items:center;justify-content:center}
+/* x-show toggles the inline `display` of .audit-overlay between '' and 'none' —
+   keep the flex/centering declarations in this class (not inline) so they survive
+   that toggle and the overlay box stays centered when shown. */
+.audit-overlay{display:flex;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg-panel-solid);border:1px solid var(--border-active);border-radius:var(--r);width:100%;max-width:580px;max-height:88vh;overflow-y:auto;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,0.6);display:flex;flex-direction:column;gap:14px}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:11px}
+.modal-title{font-size:15px;font-weight:700}
+.modal-x{background:transparent;border:none;color:var(--muted);font-size:16px;cursor:pointer}.modal-x:hover{color:var(--red)}
 
-/* Risk score ring */
-.risk-ring {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 52px; height: 52px; border-radius: 50%;
-  font-size: 17px; font-weight: 800; border: 3px solid;
-}
-.risk-ring.HIGH   { border-color: #ef4444; color: #ef4444; }
-.risk-ring.MEDIUM { border-color: #f59e0b; color: #f59e0b; }
-.risk-ring.LOW    { border-color: #22c55e; color: #22c55e; }
+/* ─────────────────────────────────────────
+   AUDIT DRAWER (ported from prior dashboard, restyled to v2 palette)
+───────────────────────────────────────── */
+.audit-drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;transition:opacity 0.2s}
+.audit-drawer{position:fixed;top:0;right:0;bottom:0;width:680px;max-width:92vw;background:var(--ts-bg1);border-left:1px solid var(--ts-border-rgba);box-shadow:-8px 0 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;z-index:201;overflow:hidden}
+.drawer-header{padding:20px 24px 16px;border-bottom:1px solid var(--ts-border-subtle);flex-shrink:0}
+.drawer-title{font-size:17px;font-weight:800;letter-spacing:-0.3px}
+.drawer-subtitle{font-size:12px;color:var(--ts-text2);margin-top:3px}
+.drawer-body{flex:1;overflow-y:auto;padding:20px 24px}
+.drawer-footer{padding:14px 24px;border-top:1px solid var(--ts-border-subtle);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--ts-bg1)}
+.risk-ring{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;font-size:17px;font-weight:800;border:3px solid}
+.risk-ring.HIGH{border-color:#ef4444;color:#ef4444}.risk-ring.MEDIUM{border-color:#f59e0b;color:#f59e0b}.risk-ring.LOW{border-color:#22c55e;color:#22c55e}
+.conf-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}
+.conf-confirmed{background:rgba(20,184,166,0.12);color:#14b8a6;border:1px solid rgba(20,184,166,0.3)}
+.conf-probable{background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)}
+.conf-flag{background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
+.sev-void{background:rgba(168,85,247,0.12);color:#a855f7;border:1px solid rgba(168,85,247,0.3)}
+.sev-high{background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
+.sev-medium{background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)}
+.sev-low{background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3)}
+.flag-row{border:1px solid var(--ts-border-def);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.flag-row-header{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;cursor:pointer;transition:background 0.12s}
+.flag-row-header:hover{background:var(--ts-raised)}
+.flag-row-body{padding:0 14px 12px;border-top:1px solid var(--ts-border-subtle);font-size:12px;color:var(--ts-text3);line-height:1.6}
+.flag-row-body-inner{padding-top:10px}
+.makegood-section{border:1px solid rgba(168,85,247,0.25);border-radius:10px;padding:14px 16px;margin-bottom:16px;background:rgba(168,85,247,0.05)}
+.makegood-title{font-size:13px;font-weight:700;color:#a855f7;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.tier-strip{display:flex;gap:10px;flex-wrap:wrap;background:var(--ts-bg2);border-radius:8px;padding:10px 14px;margin-bottom:16px}
+.tier-stat{display:flex;flex-direction:column;align-items:center;min-width:50px}
+.tier-stat-num{font-size:20px;font-weight:800;line-height:1}
+.tier-stat-lbl{font-size:10px;color:var(--ts-text2);margin-top:2px;font-weight:500}
+.section-heading{font-size:11px;font-weight:700;color:var(--ts-text2);letter-spacing:0.8px;text-transform:uppercase;margin:18px 0 8px}
+.section-heading:first-child{margin-top:0}
+.dropdown{position:absolute;right:0;top:calc(100% + 6px);background:var(--ts-bg1);border:1px solid var(--ts-border-def);border-radius:10px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.4);min-width:180px;z-index:50}
+.dropdown-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;font-size:13px;color:var(--ts-text1);cursor:pointer;transition:background 0.12s;text-decoration:none}
+.dropdown-item:hover{background:var(--ts-raised)}
+.dropdown-item.danger{color:#ef4444}
+.dropdown-divider{height:1px;background:var(--ts-border-subtle);margin:4px 0}
 
-/* Confidence badges inline */
-.conf-badge {
-  display: inline-flex; align-items: center; gap: 3px;
-  padding: 2px 7px; border-radius: 999px;
-  font-size: 10px; font-weight: 700; white-space: nowrap;
-}
-.conf-confirmed { background: rgba(20,184,166,0.12); color: #14b8a6; border: 1px solid rgba(20,184,166,0.3); }
-.conf-probable  { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
-.conf-flag      { background: rgba(239,68,68,0.12);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-
-/* Severity badges inline */
-.sev-void   { background: rgba(168,85,247,0.12); color: #a855f7; border: 1px solid rgba(168,85,247,0.3); }
-.sev-high   { background: rgba(239,68,68,0.12);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-.sev-medium { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
-.sev-low    { background: rgba(34,197,94,0.12);  color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
-
-/* Flag row */
-.flag-row {
-  border: 1px solid var(--ts-border-def);
-  border-radius: 8px; margin-bottom: 8px;
-  overflow: hidden;
-}
-.flag-row-header {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 11px 14px; cursor: pointer;
-  transition: background 0.12s;
-}
-.flag-row-header:hover { background: var(--ts-raised); }
-.flag-row-body {
-  padding: 0 14px 12px;
-  border-top: 1px solid var(--ts-border-subtle);
-  font-size: 12px; color: var(--ts-text3); line-height: 1.6;
-}
-.flag-row-body-inner { padding-top: 10px; }
-
-/* Make-good section */
-.makegood-section {
-  border: 1px solid rgba(168,85,247,0.25);
-  border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
-  background: rgba(168,85,247,0.05);
-}
-.makegood-title {
-  font-size: 13px; font-weight: 700; color: #a855f7; margin-bottom: 8px;
-  display: flex; align-items: center; gap: 6px;
-}
-
-/* Tier summary strip */
-.tier-strip {
-  display: flex; gap: 10px; flex-wrap: wrap;
-  background: var(--ts-bg2); border-radius: 8px;
-  padding: 10px 14px; margin-bottom: 16px;
-}
-.tier-stat { display: flex; flex-direction: column; align-items: center; min-width: 50px; }
-.tier-stat-num { font-size: 20px; font-weight: 800; line-height: 1; }
-.tier-stat-lbl { font-size: 10px; color: var(--ts-text2); margin-top: 2px; font-weight: 500; }
-
-/* Section heading inside drawer */
-.section-heading {
-  font-size: 11px; font-weight: 700; color: var(--ts-text2);
-  letter-spacing: 0.8px; text-transform: uppercase;
-  margin: 18px 0 8px;
-}
-.section-heading:first-child { margin-top: 0; }
-
-/* Dropdown menu */
-.dropdown {
-  position: absolute; right: 0; top: calc(100% + 6px);
-  background: var(--ts-bg1);
-  border: 1px solid var(--ts-border-def);
-  border-radius: 10px; padding: 6px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  min-width: 180px; z-index: 50;
-}
-.dropdown-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px; border-radius: 6px;
-  font-size: 13px; color: var(--ts-text1);
-  cursor: pointer; transition: background 0.12s;
-}
-.dropdown-item:hover { background: var(--ts-raised); }
-.dropdown-item.danger { color: #ef4444; }
-.dropdown-divider { height: 1px; background: var(--ts-border-subtle); margin: 4px 0; }
+/* Standalone badge/btn-sm compatibility (ported audit drawer uses btn-sm/btn-* without .btn) */
+.badge-active   {background:rgba(34,197,94,0.10); color:#22c55e; border:1px solid rgba(34,197,94,0.25)}
+.badge-review   {background:rgba(245,158,11,0.10); color:#f59e0b; border:1px solid rgba(245,158,11,0.25)}
+.badge-inactive {background:rgba(148,163,184,0.10); color:#94a3b8; border:1px solid rgba(148,163,184,0.2)}
+.badge-overdue  {background:rgba(239,68,68,0.10); color:#ef4444; border:1px solid rgba(239,68,68,0.25)}
+.btn-sm{display:inline-flex;align-items:center;gap:5px;border-radius:var(--rs);cursor:pointer;transition:var(--ease);font-family:var(--font);font-weight:600;text-decoration:none}
+.letter-paper{background:#fff;color:#1a1a1a;border-radius:8px;padding:24px;font-size:12px;line-height:1.7;white-space:pre-wrap;max-height:320px;overflow-y:auto;font-family:Georgia,serif}
 </style>
 </head>
-<body>
+<body x-data="partnerApp()" x-init="init()">
+<!-- ============ HEADER ============ -->
+<header>
+  <div class="brand">
+    <div class="logo">TS</div>
+    <div class="brand-name">TenantSentry<span>.ai</span></div>
+    <div class="tier-pill" x-text="(partner.firm || 'Partner') + ' · Channel Partner'"></div>
+  </div>
 
-<div class="app-layout" x-data="partnerApp()" x-init="init()">
+  <div class="header-right">
+    <div class="mode-toggle" :class="{'is-live': mode === 'live'}" @click="mode = mode === 'dev' ? 'live' : 'dev'; selectedClient = null" :title="mode === 'dev' ? 'Showing demo data — click to switch to live data' : 'Showing live data — click to switch to demo data'">
+      <span class="mode-toggle-track"><span class="mode-toggle-thumb"></span></span>
+      <span class="mode-toggle-label" x-text="mode === 'dev' ? 'Dev' : 'Live'"></span>
+    </div>
 
-  <!-- ════════════════════════════════════
-       SIDEBAR
-  ════════════════════════════════════ -->
-  <nav class="sidebar">
-    <div class="sidebar-logo">
-      <div class="sidebar-logo-mark">🤝</div>
-      <div>
-        <div class="sidebar-logo-name">TenantSentry<span>.ai</span></div>
-        <div class="sidebar-logo-sub">Partner Portal</div>
+    <button class="btn btn-primary btn-sm" @click="openAuditOverlay()">
+      <span>⬆</span> Upload Lease &amp; Audit
+    </button>
+
+    <div class="partner-chip" @click="userMenu = !userMenu" @click.outside="userMenu = false">
+      <div class="avatar" x-text="partner.initials"></div>
+      <div class="partner-info">
+        <div class="partner-name" x-text="partner.name"></div>
+        <div class="partner-sub" x-text="partner.firm"></div>
+      </div>
+
+      <div class="dropdown" x-show="userMenu" x-cloak x-transition style="top:48px">
+        <a href="#" class="dropdown-item" @click.prevent="tab='wl'; userMenu=false">
+          <span>⚙️</span> Account &amp; White-Label Settings
+        </a>
+        <a href="#" class="dropdown-item" @click.prevent="tab='revenue'; userMenu=false">
+          <span>💰</span> Revenue &amp; Payouts
+        </a>
+        <div class="dropdown-divider"></div>
+        <a href="#" class="dropdown-item danger" @click.prevent="logout()">
+          <span>↪</span> Sign Out
+        </a>
       </div>
     </div>
+  </div>
+</header>
 
-    <div class="sidebar-portal-badge">
-      <span>🏢</span> Channel Partner
+<!-- ============ TAB NAV ============ -->
+<nav class="tab-nav">
+  <button class="nav-btn" :class="{active: tab==='cmd'}" @click="tab='cmd'"><span class="nav-icon">🧭</span> Command Centre</button>
+  <button class="nav-btn" :class="{active: tab==='services'}" @click="tab='services'"><span class="nav-icon">🛒</span> Services</button>
+  <button class="nav-btn" :class="{active: tab==='wl'}" @click="tab='wl'"><span class="nav-icon">🎨</span> White-Label</button>
+  <button class="nav-btn" :class="{active: tab==='revenue'}" @click="tab='revenue'"><span class="nav-icon">💰</span> Revenue</button>
+  <button class="nav-btn" :class="{active: tab==='api'}" @click="tab='api'"><span class="nav-icon">🔌</span> API</button>
+  <button class="nav-btn" :class="{active: tab==='gov'}" @click="tab='gov'"><span class="nav-icon">🔒</span> Governance</button>
+  <button class="nav-btn" :class="{active: tab==='products'}" @click="tab='products'"><span class="nav-icon">📦</span> Products</button>
+</nav>
+
+<!-- ============ STAT BAR ============ -->
+<div class="stat-bar">
+  <div class="stat-item">
+    <div class="stat-icon si-teal">💰</div>
+    <div>
+      <div class="stat-lbl">Total Recoveries</div>
+      <div class="stat-val" x-text="'$' + totalSavings.toLocaleString()"></div>
     </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Main</div>
-      <button class="nav-link" :class="{ active: tab === 'clients' }" @click="tab = 'clients'">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4">
-          <path d="M1 13V4.5A1.5 1.5 0 012.5 3h10A1.5 1.5 0 0114 4.5V13"/>
-          <path d="M1 13h13M5 13V8.5h5V13"/>
-        </svg>
-        Clients
-        <span class="nav-badge" x-text="clients.length"></span>
-      </button>
-      <button class="nav-link" :class="{ active: tab === 'audits' }" @click="tab = 'audits'">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4">
-          <path d="M3 1h9a1 1 0 011 1v11a1 1 0 01-1 1H3a1 1 0 01-1-1V2a1 1 0 011-1z"/>
-          <path d="M5 5h5M5 7.5h5M5 10h3"/>
-        </svg>
-        Audits
-        <span class="nav-badge" x-text="pendingAudits" x-show="pendingAudits > 0"></span>
-      </button>
-      <button class="nav-link" :class="{ active: tab === 'reports' }" @click="tab = 'reports'">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4">
-          <rect x="1" y="1" width="13" height="13" rx="2"/>
-          <path d="M4 10l2.5-3L9 9.5l2-2.5"/>
-        </svg>
-        Reports
-      </button>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon si-amber">⚠</div>
+    <div>
+      <div class="stat-lbl">In Dispute</div>
+      <div class="stat-val" x-text="'$' + inDisputeSavings.toLocaleString()"></div>
     </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Partner</div>
-      <button class="nav-link" :class="{ active: tab === 'team' }" @click="tab = 'team'">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4">
-          <circle cx="5.5" cy="5" r="2.5"/>
-          <circle cx="10.5" cy="5" r="2.5"/>
-          <path d="M1 13c0-2.21 2.015-4 4.5-4M14 13c0-2.21-2.015-4-4.5-4M7.5 13c0-2.21 1.12-4 2.5-4"/>
-        </svg>
-        Team
-      </button>
-      <button class="nav-link" :class="{ active: tab === 'settings' }" @click="tab = 'settings'">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4">
-          <circle cx="7.5" cy="7.5" r="1.5"/>
-          <path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2M3.05 3.05l1.41 1.41M10.54 10.54l1.41 1.41M3.05 11.95l1.41-1.41M10.54 4.46l1.41-1.41"/>
-        </svg>
-        Settings
-      </button>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon si-blue">🛡</div>
+    <div>
+      <div class="stat-lbl">Clients Guarded</div>
+      <div class="stat-val" x-text="activeClients + ' / ' + clients.length"></div>
     </div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon si-purple">📈</div>
+    <div>
+      <div class="stat-lbl">Commissions Earned</div>
+      <div class="stat-val" x-text="'$' + revenueShare.toLocaleString()"></div>
+    </div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon si-green">🔍</div>
+    <div>
+      <div class="stat-lbl">Audits This Month</div>
+      <div class="stat-val" x-text="recentAudits.length"></div>
+    </div>
+  </div>
+</div>
+<!-- ============ TAB 1: COMMAND CENTRE ============ -->
+<div class="tab" :class="{active: tab==='cmd'}" id="tab-cmd">
+  <div class="cmd-grid">
 
-    <!-- User -->
-    <div class="sidebar-user">
-      <div class="user-avatar" x-text="partner.initials"></div>
-      <div class="user-info">
-        <div class="user-name" x-text="partner.name"></div>
-        <div class="user-role" x-text="partner.firm"></div>
+    <!-- LEFT PANE: Client Roster -->
+    <div class="pane glass">
+      <div class="card-title">📋 Client Roster</div>
+      <div class="search-box">
+        <span class="search-icon">🔎</span>
+        <input class="search-input" type="text" placeholder="Search clients..." x-model="search">
       </div>
-      <div style="position:relative">
-        <button class="user-menu-btn" @click="userMenu = !userMenu">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="7" cy="3" r="1"/><circle cx="7" cy="7" r="1"/><circle cx="7" cy="11" r="1"/>
-          </svg>
-        </button>
-        <div class="dropdown" x-show="userMenu" @click.away="userMenu=false" x-cloak>
-          <div class="dropdown-item">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6.5" cy="4" r="2.5"/><path d="M1 12c0-3.04 2.686-5.5 5.5-5.5S12 8.96 12 12"/></svg>
-            Account settings
+      <div class="pills">
+        <span class="pill" :class="{active: filter==='all'}" @click="filter='all'">All <span x-text="clients.length"></span></span>
+        <span class="pill" :class="{active: filter==='active'}" @click="filter='active'">Active</span>
+        <span class="pill" :class="{active: filter==='review'}" @click="filter='review'">In Review</span>
+        <span class="pill" :class="{active: filter==='overdue'}" @click="filter='overdue'">Overdue</span>
+      </div>
+      <div class="scrollable gap-12" style="gap:8px">
+        <template x-for="client in filteredClients" :key="client.id">
+          <div class="client-card" :class="{sel: selectedClient && selectedClient.id === client.id}" @click="viewClient(client)">
+            <div class="row" style="justify-content:space-between">
+              <div class="cc-name" x-text="client.name"></div>
+              <span class="badge" :class="{
+                'badge-green': client.status==='active',
+                'badge-amber': client.status==='review',
+                'badge-red': client.status==='overdue'
+              }" x-text="statusLabel(client.status)"></span>
+            </div>
+            <div class="cc-loc" x-text="client.location + ' · ' + client.leases + ' lease' + (client.leases===1?'':'s')"></div>
+            <div class="cc-foot">
+              <span style="font-size:10px;color:var(--muted)">Recovered</span>
+              <span class="savings-val" x-text="'$' + client.savings.toLocaleString()"></span>
+            </div>
           </div>
-          <div class="dropdown-divider"></div>
-          <div class="dropdown-item danger" @click="logout()">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 11H2a1 1 0 01-1-1V3a1 1 0 011-1h3M9 9l3-3-3-3M12 6.5H5"/></svg>
-            Sign out
-          </div>
+        </template>
+        <div x-show="filteredClients.length === 0" style="text-align:center;color:var(--muted);font-size:11px;padding:20px 0">
+          No clients match this filter.
         </div>
       </div>
-    </div>
-  </nav>
-
-  <!-- ════════════════════════════════════
-       MAIN AREA
-  ════════════════════════════════════ -->
-  <div class="main-area">
-
-    <!-- TOPBAR -->
-    <div class="topbar">
-      <div class="topbar-title" x-text="tabTitle()"></div>
-      <div class="topbar-right">
-        <!-- Mode badge injected globally by mode-toggle.js -->
-
-        <!-- Theme toggle -->
-        <button id="ts-theme-btn" onclick="tsToggleTheme()" title="Toggle theme"
-          style="width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--ts-border-rgba);background:var(--ts-raised);">
-          <svg id="ts-icon-moon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2)" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-          <svg id="ts-icon-sun"  width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ts-text2)" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
-        </button>
-
-        <!-- Add client -->
-        <button class="btn-sm btn-primary" @click="showAddClient = true" x-show="tab === 'clients'">
-          + Add Client
-        </button>
-      </div>
+      <button class="btn btn-outline btn-sm" style="margin-top:8px;justify-content:center" @click="$store.partner.showAddClient = true">
+        + Onboard New Client
+      </button>
     </div>
 
-    <!-- PAGE CONTENT -->
-    <div class="page-content">
-
-      <!-- ══════════════════════
-           TAB: CLIENTS
-      ══════════════════════ -->
-      <div x-show="tab === 'clients'">
-
-        <!-- Stats row -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
-          <div class="stat-card">
-            <div class="stat-label">Total Clients</div>
-            <div class="stat-value" x-text="clients.length"></div>
-            <div class="stat-change up">↑ 2 this month</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Active Audits</div>
-            <div class="stat-value" x-text="activeAudits"></div>
-            <div class="stat-change neutral">running now</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Total Savings Found</div>
-            <div class="stat-value" style="color:#22c55e" x-text="'$' + totalSavings.toLocaleString()"></div>
-            <div class="stat-change up">↑ 12% vs last qtr</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Revenue Share (YTD)</div>
-            <div class="stat-value" style="color:var(--partner-400)" x-text="'$' + revenueShare.toLocaleString()"></div>
-            <div class="stat-change up">↑ $320 this month</div>
-          </div>
+    <!-- CENTER PANE: Inspector -->
+    <div class="pane glass" style="overflow-y:auto">
+      <template x-if="!selectedClient">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--muted)">
+          <div style="font-size:32px">👈</div>
+          <div style="font-size:13px;font-weight:600">Select a client to view their audit progress</div>
+          <div style="font-size:11px">Roster, risk, and recovery details will appear here.</div>
         </div>
+      </template>
 
-        <!-- Filters + search -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
-          <div class="pill-filters">
-            <button class="pill" :class="{ active: filter === 'all' }"    @click="filter='all'">All</button>
-            <button class="pill" :class="{ active: filter === 'active' }" @click="filter='active'">Active</button>
-            <button class="pill" :class="{ active: filter === 'review' }" @click="filter='review'">Needs Review</button>
-            <button class="pill" :class="{ active: filter === 'overdue' }" @click="filter='overdue'">Overdue</button>
+      <template x-if="selectedClient">
+        <div class="gap-16">
+          <!-- Banner -->
+          <div class="row" style="justify-content:space-between">
+            <div>
+              <div style="font-size:16px;font-weight:800" x-text="selectedClient.name"></div>
+              <div style="font-size:11px;color:var(--muted)" x-text="selectedClient.location + ' · ' + selectedClient.leases + ' lease' + (selectedClient.leases===1?'':'s') + ' on file'"></div>
+            </div>
+            <span class="badge" :class="{
+              'badge-green': selectedClient.status==='active',
+              'badge-amber': selectedClient.status==='review',
+              'badge-red': selectedClient.status==='overdue'
+            }" x-text="statusLabel(selectedClient.status)"></span>
           </div>
-          <div class="search-wrap">
-            <span class="search-icon">
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4">
-                <circle cx="5.5" cy="5.5" r="4"/><path d="M11 11l-2.5-2.5"/>
+
+          <!-- Alert (overdue clients) -->
+          <div class="alert-card" x-show="selectedClient.status === 'overdue'" x-cloak>
+            <div class="alert-icon alert-icon-col">⚠️</div>
+            <div>
+              <div class="alert-title">Audit overdue</div>
+              <div class="alert-desc">This client has no active monitoring or recent audit on file. Run a lease audit to bring them current.</div>
+            </div>
+          </div>
+          <div class="alert-card secure" x-show="selectedClient.status === 'active'" x-cloak>
+            <div class="alert-icon alert-icon-col">✅</div>
+            <div>
+              <div class="alert-title">Up to date</div>
+              <div class="alert-desc">Lease monitoring is active. Next scheduled review will appear in the audit timeline below.</div>
+            </div>
+          </div>
+
+          <!-- Stepper -->
+          <div class="card-title" style="margin-bottom:8px">🧭 Service Journey</div>
+          <div class="stepper">
+            <div class="step done"><div class="step-dot">✓</div> Health Check</div>
+            <span class="step-arrow">→</span>
+            <div class="step" :class="selectedClient.status==='overdue' ? 'cur' : 'done'"><div class="step-dot" x-text="selectedClient.status==='overdue' ? '2' : '✓'"></div> HoA Review</div>
+            <span class="step-arrow">→</span>
+            <div class="step" :class="selectedClient.status==='review' ? 'cur' : (selectedClient.status==='active' ? 'done' : '')"><div class="step-dot" x-text="selectedClient.status==='active' ? '✓' : '3'"></div> Full Audit</div>
+            <span class="step-arrow">→</span>
+            <div class="step" :class="selectedClient.status==='active' ? 'cur' : ''"><div class="step-dot">4</div> Monitoring</div>
+          </div>
+
+          <!-- HUD -->
+          <div class="hud">
+            <div class="dial-wrap">
+              <svg class="dial-svg" viewBox="0 0 80 80">
+                <circle class="dial-bg" cx="40" cy="40" r="34"></circle>
+                <circle class="dial-fill" cx="40" cy="40" r="34"
+                  :stroke="selectedClient.savings > 10000 ? 'var(--green)' : (selectedClient.savings > 0 ? 'var(--amber)' : 'var(--dark)')"
+                  stroke-dasharray="213.6"
+                  :stroke-dashoffset="213.6 - (213.6 * Math.min(selectedClient.savings, 30000) / 30000)"></circle>
               </svg>
-            </span>
-            <input class="search-input" placeholder="Search clients…" x-model="search" />
+              <div class="dial-lbl">
+                <div class="dial-amt" x-text="'$' + (selectedClient.savings/1000).toFixed(1) + 'k'"></div>
+                <div class="dial-sub">Recovered</div>
+              </div>
+            </div>
+            <div class="hud-grid">
+              <div class="hud-box rec">
+                <div class="hud-bl">Recovered</div>
+                <div class="hud-bv" x-text="'$' + selectedClient.savings.toLocaleString()"></div>
+              </div>
+              <div class="hud-box dis">
+                <div class="hud-bl">In Dispute</div>
+                <div class="hud-bv" x-text="selectedClient.status==='review' ? '$' + selectedClient.savings.toLocaleString() : '$0'"></div>
+              </div>
+              <div class="hud-box flg">
+                <div class="hud-bl">Risk Flags</div>
+                <div class="hud-bv" x-text="selectedClient.status==='overdue' ? '—' : (selectedClient.status==='review' ? '4' : '2')"></div>
+              </div>
+              <div class="hud-box sta">
+                <div class="hud-bl">Leases</div>
+                <div class="hud-bv" x-text="selectedClient.leases"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Audits for this client -->
+          <div class="card-title">📑 Audit History</div>
+          <table class="ftable">
+            <thead><tr><th>Date</th><th>Type</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <template x-for="(audit, idx) in clientAudits(selectedClient)" :key="idx">
+                <tr>
+                  <td x-text="audit.date"></td>
+                  <td>Full Lease Audit</td>
+                  <td><span class="badge badge-teal">Complete</span></td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm" @click="$store.auditDrawer.openAudit(audit, 'view')">View Report →</button>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="clientAudits(selectedClient).length === 0">
+                <td colspan="4" style="color:var(--muted);text-align:center">No audits on file yet.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <button class="btn btn-primary btn-sm" style="justify-content:center" @click="runAudit(selectedClient)">
+            ⬆ Run New Audit for <span x-text="selectedClient.name"></span>
+          </button>
+        </div>
+      </template>
+    </div>
+
+    <!-- RIGHT PANE: Quick Actions / Feed -->
+    <div class="pane gap-16" style="overflow-y:auto">
+
+      <!-- Upload -->
+      <div class="glass">
+        <div class="card-title">⬆ Quick Upload</div>
+        <div class="dropzone" @click="openAuditOverlay()">
+          <div style="font-size:24px;margin-bottom:4px">📄</div>
+          <div style="font-size:11px;font-weight:600">Drop a lease PDF or click to upload</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px">Starts a new audit in the workspace</div>
+        </div>
+      </div>
+
+      <!-- Pending Review -->
+      <div class="glass">
+        <div class="card-title">⏳ Pending Review</div>
+        <div class="gap-12" style="gap:6px">
+          <template x-for="item in pendingReviewList" :key="item.id">
+            <div class="feed-item">
+              <span class="feed-dot fd-amber"></span>
+              <div>
+                <div class="feed-msg"><strong x-text="item.client"></strong> audit ready for sign-off</div>
+                <div class="feed-time" x-text="item.date"></div>
+              </div>
+            </div>
+          </template>
+          <div x-show="pendingReviewList.length === 0" style="font-size:10px;color:var(--muted)">Nothing pending review.</div>
+        </div>
+      </div>
+
+      <!-- Activity Feed -->
+      <div class="glass">
+        <div class="card-title">📡 Activity Feed</div>
+        <div class="gap-12" style="gap:6px">
+          <template x-for="(item, idx) in activityFeed" :key="idx">
+            <div class="feed-item">
+              <span class="feed-dot" :class="'fd-' + item.color"></span>
+              <div>
+                <div class="feed-msg" x-html="item.msg"></div>
+                <div class="feed-time" x-text="item.time"></div>
+              </div>
+            </div>
+          </template>
+          <div x-show="activityFeed.length === 0" style="font-size:10px;color:var(--muted)">No activity yet.</div>
+        </div>
+      </div>
+
+      <!-- Rewards -->
+      <div class="glass">
+        <div class="card-title">🏆 Partner Rewards</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">
+          You're on the <strong style="color:var(--teal)">Advisor</strong> tier — earning
+          <strong x-text="'3%'"></strong> commission on every recovery.
+          <a href="#" @click.prevent="tab='revenue'" style="color:var(--teal)">View revenue breakdown →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ============ TAB 2: SERVICE CATALOGUE ============ -->
+<div class="tab" :class="{active: tab==='services'}" id="tab-services">
+  <div id="tab-services-inner" style="padding:16px;overflow-y:auto;flex:1">
+    <div class="svc-header">
+      <div><div class="svc-title">🛒 Service Catalogue</div><div class="svc-subtitle">Full B2B2C service map — what TenantSentry provides, what you deploy, what your clients receive</div></div>
+      <div class="row">
+        <span style="font-size:11px;color:var(--muted)">Partner toggle = enable/disable for your clients</span>
+      </div>
+    </div>
+
+    <!-- Ownership Strip -->
+    <div class="ownership-strip">
+      <div class="own-col ts">
+        <div class="own-icon">⚙️</div>
+        <div><div class="own-name">TenantSentry</div><div class="own-role">AI Engine + Platform + IP</div></div>
+      </div>
+      <div class="own-col pr">
+        <div class="own-icon">👔</div>
+        <div><div class="own-name">You (Partner)</div><div class="own-role">Advisory + Brand + Client Relationships</div></div>
+      </div>
+      <div class="own-col tn">
+        <div class="own-icon">🏢</div>
+        <div><div class="own-name">Client Tenant</div><div class="own-role">Lease Data + Accounting + Decisions</div></div>
+      </div>
+    </div>
+
+    <!-- Table header -->
+    <div class="svc-row header-row" style="margin-bottom:4px">
+      <div class="svc-cell" style="background:rgba(255,255,255,0.015);font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Day</div>
+      <div class="svc-cell" style="background:rgba(255,255,255,0.015);font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Service</div>
+      <div class="svc-cell" style="background:rgba(255,255,255,0.015);font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;justify-content:center">TS Provides</div>
+      <div class="svc-cell" style="background:rgba(255,255,255,0.015);font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;justify-content:center">Partner Deploys</div>
+      <div class="svc-cell" style="background:rgba(255,255,255,0.015);font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;justify-content:center">Client Price</div>
+      <div class="svc-cell" style="background:rgba(255,255,255,0.015);font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;justify-content:center">Enable</div>
+    </div>
+
+    <div class="svc-table">
+
+      <!-- Day -1: Free Health Check -->
+      <div class="svc-row">
+        <div class="svc-cell" style="padding:0"><div class="svc-day day-0">Day&nbsp;−1</div></div>
+        <div class="svc-cell"><div><div class="svc-name">Free Lease Health Check</div><div class="svc-desc">Risk score 0–100 · top 3 risk flags · anonymous visitor</div></div></div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">AI Engine</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">OCR Pipeline</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">White-label brand</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">Subdomain</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center"><span class="svc-price" style="color:var(--green)">Free</span></div>
+        <div class="svc-cell" style="justify-content:center"><button class="svc-toggle on" onclick="this.classList.toggle('on')"></button></div>
+      </div>
+
+      <!-- Day 0: HoA Scanner -->
+      <div class="svc-row">
+        <div class="svc-cell" style="padding:0"><div class="svc-day day-0">Day 0</div></div>
+        <div class="svc-cell"><div><div class="svc-name">HoA / LoI Pre-Signing Scanner</div><div class="svc-desc">Toxic term detection · AI term-sheet benchmarking · negotiation playbook</div></div></div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Clause extractor</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Legislation DB</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">Client intake</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">Negotiation advice</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center"><span class="svc-price" style="color:var(--purple)">$199</span></div>
+        <div class="svc-cell" style="justify-content:center"><button class="svc-toggle on" onclick="this.classList.toggle('on')"></button></div>
+      </div>
+
+      <!-- Day 1: Full Lease Audit -->
+      <div class="svc-row" style="border-color:rgba(0,245,212,0.12)">
+        <div class="svc-cell" style="padding:0"><div class="svc-day day-1">Day 1</div></div>
+        <div class="svc-cell"><div><div class="svc-name">Full Lease Audit + Forensic Report</div><div class="svc-desc">Red-flag audit · G&amp;I exposure map · HoA diff checker · dispute letter generator</div></div></div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Audit pipeline</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">PDF report gen</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Human gate ✓</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">Client delivery</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">Letter approval</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center"><span class="svc-price" style="color:var(--teal)">$399</span></div>
+        <div class="svc-cell" style="justify-content:center"><button class="svc-toggle on" onclick="this.classList.toggle('on')"></button></div>
+      </div>
+
+      <!-- Day 2: Monitoring -->
+      <div class="svc-row">
+        <div class="svc-cell" style="padding:0"><div class="svc-day day-2">Day 2</div></div>
+        <div class="svc-cell"><div><div class="svc-name">Active Lease Monitoring — Sentry Shield</div><div class="svc-desc">Milestone engine · 9/6/3-month alerts (email/SMS/WhatsApp) · pre-drafted notices · compliance vault</div></div></div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Alert infra</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Date engine</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">Client enrolment</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-tn"></div><span style="font-size:10px">Client docs</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;text-align:center;gap:2px">
+          <span class="svc-price" style="color:var(--teal);font-size:11px">Free 12mo</span>
+          <span style="font-size:9px;color:var(--muted)">$49/mo after</span>
+        </div>
+        <div class="svc-cell" style="justify-content:center"><button class="svc-toggle on" onclick="this.classList.toggle('on')"></button></div>
+      </div>
+
+      <!-- Monthly: Billing Guard -->
+      <div class="svc-row">
+        <div class="svc-cell" style="padding:0"><div class="svc-day day-m">Monthly</div></div>
+        <div class="svc-cell"><div><div class="svc-name">Billing Guard — Monthly Invoice Audit</div><div class="svc-desc">Invoice anomaly monitor · Xero write-back · CapEx/OpEx classifier · savings tracker</div></div></div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Anomaly engine</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Xero API</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">Review &amp; advise</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-tn"></div><span style="font-size:10px">Xero OAuth</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center"><span class="svc-price" style="color:var(--amber)">$49/mo</span></div>
+        <div class="svc-cell" style="justify-content:center"><button class="svc-toggle on" onclick="this.classList.toggle('on')"></button></div>
+      </div>
+
+      <!-- EOFY -->
+      <div class="svc-row">
+        <div class="svc-cell" style="padding:0"><div class="svc-day day-eofy">EOFY</div></div>
+        <div class="svc-cell"><div><div class="svc-name">EOFY Outgoings Reconciliation Audit</div><div class="svc-desc">Landlord bill vs. lease schedule · unauthorised fee detection · RFI letter draft · make-good planner</div></div></div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Outgoings parser</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-ts"></div><span style="font-size:10px">Fee classifier</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center;flex-direction:column;gap:3px;text-align:center">
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">EOFY campaign</span></div>
+          <div class="row" style="gap:4px;justify-content:center"><div class="svc-owner-dot dot-pr"></div><span style="font-size:10px">Dispute mgmt</span></div>
+        </div>
+        <div class="svc-cell" style="justify-content:center"><span class="svc-price" style="color:var(--green)">$549</span></div>
+        <div class="svc-cell" style="justify-content:center"><button class="svc-toggle" onclick="this.classList.toggle('on')"></button></div>
+      </div>
+
+      <!-- Intelligence Layer -->
+      <div class="svc-row" style="opacity:0.6">
+        <div class="svc-cell" style="padding:0"><div class="svc-day day-inf">Phase 2</div></div>
+        <div class="svc-cell"><div><div class="svc-name">Intelligence Layer (LBCS + CAM Index)</div><div class="svc-desc">Landlord Billing Compliance Score · submarket benchmarks · lease renewal strategy engine</div></div></div>
+        <div class="svc-cell" style="justify-content:center"><span class="badge badge-amber">Coming Soon</span></div>
+        <div class="svc-cell" style="justify-content:center"><span class="badge badge-amber">Phase 2</span></div>
+        <div class="svc-cell" style="justify-content:center"><span class="svc-price" style="color:var(--muted)">TBD</span></div>
+        <div class="svc-cell" style="justify-content:center"><button class="svc-toggle" disabled></button></div>
+      </div>
+
+      <!-- White-Label API -->
+      <div class="svc-row" style="opacity:0.6">
+        <div class="svc-cell" style="padding:0"><div class="svc-day day-inf">Phase 2</div></div>
+        <div class="svc-cell"><div><div class="svc-name">White-Label API Core (F23)</div><div class="svc-desc">Embed full audit engine into your own portal or CRM via REST API + webhooks</div></div></div>
+        <div class="svc-cell" style="justify-content:center"><span class="badge badge-blue">API Infra</span></div>
+        <div class="svc-cell" style="justify-content:center"><span class="badge badge-purple">Your Portal</span></div>
+        <div class="svc-cell" style="justify-content:center"><span class="svc-price" style="color:var(--muted)">Volume</span></div>
+        <div class="svc-cell" style="justify-content:center"><button class="svc-toggle" disabled></button></div>
+      </div>
+
+    </div><!-- /svc-table -->
+
+    <!-- D0+D1 Bundle callout -->
+    <div style="margin-top:14px;background:linear-gradient(135deg,var(--teal-faint),var(--blue-faint));border:1px solid rgba(0,245,212,0.2);border-radius:var(--r);padding:14px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:13px;font-weight:700">💎 Day 0 + Day 1 Bundle</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">HoA Scanner + Full Lease Audit. Saves $49 vs. buying individually. Best conversion path for thorough tenants.</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;margin-left:16px">
+        <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--teal)">$549</div>
+        <div style="font-size:9px;color:var(--muted);text-decoration:line-through">$598 separately</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ TAB 3: WHITE-LABEL STUDIO ============ -->
+<div class="tab" :class="{active: tab==='wl'}" :style="tab==='wl' ? 'display:grid;grid-template-columns:360px 1fr;gap:14px;padding:14px' : ''" id="tab-wl">
+  <div class="wl-controls">
+
+    <!-- Subdomain -->
+    <div class="glass">
+      <div class="card-title">🌐 Custom Subdomain</div>
+      <div style="display:flex;align-items:center">
+        <input type="text" class="form-input" x-model="whiteLabel.subdomain" style="border-radius:var(--rs) 0 0 var(--rs);border-right:none">
+        <span style="background:rgba(0,0,0,0.4);border:1px solid var(--border);padding:9px 11px;font-size:11px;color:var(--muted);border-radius:0 var(--rs) var(--rs) 0;font-family:var(--mono);white-space:nowrap">.tenantsentry.ai</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:5px">Your clients access their portal at this URL. Fully managed by TenantSentry infrastructure.</div>
+    </div>
+
+    <!-- Logo -->
+    <div class="glass">
+      <div class="card-title">🖼️ Partner Logo</div>
+      <div class="row" style="align-items:flex-start">
+        <div style="width:52px;height:52px;border:1.5px dashed var(--border);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;background:rgba(0,245,212,0.06)">🏢</div>
+        <div style="flex:1">
+          <input type="file" class="form-input" style="font-size:10px" accept="image/*">
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">PNG/SVG. Shown in portal header and all client-facing emails.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Brand name -->
+    <div class="glass">
+      <div class="card-title">✏️ Brand Display Name</div>
+      <input type="text" class="form-input" x-model="whiteLabel.brandName" placeholder="Your firm's brand name">
+      <div style="font-size:10px;color:var(--muted);margin-top:5px">Replaces "TenantSentry.ai" branding on client-facing portal. Your clients see only your brand.</div>
+    </div>
+
+    <!-- Accent color -->
+    <div class="glass">
+      <div class="card-title">🎨 Accent Colour</div>
+      <div class="swatch-row">
+        <template x-for="sw in accentSwatches" :key="sw.col">
+          <div class="swatch" :class="{active: whiteLabel.accent === sw.col}" :style="'background:' + sw.col" :title="sw.name" @click="whiteLabel.accent = sw.col"></div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Feature flags -->
+    <div class="glass">
+      <div class="card-title">⚙️ Feature Exposure Flags</div>
+      <div class="gap-12" style="font-size:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" x-model="whiteLabel.allowUploads" style="accent-color:var(--accent)"> Allow client document uploads directly</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" x-model="whiteLabel.showAiLogs" style="accent-color:var(--accent)"> Show raw AI audit calculation logs</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" x-model="whiteLabel.showDraftLetters" style="accent-color:var(--accent)"> Expose unapproved dispute letter drafts</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" x-model="whiteLabel.xeroWriteback" style="accent-color:var(--accent)"> Enable Xero write-back gate</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" x-model="whiteLabel.showLbcs" style="accent-color:var(--accent)"> Show LBCS / CAM Index benchmarks (Phase 2)</label>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%" @click="saveWhiteLabel()">💾 Save &amp; Deploy Config</button>
+
+  </div><!-- /wl-controls -->
+
+  <!-- Live Preview -->
+  <div class="preview-frame">
+    <div class="preview-bar">
+      <div class="preview-dots">
+        <span class="dot-red-s"></span><span class="dot-amber-s"></span><span class="dot-green-s"></span>
+      </div>
+      <div class="preview-url" x-text="'https://' + (whiteLabel.subdomain || 'your-firm') + '.tenantsentry.ai'"></div>
+      <span style="font-size:10px;background:var(--teal-faint);color:var(--teal);padding:2px 8px;border-radius:4px;border:1px solid rgba(0,245,212,0.15)">Live Preview</span>
+    </div>
+    <div class="preview-body">
+      <div class="preview-app">
+        <div class="preview-header">
+          <div class="preview-logo">
+            <div class="preview-logo-mark" :style="'background:linear-gradient(135deg,' + whiteLabel.accent + ',var(--blue))'" x-text="(whiteLabel.brandName || 'Your Firm').charAt(0).toUpperCase()"></div>
+            <div class="preview-logo-text" x-text="whiteLabel.brandName || 'Your Firm'"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:9px;color:var(--muted)">Powered by TenantSentry.ai</span>
           </div>
         </div>
+        <div class="preview-content">
+          <div class="preview-welcome">Welcome back, Sydney Coffee Roasters</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Your lease at Shop 4, 123 Collins St, Melbourne VIC is being monitored.</div>
 
-        <!-- Client table -->
-        <div class="card">
-          <div class="card-body">
-            <!-- Header -->
-            <div class="client-row client-row-header">
-              <div>Client</div>
-              <div>Assigned Agent</div>
-              <div>Leases</div>
-              <div>Status</div>
-              <div>Savings Found</div>
-              <div></div>
+          <!-- Risk card -->
+          <div class="preview-mini-card">
+            <div class="preview-card-title">🔍 Lease Risk Assessment</div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px">
+              <span>Risk Score</span><span style="font-family:var(--mono);font-weight:700;color:var(--amber)">74 / 100</span>
             </div>
+            <div class="preview-risk-bar" style="background:linear-gradient(90deg,var(--red) 0%,var(--amber) 50%,var(--green) 100%)"></div>
+            <div style="font-size:9px;color:var(--muted);margin-bottom:6px">3 risk flags detected · 2 require urgent attention</div>
+            <div class="preview-flag"><div class="preview-flag-dot"></div><span>CPI inflation review overcharge — est. $4,200 pa</span></div>
+            <div class="preview-flag"><div class="preview-flag-dot"></div><span>Capital works charged as outgoings — $11,500</span></div>
+            <div class="preview-flag" style="background:var(--amber-faint);border-color:rgba(245,158,11,0.2)"><div class="preview-flag-dot" style="background:var(--amber)"></div><span>Option expiry — 8 months remaining</span></div>
+          </div>
 
-            <!-- Rows -->
-            <template x-for="client in filteredClients" :key="client.id">
-              <div class="client-row">
-                <div>
-                  <div class="client-name" x-text="client.name"></div>
-                  <div class="client-sub" x-text="client.location"></div>
-                </div>
-                <div class="client-agent" x-text="client.agent"></div>
-                <div style="font-size:13px;font-weight:600" x-text="client.leases"></div>
-                <div>
-                  <span class="badge" :class="'badge-' + client.status" x-text="statusLabel(client.status)"></span>
-                </div>
-                <div class="savings-amount" x-text="client.savings ? '$' + client.savings.toLocaleString() : '—'"></div>
-                <div style="display:flex;gap:6px">
-                  <button class="btn-sm btn-ghost" @click="viewClient(client)">View</button>
-                  <button class="btn-sm btn-outline" @click="runAudit(client)">+ Audit</button>
-                </div>
-              </div>
+          <!-- CTA -->
+          <div class="preview-cta" :style="'background:' + whiteLabel.accent">View Full Forensic Report →</div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ TAB 4: PARTNER REVENUE ============ -->
+<div class="tab" :class="{active: tab==='revenue'}" id="tab-revenue">
+  <div id="tab-rev-inner" style="padding:16px;overflow-y:auto;flex:1">
+
+    <div class="badge badge-amber" style="margin-bottom:12px" x-show="mode === 'dev'" x-cloak>
+      Demo figures shown — connect billing to see live revenue data
+    </div>
+
+    <!-- KPI row -->
+    <div class="rev-grid-top">
+      <div class="rev-kpi" style="border-top:3px solid var(--teal)">
+        <div class="kpi-icon">💵</div>
+        <div class="kpi-lbl">MTD Commission</div>
+        <div class="kpi-val" style="color:var(--teal)" x-text="mode === 'dev' ? '$3,192' : '$' + (liveStats?.mtd_commission || 0).toLocaleString()"></div>
+        <div class="kpi-delta delta-up" x-show="mode === 'dev'" x-cloak>↑ 18% vs last month</div>
+        <div class="kpi-delta" style="color:var(--muted)" x-show="mode === 'live'" x-cloak>No billing data yet</div>
+      </div>
+      <div class="rev-kpi" style="border-top:3px solid var(--purple)">
+        <div class="kpi-icon">📅</div>
+        <div class="kpi-lbl">YTD Commission</div>
+        <div class="kpi-val" style="color:var(--purple)" x-text="mode === 'dev' ? '$47,760' : '$' + (liveStats?.ytd_commission || 0).toLocaleString()"></div>
+        <div class="kpi-delta delta-up" x-show="mode === 'dev'" x-cloak>↑ 34% vs last year</div>
+        <div class="kpi-delta" style="color:var(--muted)" x-show="mode === 'live'" x-cloak>No billing data yet</div>
+      </div>
+      <div class="rev-kpi" style="border-top:3px solid var(--blue)">
+        <div class="kpi-icon">🎯</div>
+        <div class="kpi-lbl">Audits This Month</div>
+        <div class="kpi-val" style="color:var(--blue)" x-text="recentAudits.length"></div>
+        <div class="kpi-delta" style="color:var(--muted)" x-show="mode === 'dev'" x-cloak>4 remaining for tier bump</div>
+      </div>
+      <div class="rev-kpi" style="border-top:3px solid var(--green)">
+        <div class="kpi-icon">💰</div>
+        <div class="kpi-lbl">Pending Payout</div>
+        <div class="kpi-val" style="color:var(--green)" x-text="mode === 'dev' ? '$12,960' : '$' + (liveStats?.pending_payout || 0).toLocaleString()"></div>
+        <div class="kpi-delta" style="color:var(--muted)">Processes 15th each month</div>
+      </div>
+    </div>
+
+    <div class="rev-grid-mid">
+      <!-- Commission Tiers -->
+      <div class="glass gap-12">
+        <div class="card-title">🏆 Commission Tier Structure</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:-6px;margin-bottom:4px">Tier advances automatically based on monthly audit volume. You are currently on <strong style="color:var(--teal)">Advisor Pro (15%)</strong>.</div>
+
+        <!-- Tier table header -->
+        <div class="tier-row" style="background:rgba(255,255,255,0.025)">
+          <div class="tier-cell" style="border-right:none;width:6px;padding:0"></div>
+          <div class="tier-cell" style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase">Tier</div>
+          <div class="tier-cell" style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;justify-content:center">Audits/mo</div>
+          <div class="tier-cell" style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;justify-content:center">Commission</div>
+          <div class="tier-cell" style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;justify-content:center">Your Rate</div>
+        </div>
+
+        <div class="tier-row">
+          <div class="tier-cell ta-starter" style="padding:0;width:6px;border-right:none"></div>
+          <div class="tier-cell"><div><div style="font-size:12px;font-weight:700">Starter</div><div style="font-size:10px;color:var(--muted)">Getting started</div></div></div>
+          <div class="tier-cell" style="justify-content:center;font-family:var(--mono)">1–4</div>
+          <div class="tier-cell" style="justify-content:center"><span class="svc-price" style="color:var(--blue)">10%</span></div>
+          <div class="tier-cell" style="justify-content:center"><span style="font-size:10px;color:var(--muted)">$39.90 / audit</span></div>
+        </div>
+
+        <div class="tier-row current-tier">
+          <div class="tier-cell ta-advisor" style="padding:0;width:6px;border-right:none"></div>
+          <div class="tier-cell"><div><div style="font-size:12px;font-weight:700">Advisor Pro <span class="badge badge-teal" style="margin-left:4px">Current</span></div><div style="font-size:10px;color:var(--muted)">Growing portfolio</div></div></div>
+          <div class="tier-cell" style="justify-content:center;font-family:var(--mono)">5–14</div>
+          <div class="tier-cell" style="justify-content:center"><span class="svc-price" style="color:var(--teal)">15%</span></div>
+          <div class="tier-cell" style="justify-content:center"><span style="font-size:10px;color:var(--teal);font-weight:600">$59.85 / audit</span></div>
+        </div>
+
+        <div class="tier-row">
+          <div class="tier-cell ta-elite" style="padding:0;width:6px;border-right:none"></div>
+          <div class="tier-cell"><div><div style="font-size:12px;font-weight:700">Elite Partner</div><div style="font-size:10px;color:var(--muted)">High-volume firm</div></div></div>
+          <div class="tier-cell" style="justify-content:center;font-family:var(--mono)">15+</div>
+          <div class="tier-cell" style="justify-content:center"><span class="svc-price" style="color:var(--purple)">20%</span></div>
+          <div class="tier-cell" style="justify-content:center"><span style="font-size:10px;color:var(--muted)">$79.80 / audit</span></div>
+        </div>
+
+        <div style="background:var(--amber-faint);border:1px solid rgba(245,158,11,0.2);border-radius:var(--rs);padding:10px;font-size:11px;margin-top:4px" x-show="mode === 'dev'" x-cloak>
+          <strong style="color:var(--amber)">🎯 4 more audits this month</strong> → you unlock <strong>Elite Partner (20%)</strong> from next billing cycle.
+        </div>
+
+        <!-- Monthly monitoring commission -->
+        <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+          <div style="font-size:11px;font-weight:700;margin-bottom:8px">📅 Recurring Monitoring Commission</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div style="background:rgba(255,255,255,0.01);border:1px solid var(--border);border-radius:var(--rs);padding:9px;text-align:center">
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase">Active subs</div>
+              <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--blue)" x-text="mode === 'dev' ? '17' : (liveStats?.active_subs ?? '0')"></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.01);border:1px solid var(--border);border-radius:var(--rs);padding:9px;text-align:center">
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase">Rate</div>
+              <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--teal)" x-text="mode === 'dev' ? '15%' : (liveStats?.monitoring_rate || '—')"></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.01);border:1px solid var(--border);border-radius:var(--rs);padding:9px;text-align:center">
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase">Monthly</div>
+              <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--green)" x-text="mode === 'dev' ? '$125' : '$' + (liveStats?.monitoring_monthly || 0)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payout history -->
+      <div class="glass gap-12">
+        <div class="card-title">💳 Payout History</div>
+        <div style="border:1px solid var(--border);border-radius:var(--rs);overflow:hidden">
+          <div class="payout-row" style="background:rgba(255,255,255,0.025);font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">
+            <span>Period</span><span>Amount</span><span>Status</span>
+          </div>
+          <template x-if="mode === 'dev'">
+            <div>
+              <div class="payout-row"><span>May 2026</span><span style="font-family:var(--mono);font-weight:700;color:var(--teal)">$8,220</span><span class="payout-status ps-paid">Paid</span></div>
+              <div class="payout-row"><span>Apr 2026</span><span style="font-family:var(--mono);font-weight:700;color:var(--teal)">$7,380</span><span class="payout-status ps-paid">Paid</span></div>
+              <div class="payout-row"><span>Mar 2026</span><span style="font-family:var(--mono);font-weight:700;color:var(--teal)">$9,600</span><span class="payout-status ps-paid">Paid</span></div>
+              <div class="payout-row"><span>Feb 2026</span><span style="font-family:var(--mono);font-weight:700;color:var(--teal)">$6,540</span><span class="payout-status ps-paid">Paid</span></div>
+              <div class="payout-row"><span>Jun 2026 (MTD)</span><span style="font-family:var(--mono);font-weight:700;color:var(--amber)">$3,192</span><span class="payout-status ps-pending">Pending</span></div>
+            </div>
+          </template>
+          <div class="payout-row" x-show="mode === 'live'" x-cloak style="justify-content:center;color:var(--muted);font-size:11px">No payouts on file yet.</div>
+        </div>
+        <div style="font-size:10px;color:var(--muted)">Payouts processed on the 15th of each month via bank transfer. Minimum $100 threshold.</div>
+        <button class="btn btn-outline btn-sm" style="width:100%">📄 Download Tax Invoice</button>
+      </div>
+    </div>
+
+    <!-- Per-audit breakdown -->
+    <div class="glass">
+      <div class="card-title">📊 Per-Audit Revenue Breakdown (This Month)</div>
+      <div style="border:1px solid var(--border);border-radius:var(--rs);overflow:hidden">
+        <table class="per-audit-table">
+          <thead><tr><th>Client</th><th>Service</th><th>Date</th><th style="text-align:right">Gross</th><th style="text-align:right">Your 15%</th><th style="text-align:center">Status</th></tr></thead>
+          <tbody>
+            <template x-if="mode === 'dev'">
+              <tr><td>Coastal Brew Co.</td><td>Full Lease Audit D1</td><td style="font-family:var(--mono);font-size:10px">02 Jun 2026</td><td style="text-align:right;font-family:var(--mono);font-weight:700">$399</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--teal)">$59.85</td><td style="text-align:center"><span class="badge badge-green">Settled</span></td></tr>
             </template>
-
-            <!-- Empty state -->
-            <div class="empty-state" x-show="filteredClients.length === 0">
-              <div class="empty-state-icon">🏢</div>
-              <h3 x-show="search">No clients match "<span x-text="search"></span>"</h3>
-              <h3 x-show="!search && filter !== 'all'">No clients in this filter</h3>
-              <h3 x-show="!search && filter === 'all'">No clients yet</h3>
-              <p>Add your first client to start managing their lease audits from this portal.</p>
-              <button class="btn-sm btn-primary" @click="showAddClient = true">+ Add First Client</button>
-            </div>
-          </div>
-        </div>
+            <template x-if="mode === 'dev'">
+              <tr><td>Nova Retail Group</td><td>HoA Scanner D0</td><td style="font-family:var(--mono);font-size:10px">05 Jun 2026</td><td style="text-align:right;font-family:var(--mono);font-weight:700">$199</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--teal)">$29.85</td><td style="text-align:center"><span class="badge badge-green">Settled</span></td></tr>
+            </template>
+            <template x-if="mode === 'dev'">
+              <tr><td>Vanguard Fitness</td><td>Full Lease Audit D1</td><td style="font-family:var(--mono);font-size:10px">07 Jun 2026</td><td style="text-align:right;font-family:var(--mono);font-weight:700">$399</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--teal)">$59.85</td><td style="text-align:center"><span class="badge badge-green">Settled</span></td></tr>
+            </template>
+            <template x-if="mode === 'dev'">
+              <tr><td>SunRise Hospitality</td><td>EOFY Outgoings Audit</td><td style="font-family:var(--mono);font-size:10px">09 Jun 2026</td><td style="text-align:right;font-family:var(--mono);font-weight:700">$549</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--amber)">$82.35</td><td style="text-align:center"><span class="badge badge-amber">Pending</span></td></tr>
+            </template>
+            <tr x-show="mode === 'live'" x-cloak>
+              <td colspan="6" style="text-align:center;color:var(--muted)">No audits billed yet this month.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
+    </div>
 
-      <!-- ══════════════════════
-           TAB: AUDITS
-      ══════════════════════ -->
-      <div x-show="tab === 'audits'">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">Recent Audits</div>
-              <button class="btn-sm btn-ghost">View all</button>
-            </div>
-            <div class="card-body">
-              <template x-for="audit in recentAudits" :key="audit.id">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--ts-border-subtle)">
-                  <div>
-                    <div style="font-size:13px;font-weight:600" x-text="audit.client"></div>
-                    <div style="font-size:11px;color:var(--ts-text2)" x-text="audit.property"></div>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <span class="badge" :class="'badge-' + audit.status" x-text="audit.status === 'active' ? 'Running' : audit.status === 'review' ? 'Needs review' : 'Complete'"></span>
-                    <button class="btn-sm btn-ghost" @click="$store.auditDrawer.openAudit(audit, mode)">Open</button>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
+  </div>
+</div>
+<!-- ============ TAB 5: API & DEVELOPER ============ -->
+<div class="tab" :class="{active: tab==='api'}" id="tab-api">
+  <div id="tab-api-inner" style="padding:16px;overflow-y:auto;flex:1">
+    <div style="margin-bottom:14px">
+      <div style="font-size:18px;font-weight:800">🔌 API &amp; Developer Access</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">Embed TenantSentry's audit engine directly into your own portal or CRM. Available in Phase 2 (F23).</div>
+    </div>
 
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">Pending Review</div>
-              <span class="badge badge-review" x-text="pendingAudits + ' items'"></span>
-            </div>
-            <div class="card-body" style="padding:20px">
-              <p style="font-size:13px;color:var(--ts-text3);margin-bottom:16px">
-                These audits are complete and awaiting your review before delivery to clients.
-              </p>
-              <template x-for="audit in pendingReviewList" :key="audit.id">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;border:1px solid var(--ts-border-def);border-radius:8px;margin-bottom:8px">
-                  <div>
-                    <div style="font-size:13px;font-weight:600" x-text="audit.client"></div>
-                    <div style="font-size:11px;color:var(--ts-text2)" x-text="audit.date"></div>
-                  </div>
-                  <button class="btn-sm btn-primary" @click="$store.auditDrawer.openAudit(audit, mode)">Review & Send</button>
-                </div>
-              </template>
-              <div x-show="pendingReviewList.length === 0" style="text-align:center;padding:20px;color:var(--ts-text3);font-size:13px">
-                No audits pending review ✓
+    <div class="api-grid">
+      <div class="gap-16">
+
+        <!-- API Keys -->
+        <div class="glass">
+          <div class="card-title">🔑 API Keys</div>
+          <div class="gap-12">
+            <div>
+              <div class="form-label">Live Key</div>
+              <div class="api-key-row">
+                <span class="api-key-val" x-text="apiKeys.liveRevealed ? apiKeys.live : apiKeys.live.replace(/./g, (c,i) => i > 7 ? '•' : c)"></span>
+                <button class="btn btn-ghost btn-sm" style="color:var(--teal)" @click="apiKeys.liveRevealed = !apiKeys.liveRevealed" x-text="apiKeys.liveRevealed ? 'Hide' : 'Reveal'"></button>
+                <button class="btn btn-ghost btn-sm" @click="copyText(apiKeys.live)">Copy</button>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══════════════════════
-           TAB: REPORTS
-      ══════════════════════ -->
-      <div x-show="tab === 'reports'">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">Delivered Reports</div>
+            <div>
+              <div class="form-label">Test / Sandbox Key</div>
+              <div class="api-key-row">
+                <span class="api-key-val" x-text="apiKeys.testRevealed ? apiKeys.test : apiKeys.test.replace(/./g, (c,i) => i > 7 ? '•' : c)"></span>
+                <button class="btn btn-ghost btn-sm" style="color:var(--teal)" @click="apiKeys.testRevealed = !apiKeys.testRevealed" x-text="apiKeys.testRevealed ? 'Hide' : 'Reveal'"></button>
+                <button class="btn btn-ghost btn-sm" @click="copyText(apiKeys.test)">Copy</button>
+              </div>
+            </div>
             <div style="display:flex;gap:8px">
-              <button class="btn-sm btn-outline">Export CSV</button>
-              <button class="btn-sm btn-primary">Generate Report</button>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="empty-state" style="padding:40px">
-              <div class="empty-state-icon">📄</div>
-              <h3>Reports will appear here</h3>
-              <p>Once you deliver audits to clients, reports are tracked here for your records.</p>
+              <button class="btn btn-outline btn-sm">🔄 Rotate Keys</button>
+              <button class="btn btn-outline btn-sm">📋 View Usage Logs</button>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ══════════════════════
-           TAB: TEAM
-      ══════════════════════ -->
-      <div x-show="tab === 'team'">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">Team Members</div>
-            <button class="btn-sm btn-primary">+ Invite Agent</button>
+        <!-- Endpoints -->
+        <div class="glass">
+          <div class="card-title">📡 Core API Endpoints</div>
+          <div class="gap-12">
+            <div class="endpoint-row">
+              <div class="row"><span class="ep-method ep-post">POST</span><span class="ep-path">/api/v1/audit/submit</span></div>
+              <div class="ep-desc">Submit a lease PDF for full audit. Returns job_id. Supports multipart/form-data with jurisdiction, client_id, and lease_pdf fields.</div>
+            </div>
+            <div class="endpoint-row">
+              <div class="row"><span class="ep-method ep-get">GET</span><span class="ep-path">/api/v1/audit/{job_id}/status</span></div>
+              <div class="ep-desc">Poll audit progress. States: queued → ocr_running → extracting → auditing → human_review → complete.</div>
+            </div>
+            <div class="endpoint-row">
+              <div class="row"><span class="ep-method ep-get">GET</span><span class="ep-path">/api/v1/audit/{job_id}/report</span></div>
+              <div class="ep-desc">Download forensic report JSON or PDF. Includes all findings, clause references, and dispute amounts.</div>
+            </div>
+            <div class="endpoint-row">
+              <div class="row"><span class="ep-method ep-post">POST</span><span class="ep-path">/api/v1/clients/onboard</span></div>
+              <div class="ep-desc">Register a new client tenant under your partner account. Returns client_id for audit submissions.</div>
+            </div>
+            <div class="endpoint-row">
+              <div class="row"><span class="ep-method ep-get">GET</span><span class="ep-path">/api/v1/clients/{client_id}/portfolio</span></div>
+              <div class="ep-desc">Retrieve full audit history, monitoring status, and savings summary for a client.</div>
+            </div>
           </div>
-          <div class="card-body" style="padding:20px">
-            <template x-for="member in team" :key="member.id">
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--ts-border-def);border-radius:8px;margin-bottom:8px">
-                <div style="display:flex;align-items:center;gap:10px">
-                  <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--partner-600),#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px" x-text="member.initials"></div>
-                  <div>
-                    <div style="font-size:13px;font-weight:600" x-text="member.name"></div>
-                    <div style="font-size:11px;color:var(--ts-text2)" x-text="member.email"></div>
-                  </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:10px">
-                  <span class="badge" :class="member.role === 'admin' ? 'badge-active' : 'badge-inactive'" x-text="member.role === 'admin' ? 'Admin' : 'Agent'"></span>
-                  <div style="font-size:11px;color:var(--ts-text2)" x-text="member.clients + ' clients'"></div>
-                </div>
+        </div>
+
+        <!-- Code snippet -->
+        <div class="glass">
+          <div class="card-title" style="justify-content:space-between">
+            <span>💻 Quick Start — Submit Audit</span>
+            <div class="row" style="gap:6px">
+              <button class="btn btn-ghost btn-sm" :style="codeLang==='python' ? 'color:var(--teal)' : ''" @click="codeLang='python'">Python</button>
+              <button class="btn btn-ghost btn-sm" :style="codeLang==='node' ? 'color:var(--teal)' : ''" @click="codeLang='node'">Node.js</button>
+              <button class="btn btn-ghost btn-sm" :style="codeLang==='curl' ? 'color:var(--teal)' : ''" @click="codeLang='curl'">cURL</button>
+            </div>
+          </div>
+          <div class="code-block" x-html="codeSnippets[codeLang]"></div>
+        </div>
+
+      </div><!-- /left col -->
+
+      <div class="gap-16">
+
+        <!-- Webhooks -->
+        <div class="glass">
+          <div class="card-title">🔔 Webhooks</div>
+          <div class="gap-12">
+            <div>
+              <div class="form-label">Endpoint URL</div>
+              <input type="text" class="form-input" x-model="webhookUrl" placeholder="https://your-app.com/webhook">
+            </div>
+            <div>
+              <div class="form-label" style="margin-bottom:6px">Events</div>
+              <div class="gap-12" style="font-size:11px">
+                <label style="display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--accent)"> <code style="font-family:var(--mono);font-size:10px">audit.complete</code></label>
+                <label style="display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--accent)"> <code style="font-family:var(--mono);font-size:10px">audit.human_review_required</code></label>
+                <label style="display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" checked style="accent-color:var(--accent)"> <code style="font-family:var(--mono);font-size:10px">monitoring.alert_triggered</code></label>
+                <label style="display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" style="accent-color:var(--accent)"> <code style="font-family:var(--mono);font-size:10px">payment.invoice_anomaly</code></label>
               </div>
-            </template>
+            </div>
+            <div class="gap-12">
+              <div class="webhook-row"><div class="wh-dot wh-active"></div><span style="flex:1">audit.complete fired → your endpoint</span><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">2 min ago</span></div>
+              <div class="webhook-row"><div class="wh-dot wh-active"></div><span style="flex:1">monitoring.alert_triggered → 200 OK</span><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">1 hr ago</span></div>
+            </div>
+            <button class="btn btn-outline btn-sm" style="width:100%" disabled title="Phase 2 — not yet wired to a live webhook dispatcher">💾 Save &amp; Send Test Event</button>
           </div>
+        </div>
+
+        <!-- Rate limits & SLA -->
+        <div class="glass">
+          <div class="card-title">📊 Usage &amp; Rate Limits</div>
+          <div class="gap-12">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="background:rgba(0,0,0,0.15);border:1px solid var(--border);border-radius:var(--rs);padding:9px">
+                <div style="font-size:9px;color:var(--muted);text-transform:uppercase">API Calls (MTD)</div>
+                <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--blue)">1,247</div>
+                <div style="font-size:9px;color:var(--muted)">of 10,000 limit</div>
+              </div>
+              <div style="background:rgba(0,0,0,0.15);border:1px solid var(--border);border-radius:var(--rs);padding:9px">
+                <div style="font-size:9px;color:var(--muted);text-transform:uppercase">Concurrent Jobs</div>
+                <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--teal)">3 / 10</div>
+                <div style="font-size:9px;color:var(--muted)">max parallel</div>
+              </div>
+            </div>
+            <div style="background:var(--green-faint);border:1px solid rgba(16,185,129,0.2);border-radius:var(--rs);padding:9px;font-size:11px">
+              <strong style="color:var(--green)">✓ API Status: Operational</strong><br>
+              <span style="color:var(--muted)">Avg processing time: 47s · Uptime 99.98%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Docs link -->
+        <div class="glass" style="border:1px dashed rgba(0,245,212,0.2);background:var(--teal-faint)">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px">📖 Full API Documentation</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:12px">OpenAPI 3.0 spec · Postman collection · SDKs for Python, Node.js, Ruby</div>
+          <button class="btn btn-primary btn-sm" disabled title="Phase 2 — developer docs site not yet published">Open Developer Docs →</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TAB 6: B2B2C GOVERNANCE ============ -->
+<div class="tab" :class="{active: tab==='gov'}" id="tab-gov">
+  <div id="tab-gov-inner" style="padding:16px;overflow-y:auto;flex:1">
+
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:18px;font-weight:800;margin-bottom:4px">🔒 B2B2C Data Governance &amp; Ownership Model</div>
+      <div style="font-size:12px;color:var(--muted)">Definitive breakdown of who owns what — platform IP, client relationships, and tenant data are strictly separated.</div>
+    </div>
+
+    <!-- Flow arrows -->
+    <div class="flow-arrows">
+      <div class="flow-arrow" style="color:var(--teal);border-color:rgba(0,245,212,0.2)"><span class="fa-icon">⚙️</span> TenantSentry</div>
+      <div style="font-size:18px;color:var(--muted)">→</div>
+      <div class="flow-arrow" style="color:var(--purple);border-color:rgba(217,70,239,0.2)"><span class="fa-icon">👔</span> Partner provides AI-augmented advisory</div>
+      <div style="font-size:18px;color:var(--muted)">→</div>
+      <div class="flow-arrow" style="color:var(--blue);border-color:rgba(59,130,246,0.2)"><span class="fa-icon">🏢</span> Tenant receives protected outcome</div>
+    </div>
+
+    <!-- 3-lane swimlane -->
+    <div class="swim-lane">
+
+      <!-- TenantSentry Lane -->
+      <div class="lane lane-ts">
+        <div class="lane-header">
+          <span style="font-size:28px">⚙️</span>
+          <div>
+            <div style="font-size:14px;font-weight:800;color:var(--teal)">TenantSentry.ai</div>
+            <div style="font-size:10px;color:var(--muted)">Core Platform &amp; Intellectual Property</div>
+          </div>
+        </div>
+        <div class="lane-body">
+          <div class="lane-item"><div class="lane-item-dot ld-ts"></div><div class="lane-item-body"><strong>AI Audit Engine</strong><span>Proprietary OCR + LLM clause extractor, CPI calculator, land tax validator</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-ts"></div><div class="lane-item-body"><strong>State Legislation Database</strong><span>16 AU acts loaded · 8 jurisdictions — YAML-tagged rule engine</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-ts"></div><div class="lane-item-body"><strong>Hosting &amp; Security Infrastructure</strong><span>Supabase RLS · encrypted storage · MFA enforced</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-ts"></div><div class="lane-item-body"><strong>CAM Index Benchmarks</strong><span>Anonymised aggregated outgoings data — no single-tenant data exposed</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-ts"></div><div class="lane-item-body"><strong>Audit Quality Gate</strong><span>Human auditor portal — all AI findings reviewed before client delivery</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-ts"></div><div class="lane-item-body"><strong>Partner Portal (this interface)</strong><span>Full white-label config, client management, revenue tracking</span></div></div>
         </div>
       </div>
 
-      <!-- ══════════════════════
-           TAB: SETTINGS
-      ══════════════════════ -->
-      <div x-show="tab === 'settings'">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-
-          <div class="card">
-            <div class="card-header"><div class="card-title">Partner Profile</div></div>
-            <div class="card-body" style="padding:20px">
-              <div style="margin-bottom:14px">
-                <div style="font-size:11px;font-weight:600;color:var(--ts-text2);margin-bottom:5px">Firm Name</div>
-                <input style="width:100%;background:var(--ts-bg2);border:1px solid var(--ts-border-def);border-radius:6px;padding:8px 12px;color:var(--ts-text0);font-size:13px;font-family:inherit;outline:none" :value="partner.firm" />
-              </div>
-              <div style="margin-bottom:14px">
-                <div style="font-size:11px;font-weight:600;color:var(--ts-text2);margin-bottom:5px">Contact Email</div>
-                <input style="width:100%;background:var(--ts-bg2);border:1px solid var(--ts-border-def);border-radius:6px;padding:8px 12px;color:var(--ts-text0);font-size:13px;font-family:inherit;outline:none" :value="partner.email" />
-              </div>
-              <div style="margin-bottom:14px">
-                <div style="font-size:11px;font-weight:600;color:var(--ts-text2);margin-bottom:5px">Partner Type</div>
-                <select style="width:100%;background:var(--ts-bg2);border:1px solid var(--ts-border-def);border-radius:6px;padding:8px 12px;color:var(--ts-text0);font-size:13px;font-family:inherit;outline:none">
-                  <option>Tenant Rep Agency</option>
-                  <option>Bookkeeper</option>
-                  <option>Accountant</option>
-                  <option>Other</option>
-                </select>
-              </div>
-              <button class="btn-sm btn-primary" style="margin-top:4px">Save Changes</button>
-            </div>
+      <!-- Partner Lane -->
+      <div class="lane lane-pr">
+        <div class="lane-header">
+          <span style="font-size:28px">👔</span>
+          <div>
+            <div style="font-size:14px;font-weight:800;color:var(--purple)">Partner (Advisory Firm)</div>
+            <div style="font-size:10px;color:var(--muted)">Brand, Relationships &amp; Advisory</div>
           </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">White-Label Settings</div>
-              <span class="badge" :class="partner.whiteLabel ? 'badge-active' : 'badge-inactive'" x-text="partner.whiteLabel ? 'Enabled' : 'Disabled'"></span>
-            </div>
-            <div class="card-body" style="padding:20px">
-              <p style="font-size:13px;color:var(--ts-text3);margin-bottom:16px">
-                When enabled, audit reports are delivered under your firm's branding — not TenantSentry.ai.
-              </p>
-              <div style="margin-bottom:14px">
-                <div style="font-size:11px;font-weight:600;color:var(--ts-text2);margin-bottom:5px">Brand Name (override)</div>
-                <input style="width:100%;background:var(--ts-bg2);border:1px solid var(--ts-border-def);border-radius:6px;padding:8px 12px;color:var(--ts-text0);font-size:13px;font-family:inherit;outline:none" placeholder="e.g. Acme Tenant Advisory" :disabled="!partner.whiteLabel" />
-              </div>
-              <div style="margin-bottom:14px">
-                <div style="font-size:11px;font-weight:600;color:var(--ts-text2);margin-bottom:5px">Logo URL</div>
-                <input style="width:100%;background:var(--ts-bg2);border:1px solid var(--ts-border-def);border-radius:6px;padding:8px 12px;color:var(--ts-text0);font-size:13px;font-family:inherit;outline:none" placeholder="https://yourfirm.com/logo.png" :disabled="!partner.whiteLabel" />
-              </div>
-              <button class="btn-sm btn-ghost" @click="partner.whiteLabel = !partner.whiteLabel" x-text="partner.whiteLabel ? 'Disable white-label' : 'Enable white-label'"></button>
-            </div>
-          </div>
-
+        </div>
+        <div class="lane-body">
+          <div class="lane-item"><div class="lane-item-dot ld-pr"></div><div class="lane-item-body"><strong>White-Label Brand &amp; Subdomain</strong><span>Your firm's logo, colour palette, and custom subdomain — TenantSentry invisible to clients</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-pr"></div><div class="lane-item-body"><strong>Client Relationships</strong><span>You own all advisory mandates, engagement letters, and communication channels</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-pr"></div><div class="lane-item-body"><strong>Dispute Correspondence Approval</strong><span>All letters require partner sign-off before delivery — PI insurance gate maintained</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-pr"></div><div class="lane-item-body"><strong>Negotiation Playbook Customisation</strong><span>Custom advisory remarks layered on top of AI-generated clause recommendations</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-pr"></div><div class="lane-item-body"><strong>Feature Exposure Control</strong><span>Partner decides which services clients can see and access</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-pr"></div><div class="lane-item-body"><strong>Commission Revenue</strong><span>10–20% of all client payments processed through your account</span></div></div>
         </div>
       </div>
 
-    </div><!-- /page-content -->
-  </div><!-- /main-area -->
+      <!-- Tenant Lane -->
+      <div class="lane lane-tn">
+        <div class="lane-header">
+          <span style="font-size:28px">🏢</span>
+          <div>
+            <div style="font-size:14px;font-weight:800;color:var(--blue)">Client Tenant</div>
+            <div style="font-size:10px;color:var(--muted)">Their Data · Their Decisions</div>
+          </div>
+        </div>
+        <div class="lane-body">
+          <div class="lane-item"><div class="lane-item-dot ld-tn"></div><div class="lane-item-body"><strong>Signed Leases &amp; HoAs</strong><span>Original contract documents — tenant always retains full ownership and can request deletion at any time</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-tn"></div><div class="lane-item-body"><strong>Billing Statements &amp; Invoices</strong><span>Monthly landlord bills and EOFY reconciliation sheets uploaded by tenant</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-tn"></div><div class="lane-item-body"><strong>Xero OAuth Tokens</strong><span>Tenant-granted, tenant-revocable access to their accounting ledger. Never shared with landlord.</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-tn"></div><div class="lane-item-body"><strong>Audit Outcomes &amp; Savings</strong><span>All recovered amounts, dispute settlements, and claim history belong to the tenant exclusively</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-tn"></div><div class="lane-item-body"><strong>Compliance Vault Documents</strong><span>Insurance certificates, bank guarantees, lease amendments — hosted but tenant-owned</span></div></div>
+          <div class="lane-item"><div class="lane-item-dot ld-tn"></div><div class="lane-item-body"><strong>Right to Delete</strong><span>Privacy Act compliant. Tenant can request full data deletion at any time.</span></div></div>
+        </div>
+      </div>
 
-</div><!-- /app-layout -->
+    </div><!-- /swim-lane -->
 
-<!-- ═══════════════════════════════════════════
-     AUDIT DETAIL DRAWER
-═══════════════════════════════════════════ -->
+    <!-- Data flow rules -->
+    <div class="glass" style="margin-bottom:14px">
+      <div class="card-title">⚖️ Data Flow Rules — What Crosses Boundaries</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:4px">
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">TS → Partner (What we share)</div>
+          <div style="font-size:11px;padding:7px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(0,245,212,0.02)"><span style="color:var(--green)">✓</span> Audit findings &amp; report</div>
+          <div style="font-size:11px;padding:7px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(0,245,212,0.02)"><span style="color:var(--green)">✓</span> Commission statements</div>
+          <div style="font-size:11px;padding:7px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(0,245,212,0.02)"><span style="color:var(--green)">✓</span> Aggregated benchmarks</div>
+          <div style="font-size:11px;padding:7px;border-radius:var(--rs);border:1px solid rgba(244,63,94,0.15)"><span style="color:var(--red)">✗</span> Raw AI model weights (IP)</div>
+          <div style="font-size:11px;padding:7px;border-radius:var(--rs);border:1px solid rgba(244,63,94,0.15)"><span style="color:var(--red)">✗</span> Other tenants' data</div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Partner → Tenant (What you share)</div>
+          <div style="font-size:11px;padding:7px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(217,70,239,0.02)"><span style="color:var(--green)">✓</span> White-labeled audit report</div>
+          <div style="font-size:11px;padding:7px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(217,70,239,0.02)"><span style="color:var(--green)">✓</span> Approved dispute letters</div>
+          <div style="font-size:11px;padding:7px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(217,70,239,0.02)"><span style="color:var(--green)">✓</span> Compliance alerts</div>
+          <div style="font-size:11px;padding:7px;border-radius:var(--rs);border:1px solid rgba(244,63,94,0.15)"><span style="color:var(--red)">✗</span> Commission rates (your margin)</div>
+          <div style="font-size:11px;padding:7px;border-radius:var(--rs);border:1px solid rgba(244,63,94,0.15)"><span style="color:var(--red)">✗</span> Unapproved AI drafts</div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Tenant → TS (What we process)</div>
+          <div style="font-size:11px;padding:7px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(59,130,246,0.02)"><span style="color:var(--green)">✓</span> Lease PDF (securely stored, encrypted at rest)</div>
+          <div style="font-size:11px;padding:7px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(59,130,246,0.02)"><span style="color:var(--green)">✓</span> Outgoings statements</div>
+          <div style="font-size:11px;padding:7px;border:1px solid var(--border);border-radius:var(--rs);background:rgba(59,130,246,0.02)"><span style="color:var(--green)">✓</span> Invoice history (Xero)</div>
+          <div style="font-size:11px;padding:7px;border-radius:var(--rs);border:1px solid rgba(244,63,94,0.15)"><span style="color:var(--red)">✗</span> Financial passwords</div>
+          <div style="font-size:11px;padding:7px;border-radius:var(--rs);border:1px solid rgba(244,63,94,0.15)"><span style="color:var(--red)">✗</span> Identity docs</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ TAB 7: PRODUCTS ============ -->
+<div class="tab" :class="{active: tab==='products'}" :style="tab==='products' ? 'flex-direction:column;gap:0;padding:0;overflow:auto' : ''" id="tab-products">
+
+  <!-- sticky filter bar -->
+  <div style="position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-right:4px">📦 TenantSentry Products</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <span class="pill" :class="{active: prodFilter==='all'}" @click="prodFilter='all'">All</span>
+      <span class="pill" :class="{active: prodFilter==='live'}" @click="prodFilter='live'" style="color:var(--green)">✓ Live</span>
+      <span class="pill" :class="{active: prodFilter==='phase1'}" @click="prodFilter='phase1'" style="color:var(--blue)">⚡ Phase 1</span>
+      <span class="pill" :class="{active: prodFilter==='phase2'}" @click="prodFilter='phase2'" style="color:var(--purple)">🔮 Phase 2</span>
+      <span class="pill" :class="{active: prodFilter==='phase3'}" @click="prodFilter='phase3'" style="color:var(--muted)">🌐 Phase 3</span>
+    </div>
+    <div style="margin-left:auto;font-size:11px;color:var(--muted)" x-text="filteredProductCount + ' product' + (filteredProductCount!==1?'s':'') + ' shown'"></div>
+  </div>
+
+  <div style="padding:20px 24px;display:flex;flex-direction:column;gap:20px">
+
+    <template x-for="section in productSections" :key="section.id">
+      <div class="prod-section" x-show="productsBySection(section.id).length > 0" x-cloak>
+        <div class="prod-section-hdr">
+          <span class="day-pill" :style="'background:' + section.pillBg + ';color:' + section.pillColor" x-text="section.pillLabel"></span>
+          <span class="prod-section-title" x-text="section.title"></span>
+          <span class="prod-price-tag" :style="section.priceColor ? 'color:' + section.priceColor : ''" x-html="section.price"></span>
+        </div>
+        <div class="prod-grid">
+          <template x-for="p in productsBySection(section.id)" :key="p.id">
+            <div class="prod-card" :data-status="p.status">
+              <div class="prod-card-top">
+                <div class="prod-card-name" x-text="p.name"></div>
+              </div>
+              <div class="prod-card-desc" x-text="p.desc"></div>
+              <div class="prod-card-footer">
+                <span :class="'pstat pstat-' + p.status" x-text="productStatusLabel(p.status)"></span>
+                <span class="prod-id" x-text="p.id"></span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+  </div>
+</div>
+<!-- ═══════════════════════════════════════
+     AUDIT OVERLAY (iframe into /audit)
+═══════════════════════════════════════ -->
+<div class="audit-overlay" x-show="auditOverlayOpen" x-cloak style="position:fixed;inset:0;z-index:1000;background:rgba(5,8,20,0.88);backdrop-filter:blur(6px)" @keydown.escape.window="closeAuditOverlay()">
+  <div style="position:relative;width:min(1100px,96vw);height:90vh;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,0.6)">
+    <!-- header bar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.3);flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">📤 Upload Lease &amp; Run Audit</div>
+        <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Powered by TenantSentry.ai audit engine</span>
+      </div>
+      <button @click="closeAuditOverlay()" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:var(--font)">✕ Close</button>
+    </div>
+    <!-- iframe -->
+    <iframe :src="auditOverlayOpen ? '/audit' : ''" style="flex:1;border:none;width:100%;background:#050814" allowfullscreen></iframe>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     AUDIT DRAWER (ported, restyled via --ts-* / --partner-* aliases)
+═══════════════════════════════════════ -->
 <div x-data x-show="$store.auditDrawer.open" x-cloak style="display:none">
   <!-- overlay -->
   <div class="audit-drawer-overlay" @click="$store.auditDrawer.close()"></div>
@@ -1008,6 +1677,10 @@ body {
                       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
                         <div style="font-size:10px;font-weight:700;color:var(--partner-400);text-transform:uppercase;letter-spacing:0.5px">Email Draft</div>
                         <button class="btn-sm btn-ghost" style="font-size:10px;padding:2px 8px"
+                          @click.stop="openLetterModal(flag.negotiation_email)" title="Open as dispute letter">
+                          &#128196; Letter
+                        </button>
+                        <button class="btn-sm btn-ghost" style="font-size:10px;padding:2px 8px"
                           @click.stop="navigator.clipboard.writeText(flag.negotiation_email)" title="Copy to clipboard">
                           &#128203; Copy
                         </button>
@@ -1092,27 +1765,79 @@ body {
   </div><!-- /drawer -->
 </div><!-- /audit-drawer-wrapper -->
 
+<!-- ═══════════════════════════════════════
+     MODALS
+═══════════════════════════════════════ -->
 
-<!-- Add Client Modal -->
-<div x-data x-show="$store.partner.showAddClient" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:100" @click.self="$store.partner.showAddClient=false" x-cloak>
-  <div style="background:var(--ts-bg1);border:1px solid var(--ts-border-def);border-radius:14px;padding:28px;width:440px;max-width:90vw">
-    <div style="font-size:18px;font-weight:700;margin-bottom:6px">Add Client</div>
-    <div style="font-size:13px;color:var(--ts-text3);margin-bottom:20px">Link a tenant organisation to your partner account.</div>
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:600;color:var(--ts-text2);margin-bottom:5px">Client Business Name</div>
-      <input style="width:100%;background:var(--ts-bg2);border:1px solid var(--ts-border-def);border-radius:6px;padding:9px 12px;color:var(--ts-text0);font-size:13px;font-family:inherit;outline:none" placeholder="e.g. Smith Retail Pty Ltd" />
+<!-- Dispute Letter Modal -->
+<div class="modal-bg" :class="{open: letterModalOpen}" x-show="letterModalOpen" x-cloak @click.self="letterModalOpen=false">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">📄 Audit Dispute Letter</div>
+      <button class="modal-x" @click="letterModalOpen=false">✕</button>
     </div>
-    <div style="margin-bottom:20px">
-      <div style="font-size:11px;font-weight:600;color:var(--ts-text2);margin-bottom:5px">Client Email</div>
-      <input style="width:100%;background:var(--ts-bg2);border:1px solid var(--ts-border-def);border-radius:6px;padding:9px 12px;color:var(--ts-text0);font-size:13px;font-family:inherit;outline:none" placeholder="contact@client.com.au" />
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn-sm btn-outline" @click="$store.partner.showAddClient=false">Cancel</button>
-      <button class="btn-sm btn-primary">Send Invite</button>
+    <p style="font-size:11px;color:var(--muted);margin-top:-6px">Compiled by TenantSentry.ai &middot; Partner approval required before delivery</p>
+    <div class="letter-paper" x-text="letterContent"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn btn-outline" @click="letterModalOpen=false">Cancel</button>
+      <button class="btn btn-primary" @click="approveLetter()">✓ Approve &amp; Deliver to Client</button>
     </div>
   </div>
 </div>
 
+<!-- Onboard Client Modal -->
+<div class="modal-bg" :class="{open: $store.partner.showAddClient}" x-show="$store.partner.showAddClient" x-cloak @click.self="$store.partner.showAddClient=false">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">🚀 Onboard New Client Tenant</div>
+      <button class="modal-x" @click="$store.partner.showAddClient=false">✕</button>
+    </div>
+    <form @submit.prevent="submitOnboard()">
+      <div class="gap-16">
+        <div>
+          <label class="form-label">Company Legal Name</label>
+          <input type="text" class="form-input" x-model="onboardForm.name" required placeholder="e.g. Sydney Coffee Roasters Pty Ltd">
+        </div>
+        <div>
+          <label class="form-label">Primary Premises / Location</label>
+          <input type="text" class="form-input" x-model="onboardForm.location" required placeholder="e.g. Shop 2, 33 Pitt St, Sydney NSW">
+        </div>
+        <div class="grid2">
+          <div>
+            <label class="form-label">Lease Type</label>
+            <select class="form-select" x-model="onboardForm.leaseType">
+              <option>Retail Leases Act</option>
+              <option>Premium Office Net Lease</option>
+              <option>Industrial Double-Net</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Jurisdiction</label>
+            <select class="form-select" x-model="onboardForm.jurisdiction">
+              <option>VIC</option><option>NSW</option><option>QLD</option><option>WA</option><option>SA</option><option>ACT</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Assigned Advisor</label>
+          <select class="form-select" x-model="onboardForm.advisor">
+            <option>Simon King</option><option>Stephane Ibos</option><option>James Shanks</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Initial Service</label>
+          <select class="form-select" x-model="onboardForm.service">
+            <option value="d1">Day 1 — Full Lease Audit ($399)</option>
+            <option value="d0">Day 0 — HoA Scanner ($199)</option>
+            <option value="bundle">D0+D1 Bundle ($549)</option>
+            <option value="eofy">EOFY Outgoings Audit ($549)</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px">🚀 Onboard &amp; Initialise Audit</button>
+      </div>
+    </form>
+  </div>
+</div>
 <script>
 /* ═══════════════════════════════════════
    DEV MOCK AUDIT RESULT
@@ -1278,14 +2003,88 @@ document.addEventListener('alpine:init', () => {
   });
 });
 
+/* ═══════════════════════════════════════
+   PRODUCT CATALOGUE (33 entries — F-series feature map)
+═══════════════════════════════════════ */
+const PRODUCTS = [
+  // ── Day 0: Pre-Signing HoA (partners offer this pre-execution) ──
+  {section:"d0",   id:"F-HOA",      name:"HoA / LoI Scanner",                    desc:"Toxic terms, missing protections flagged. Partners run this before client signs.",     status:"phase1"},
+  {section:"d0",   id:"F-BENCH-HOA",name:"AI Term Sheet Benchmarking",            desc:"Rent, escalation, outgoings vs. market — gives partners an instant leverage brief.",   status:"phase1"},
+  {section:"d0",   id:"F-NEGPLAY",  name:"Negotiation Playbook Generator",        desc:"Custom clause-by-clause negotiation script. Partners deliver this as advisory value.", status:"phase2"},
+
+  // ── Day 1: Full Lease Audit (core partner service) ──
+  {section:"d1",   id:"F1",         name:"Lease PDF Upload & OCR",                desc:"Jurisdiction selector enforced. Partner uploads on behalf of client.",                 status:"live"},
+  {section:"d1",   id:"F2",         name:"LLM Rule Extractor + CPI Schema",       desc:"Extracts cpi_index_series, clause refs. LLM interprets; Python calculates.",          status:"live"},
+  {section:"d1",   id:"F4",         name:"Rent & CPI Checker",                    desc:"ABS SDMX API. Catches compounding errors landlords rely on going unnoticed.",          status:"live"},
+  {section:"d1",   id:"F5",         name:"Land Tax Validator (All Jurisdictions)", desc:"All 8 jurisdictions. RF005b–RF005i. Multi-holding (F5-FULL) Phase 3.",               status:"live"},
+  {section:"d1",   id:"F6",         name:"Outgoings Auditor (Basic)",              desc:"Capital vs. maintenance, unauthorised pass-throughs. Full EOFY requires F3.",         status:"phase1"},
+  {section:"d1",   id:"F7",         name:"State Legislation DB",                  desc:"red_flags.yaml jurisdiction-tagged. NSW/VIC/QLD/ACT statutes wired.",                 status:"live"},
+  {section:"d1",   id:"F-DATAGAP",  name:"Clause-Level Data Gap Resolution",      desc:"Per-clause: upload / enter / ignore. Keeps audit moving when data is missing.",       status:"phase1"},
+  {section:"d1",   id:"F8",         name:"Dispute Letter Generator",              desc:"Partner reviews AI draft before delivery. Labelled 'Commercial Risk Analysis.'",      status:"phase1"},
+  {section:"d1",   id:"F9",         name:"Forensic Discrepancy Report",           desc:"Source-grounded findings · boardroom PDF heat map · scope of audit.",                status:"phase1"},
+  {section:"d1",   id:"G6/F8-EV",   name:"Evidence Pack Generator",               desc:"5 PDF components per flag. /api/audit/evidence/{job_id}. PI insurance-ready.",       status:"live"},
+  {section:"d1",   id:"G4",         name:"Human Audit Gate (Auditor Portal)",     desc:"Mandatory for all clients. All AI findings reviewed before partner delivers.",        status:"live"},
+  {section:"d1",   id:"F11",        name:"Audit Centre UI",                       desc:"Three flag states: Complete / Clause Missing / Data Gap. Explain Reasoning modal.",   status:"phase1"},
+
+  // ── Bundle ──
+  {section:"bundle",id:"D0+D1",     name:"D0 + D1 Bundle",                        desc:"HoA Scanner + Full Lease Audit. Saves $49 vs. individual. Best conversion path.",    status:"phase1"},
+
+  // ── Day 2+: Monitoring & Billing Guard (partner resells as retained service) ──
+  {section:"d2",   id:"F10",        name:"Critical Date Alerts",                  desc:"Email/SMS/WhatsApp at 9, 6, 3 months. Pre-drafted Notice to Exercise Option.",        status:"phase1"},
+  {section:"d2",   id:"F14",        name:"Monthly Invoice Upload & Audit",        desc:"OCR → outgoings_parser → reconcile vs. clause → store. Ongoing billing guard.",       status:"live"},
+  {section:"d2",   id:"F16",        name:"Anomaly Monitor",                       desc:"Layer 1 (5 rule checks) + Layer 2 (4 trend checks). Email alert on anomaly.",         status:"live"},
+  {section:"d2",   id:"F12",        name:"Portfolio Dashboard",                   desc:"Partner sees all client leases, critical dates, savings in one view.",                status:"phase1"},
+  {section:"d2",   id:"F15",        name:"Xero Write-Back",                       desc:"Draft Bills only. Bookkeeper approval retained. Connects tenant's Xero.",             status:"phase2"},
+  {section:"d2",   id:"F17",        name:"CapEx vs. OpEx Classifier",             desc:"Claude + few-shot classification. Partners use to challenge capital disguised as opex.", status:"phase2"},
+  {section:"d2",   id:"F18",        name:"Savings Tracker",                       desc:"Cumulative recovery tracking per client. Partner-level rollup view.",                 status:"phase2"},
+  {section:"d2",   id:"F19",        name:"Compliance Vault",                      desc:"Certificates + expiry alerts. Partners manage on behalf of clients.",                 status:"phase2"},
+
+  // ── EOFY: Annual outgoings audit (peak season Aug–Oct) ──
+  {section:"eofy", id:"F3/EOFY",    name:"EOFY Outgoings Reconciliation Audit",  desc:"Landlord bill vs. lease schedule · unauthorised fees · RFI draft. Surge season tool.", status:"phase2"},
+  {section:"eofy", id:"F-MAKEGOOD", name:"Make-Good Cost Estimator",             desc:"If expiry within 12 months. Scope and cost estimate for make-good obligations.",       status:"phase2"},
+
+  // ── Phase 2: Intelligence + White-Label Channel API ──
+  {section:"p2",   id:"F23",        name:"White-Label API (F23)",                 desc:"Embed full audit engine into partner portal or CRM. REST API + webhooks. Core of B2B2C.", status:"phase2"},
+  {section:"p2",   id:"F20",        name:"Audit Outcome Database",                desc:"Stores AI flags, manual flags, feedback. Powers F21+F22 intelligence.",               status:"phase2"},
+  {section:"p2",   id:"F21",        name:"LBCS — Landlord Billing Compliance Score",desc:"Landlord risk score. Partners use pre-signing to advise clients on landlord quality.", status:"phase2"},
+  {section:"p2",   id:"F22",        name:"CAM Index — Submarket Benchmarks",      desc:"Outgoings benchmarks by submarket. Gives partners data to back negotiation.",         status:"phase2"},
+  {section:"p2",   id:"F24",        name:"Volume Bundle Pricing",                 desc:"Tiered pricing for high-volume partners. Reduces per-audit cost at scale.",            status:"phase2"},
+  {section:"p2",   id:"F25",        name:"Dispute Lifecycle Tracker",             desc:"Full dispute tracking: flag → letter → tribunal → settled. Partner case management.",  status:"phase2"},
+  {section:"p2",   id:"G10",        name:"Parent Entity Mapping Registry",        desc:"landlord_entity table. Required before F21 LBCS marketed. Handles related parties.",  status:"phase2"},
+
+  // ── Phase 3: Pre-Signing Intelligence ──
+  {section:"p3",   id:"F26",        name:"Landlord Check (Pre-Signing)",          desc:"Risk-profile a landlord before client signs. Requires F21 with 100+ landlords.",      status:"phase3"},
+  {section:"p3",   id:"F27",        name:"Pre-Signing Clause Intelligence",        desc:"Predictive clause risk based on similar leases. Depends F20+F21+F22.",               status:"phase3"},
+  {section:"p3",   id:"F29",        name:"Lease Renewal Strategy Engine",         desc:"Full renewal recommendation. Depends F20+F21+F22+F25. Partner's retention tool.",     status:"phase3"},
+  {section:"p3",   id:"F30",        name:"CoreLogic + Multi-Holding Land Tax",    desc:"Commercial API. Unlocks F5-FULL. Adds landlord property network intelligence.",        status:"phase3"},
+  {section:"p3",   id:"F28",        name:"HVAC & Asset Life Tracker",             desc:"NNN leases. Partners use to challenge capital replacement invoices.",                  status:"phase3"},
+  {section:"p3",   id:"F31",        name:"Partner API (Bookkeepers/Accountants)", desc:"Accounting firm channel. Depends F15+F23. Extends partner ecosystem.",               status:"phase3"},
+];
+
+/* ═══════════════════════════════════════
+   PARTNER APP (Alpine root component)
+═══════════════════════════════════════ */
 function partnerApp() {
   return {
-    tab: 'clients',
+    tab: 'cmd',
     filter: 'all',
     search: '',
     userMenu: false,
     mode: 'dev',
-    showAddClient: false,
+
+    selectedClient: null,
+    auditOverlayOpen: false,
+    letterModalOpen: false,
+    letterContent: '',
+
+    onboardForm: {
+      name: '',
+      location: '',
+      leaseType: '',
+      jurisdiction: '',
+      advisor: '',
+      service: 'd1',
+    },
 
     partner: {
       name: 'Demo Partner',
@@ -1295,7 +2094,15 @@ function partnerApp() {
       whiteLabel: false,
     },
 
-    clients: [
+    /* ── Live data (populated from API; empty until /api/* returns something) ── */
+    liveClients: [],
+    liveRecentAudits: [],
+    livePendingReviewList: [],
+    liveActivityFeed: [],
+    liveStats: null,
+
+    /* ── Demo/seed data (shown only in Dev mode) ── */
+    seedClients: [
       { id: 1, name: 'Smith Retail Pty Ltd',    location: 'Sydney CBD, NSW',    agent: 'Demo Partner', leases: 3, status: 'active',   savings: 12400 },
       { id: 2, name: 'Green Bean Café Group',    location: 'Melbourne, VIC',     agent: 'Demo Partner', leases: 5, status: 'review',   savings: 8750  },
       { id: 3, name: 'FastFit Gyms Australia',   location: 'Brisbane, QLD',      agent: 'Demo Partner', leases: 8, status: 'active',   savings: 31200 },
@@ -1303,15 +2110,15 @@ function partnerApp() {
       { id: 5, name: 'Harbour View Dental',      location: 'North Sydney, NSW',  agent: 'Demo Partner', leases: 1, status: 'active',   savings: 4100  },
     ],
 
-    recentAudits: [
+    seedRecentAudits: [
       // job_id: null means DEV mode — drawer shows mock data
       // In LIVE mode, replace with real UUID from audit_run table
-      { id: 1, client: 'Smith Retail Pty Ltd',  property: '420 George St, Sydney',   status: 'active',   job_id: null },
-      { id: 2, client: 'Green Bean Café Group',  property: '18 Bourke St, Melbourne', status: 'review',   job_id: null },
-      { id: 3, client: 'FastFit Gyms Australia', property: '222 Queen St, Brisbane',  status: 'inactive', job_id: null },
+      { id: 1, client: 'Smith Retail Pty Ltd',  property: '420 George St, Sydney',   status: 'active',   job_id: null, date: '2 Jun 2026'  },
+      { id: 2, client: 'Green Bean Café Group',  property: '18 Bourke St, Melbourne', status: 'review',   job_id: null, date: '28 May 2026' },
+      { id: 3, client: 'FastFit Gyms Australia', property: '222 Queen St, Brisbane',  status: 'inactive', job_id: null, date: '15 May 2026' },
     ],
 
-    pendingReviewList: [
+    seedPendingReviewList: [
       { id: 1, client: 'Green Bean Café Group', date: 'Completed 2 Jun 2026', job_id: null },
     ],
 
@@ -1319,13 +2126,97 @@ function partnerApp() {
       { id: 1, name: 'Demo Partner', initials: 'DP', email: 'partner@tenantsentry.ai', role: 'admin', clients: 5 },
     ],
 
+    seedActivityFeed: [
+      { color: 'green', msg: '<strong>Smith Retail Pty Ltd</strong> audit completed — $12,400 recovered', time: '2 hours ago' },
+      { color: 'amber', msg: '<strong>Green Bean Café Group</strong> audit ready for sign-off', time: '5 hours ago' },
+      { color: 'blue',  msg: 'New lease uploaded for <strong>FastFit Gyms Australia</strong>', time: '1 day ago' },
+      { color: 'green', msg: '<strong>Harbour View Dental</strong> CPI overcharge dispute settled — $4,100 recovered', time: '3 days ago' },
+    ],
+
+    /* ── White-Label Studio ── */
+    whiteLabel: {
+      subdomain: 'demo-partner',
+      brandName: 'Demo Partner Advisory',
+      accent: '#00f5d4',
+      allowUploads: true,
+      showAiLogs: false,
+      showDraftLetters: false,
+      xeroWriteback: false,
+      showLbcs: false,
+    },
+    accentSwatches: [
+      { col: '#00f5d4', name: 'Teal'   },
+      { col: '#d946ef', name: 'Purple' },
+      { col: '#3b82f6', name: 'Blue'   },
+      { col: '#f59e0b', name: 'Amber'  },
+      { col: '#f43f5e', name: 'Rose'   },
+      { col: '#8b5cf6', name: 'Violet' },
+      { col: '#ec4899', name: 'Pink'   },
+    ],
+
+    /* ── API & Developer ── */
+    apiKeys: {
+      live: 'ts_live_k9x2Lp7qR3mN8vXyZ1aB2cD3eF4gH5iJ',
+      test: 'ts_test_a1B2c3D4e5F6g7H8i9J0kL1mN2oP3qR4sT5u',
+      liveRevealed: false,
+      testRevealed: false,
+    },
+    codeLang: 'python',
+    codeSnippets: {
+      python:`<span class="kw">import</span> requests\n\n<span class="cm"># Submit lease PDF for audit</span>\nurl = <span class="str">"https://api.tenantsentry.ai/v1/audit/submit"</span>\nheaders = {<span class="str">"Authorization"</span>: <span class="str">"Bearer ts_live_k9x2Lp7q..."</span>}\n\nfiles = {<span class="str">"lease_pdf"</span>: open(<span class="str">"lease.pdf"</span>, <span class="str">"rb"</span>)}\ndata  = {\n    <span class="str">"client_id"</span>:   <span class="str">"cli_coastal_brew"</span>,\n    <span class="str">"jurisdiction"</span>: <span class="str">"VIC"</span>,\n    <span class="str">"notify_url"</span>:   <span class="str">"https://your-app.com/webhook"</span>\n}\n\nr = requests.post(url, headers=headers, files=files, data=data)\njob = r.json()[<span class="str">"job_id"</span>]\nprint(<span class="str">f"Audit submitted: {job}"</span>)`,
+      node:`<span class="kw">const</span> FormData = require(<span class="str">'form-data'</span>);\n<span class="kw">const</span> fs = require(<span class="str">'fs'</span>);\n<span class="kw">const</span> axios = require(<span class="str">'axios'</span>);\n\n<span class="cm">// Submit lease PDF for audit</span>\n<span class="kw">const</span> form = <span class="kw">new</span> FormData();\nform.append(<span class="str">'lease_pdf'</span>, fs.createReadStream(<span class="str">'lease.pdf'</span>));\nform.append(<span class="str">'client_id'</span>, <span class="str">'cli_coastal_brew'</span>);\nform.append(<span class="str">'jurisdiction'</span>, <span class="str">'VIC'</span>);\n\n<span class="kw">const</span> res = <span class="kw">await</span> axios.post(\n  <span class="str">'https://api.tenantsentry.ai/v1/audit/submit'</span>,\n  form,\n  { headers: { <span class="str">'Authorization'</span>: <span class="str">'Bearer ts_live_k9x2Lp7q...'</span>, ...form.getHeaders() }}\n);\nconsole.log(<span class="str">'Job ID:'</span>, res.data.job_id);`,
+      curl:`<span class="cm"># Submit lease PDF for audit</span>\ncurl -X POST \\\n  https://api.tenantsentry.ai/v1/audit/submit \\\n  -H <span class="str">"Authorization: Bearer ts_live_k9x2Lp7q..."</span> \\\n  -F <span class="str">"lease_pdf=@lease.pdf"</span> \\\n  -F <span class="str">"client_id=cli_coastal_brew"</span> \\\n  -F <span class="str">"jurisdiction=VIC"</span> \\\n  -F <span class="str">"notify_url=https://your-app.com/webhook"</span>\n\n<span class="cm"># Response: {"job_id":"job_abc123","status":"queued"}</span>`,
+    },
+    webhookUrl: '',
+
+    /* ── Products ── */
+    prodFilter: 'all',
+    PRODUCTS: PRODUCTS,
+    productSections: [
+      { id:'d0',     pillBg:'rgba(59,130,246,0.12)',  pillColor:'var(--blue)',   pillLabel:'Day 0',   title:'HoA Pre-Signing Scanner',         price:'$199',                                                                  priceColor:'' },
+      { id:'d1',     pillBg:'rgba(0,245,212,0.12)',   pillColor:'var(--teal)',   pillLabel:'Day 1',   title:'Full Lease Audit',                price:'$399 <span style="font-weight:400;font-size:10px;opacity:.7">incl. 12mo monitoring</span>', priceColor:'' },
+      { id:'bundle', pillBg:'rgba(217,70,239,0.12)',  pillColor:'var(--purple)', pillLabel:'Bundle',  title:'D0 + D1 Bundle',                  price:'$549 <span style="font-weight:400;font-size:10px;opacity:.7">save $49</span>',              priceColor:'var(--purple)' },
+      { id:'d2',     pillBg:'rgba(59,130,246,0.12)',  pillColor:'var(--blue)',   pillLabel:'Day 2+',  title:'Monitoring + Billing Guard',      price:'Free yr 1 · $49/mo from M13',                                          priceColor:'' },
+      { id:'eofy',   pillBg:'rgba(245,158,11,0.12)',  pillColor:'var(--amber)',  pillLabel:'EOFY',    title:'Annual Outgoings Audit',          price:'$549',                                                                  priceColor:'var(--amber)' },
+      { id:'p2',     pillBg:'rgba(217,70,239,0.12)',  pillColor:'var(--purple)', pillLabel:'Phase 2', title:'Intelligence Layer + Channel API',price:'TBD',                                                                   priceColor:'var(--muted)' },
+      { id:'p3',     pillBg:'rgba(255,255,255,0.05)', pillColor:'var(--muted)',  pillLabel:'Phase 3', title:'Pre-Signing Intelligence',        price:'Roadmap',                                                               priceColor:'var(--muted)' },
+    ],
+
+    /* ── Getters ── */
+    /* Dev mode shows seed/demo data; Live mode shows only data returned by the API
+       (empty arrays/null if nothing has come back yet — visuals stay in place but empty). */
+    get clients() {
+      return this.mode === 'live' ? this.liveClients : this.seedClients;
+    },
+    get recentAudits() {
+      return this.mode === 'live' ? this.liveRecentAudits : this.seedRecentAudits;
+    },
+    get pendingReviewList() {
+      return this.mode === 'live' ? this.livePendingReviewList : this.seedPendingReviewList;
+    },
+    get activityFeed() {
+      return this.mode === 'live' ? this.liveActivityFeed : this.seedActivityFeed;
+    },
+    get stats() {
+      return this.mode === 'live' ? this.liveStats : null;
+    },
     get totalSavings() {
+      if (this.stats && typeof this.stats.total_savings === 'number') return this.stats.total_savings;
       return this.clients.reduce((s, c) => s + (c.savings || 0), 0);
     },
+    get inDisputeSavings() {
+      return this.clients.filter(c => c.status === 'review').reduce((s, c) => s + (c.savings || 0), 0);
+    },
     get revenueShare() {
+      if (this.stats && typeof this.stats.revenue_share === 'number') return this.stats.revenue_share;
       return Math.round(this.totalSavings * 0.03);
     },
+    get activeClients() {
+      if (this.stats && typeof this.stats.total_clients === 'number') return this.stats.total_clients;
+      return this.clients.length;
+    },
     get activeAudits() {
+      if (this.stats && typeof this.stats.active_audits === 'number') return this.stats.active_audits;
       return this.recentAudits.filter(a => a.status === 'active').length;
     },
     get pendingAudits() {
@@ -1340,17 +2231,78 @@ function partnerApp() {
         return matchFilter && matchSearch;
       });
     },
+    get filteredProductCount() {
+      return this.PRODUCTS.filter(p => this.prodFilter === 'all' || p.status === this.prodFilter).length;
+    },
 
+    /* ── Methods ── */
     statusLabel(s) {
       return { active: 'Active', review: 'Needs Review', inactive: 'Inactive', overdue: 'Overdue' }[s] || s;
     },
 
-    tabTitle() {
-      return { clients: 'Clients', audits: 'Audits', reports: 'Reports', team: 'Team', settings: 'Settings' }[this.tab] || '';
+    viewClient(client) {
+      this.selectedClient = client;
     },
 
-    viewClient(client) { alert('Client detail view — coming soon.\n\n' + client.name); },
-    runAudit(client)   { this.tab = 'audits'; },
+    clientAudits(client) {
+      if (!client) return [];
+      return this.recentAudits.filter(a => a.client === client.name);
+    },
+
+    runAudit(client) {
+      this.selectedClient = client;
+      this.openAuditOverlay();
+    },
+
+    openAuditOverlay() {
+      this.auditOverlayOpen = true;
+    },
+    closeAuditOverlay() {
+      this.auditOverlayOpen = false;
+    },
+
+    openLetterModal(text) {
+      this.letterContent = text || 'No dispute letter draft is available for this flag yet.';
+      this.letterModalOpen = true;
+    },
+    approveLetter() {
+      this.letterModalOpen = false;
+      this.activityFeed.unshift({ color: 'green', msg: 'Dispute letter approved and queued for delivery', time: 'Just now' });
+    },
+
+    saveWhiteLabel() {
+      this.activityFeed.unshift({ color: 'blue', msg: 'White-label configuration saved for <strong>' + (this.whiteLabel.brandName || 'your firm') + '</strong>', time: 'Just now' });
+    },
+
+    copyText(text) {
+      navigator.clipboard?.writeText(text).catch(() => {});
+    },
+
+    productsBySection(sectionId) {
+      return this.PRODUCTS.filter(p => p.section === sectionId && (this.prodFilter === 'all' || p.status === this.prodFilter));
+    },
+    productStatusLabel(status) {
+      return { live: '✓ Live', phase1: '⚡ Phase 1', phase2: '🔮 Phase 2', phase3: '🌐 Phase 3' }[status] || status;
+    },
+
+    submitOnboard() {
+      if (!this.onboardForm.name) return;
+      const newClient = {
+        id: 'new-' + Date.now(),
+        name: this.onboardForm.name,
+        location: this.onboardForm.location || 'Location TBC',
+        agent: this.partner.name,
+        leases: 1,
+        status: 'overdue',
+        savings: 0,
+      };
+      this.clients.push(newClient);
+      this.activityFeed.unshift({ color: 'blue', msg: 'New client <strong>' + newClient.name + '</strong> onboarded', time: 'Just now' });
+      this.$store.partner.showAddClient = false;
+      this.onboardForm = { name: '', location: '', leaseType: '', jurisdiction: '', advisor: '', service: 'd1' };
+      this.tab = 'cmd';
+      this.selectedClient = newClient;
+    },
 
     async logout() {
       try { await fetch('/api/partners/logout', { method: 'POST' }); } finally {
@@ -1364,33 +2316,24 @@ function partnerApp() {
         const data = await res.json();
         this.mode  = data.mode;
       } catch (_) {}
+
+      try {
+        const res  = await fetch('/api/partners/clients');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) this.liveClients = data;
+        }
+      } catch (_) { /* liveClients stays empty — Live mode shows empty state */ }
+
+      try {
+        const res = await fetch('/api/partners/stats');
+        if (res.ok) {
+          this.liveStats = await res.json();
+        }
+      } catch (_) { /* liveStats stays null — live getters fall back to 0 */ }
     },
   };
 }
-</script>
-<script>
-function tsApplyThemeIcons() {
-  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  var moon = document.getElementById('ts-icon-moon');
-  var sun  = document.getElementById('ts-icon-sun');
-  if (!moon || !sun) return;
-  moon.style.display = isLight ? 'none'  : 'block';
-  sun.style.display  = isLight ? 'block' : 'none';
-  var btn = document.getElementById('ts-theme-btn');
-  if (btn) {
-    btn.style.borderColor = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.07)';
-    btn.style.background  = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.035)';
-  }
-}
-function tsToggleTheme() {
-  var current = document.documentElement.getAttribute('data-theme') || 'dark';
-  var next    = current === 'light' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('ts-theme', next);
-  tsApplyThemeIcons();
-}
-document.addEventListener('DOMContentLoaded', tsApplyThemeIcons);
-tsApplyThemeIcons();
 </script>
 
 </body>

@@ -13,6 +13,12 @@
   function init() {
     if (document.getElementById('ts-mode-pill')) return; // already injected
 
+    /* Pages with their own built-in DEV/LIVE toggle (e.g. the partner
+       portal's Alpine-driven .mode-toggle) don't need this injected pill —
+       and without a #ts-theme-btn anchor it falls back to a fixed
+       top-right position that overlaps that page's own UI. */
+    if (document.querySelector('.mode-toggle')) return;
+
     /* ── Create pill ── */
     var pill = document.createElement('button');
     pill.id = 'ts-mode-pill';
