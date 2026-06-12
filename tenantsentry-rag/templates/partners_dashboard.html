@@ -433,7 +433,7 @@ header{height:54px;padding:0 20px;display:flex;align-items:center;justify-conten
   </div>
 
   <div class="header-right">
-    <div class="mode-toggle" :class="{'is-live': mode === 'live'}" @click="mode = mode === 'dev' ? 'live' : 'dev'; selectedClient = null" :title="mode === 'dev' ? 'Showing demo data — click to switch to live data' : 'Showing live data — click to switch to demo data'">
+    <div class="mode-toggle" :class="{'is-live': mode === 'live'}" @click="toggleMode()" :title="mode === 'dev' ? 'Showing demo data — click to switch to live data' : 'Showing live data — click to switch to demo data'">
       <span class="mode-toggle-track"><span class="mode-toggle-thumb"></span></span>
       <span class="mode-toggle-label" x-text="mode === 'dev' ? 'Dev' : 'Live'"></span>
     </div>
@@ -2333,6 +2333,8 @@ function partnerApp() {
         this.mode  = data.mode;
       } catch (_) {}
 
+      this._startModeSync();
+
       try {
         const res  = await fetch('/api/partners/clients');
         if (res.ok) {
@@ -2392,6 +2394,40 @@ function partnerApp() {
           if (Array.isArray(data?.clients)) this.liveClients = data.clients;
         }
       } catch (_) {}
+    },
+
+    // ── DEV / LIVE mode toggle ─────────────────────────────────────────────
+    // This is the ONE shared toggle (api/mode.py, GET /api/mode, POST
+    // /api/admin/mode/toggle). Every other page's toggle (injected by
+    // static/mode-toggle.js) reads/writes the same server-side state, so
+    // flipping the mode here flips it everywhere.
+    async toggleMode() {
+      this.selectedClient = null;
+      try {
+        const res  = await fetch('/api/admin/mode/toggle', { method: 'POST' });
+        const data = await res.json();
+        this.mode  = data.mode;
+      } catch (_) {
+        // Backend unreachable — fall back to a local-only flip so the UI
+        // still responds, but it won't be in sync with other pages.
+        this.mode = this.mode === 'dev' ? 'live' : 'dev';
+      }
+      if (this.mode === 'live') this.refreshStats();
+    },
+
+    // Poll for mode changes made from other portals (auditor, login, etc.)
+    // so this dashboard stays in sync without a manual refresh.
+    _startModeSync() {
+      setInterval(async () => {
+        try {
+          const res  = await fetch('/api/mode');
+          const data = await res.json();
+          if (data.mode !== this.mode) {
+            this.mode = data.mode;
+            if (this.mode === 'live') this.refreshStats();
+          }
+        } catch (_) {}
+      }, 8000);
     },
   };
 }
